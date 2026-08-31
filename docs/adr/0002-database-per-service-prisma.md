@@ -33,7 +33,7 @@ passent par les API (`libs/contracts/api`) ou les événements RabbitMQ
 - ➖ Pas de jointure SQL inter-services : les vues agrégées se construisent via
   composition d'API (au niveau `api-gateway`) ou via des projections alimentées
   par événements (typiquement `analytics-service`).
-- ➖ La cohérence inter-services est *éventuelle* (propagée par événements), pas
+- ➖ La cohérence inter-services est _éventuelle_ (propagée par événements), pas
   transactionnelle.
 
 ## Portée

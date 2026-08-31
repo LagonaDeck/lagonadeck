@@ -38,8 +38,8 @@ proprement, dans le socle Docker.
 - **HTTP** : un service est répliqué (`docker compose up --scale <service>=N`) derrière
   un reverse proxy (Traefik/nginx) ou via `api-gateway`. Les N replicas exécutent la
   même image.
-- **Événementiel (RabbitMQ)** : plusieurs replicas d'un service sont des *competing
-  consumers* sur la même queue ; RabbitMQ répartit la charge. Aucune configuration
+- **Événementiel (RabbitMQ)** : plusieurs replicas d'un service sont des _competing
+  consumers_ sur la même queue ; RabbitMQ répartit la charge. Aucune configuration
   liée au monorepo n'intervient.
 
 Les services étant sans état partagé (chacun sa base — [ADR 0002](0002-database-per-service-prisma.md))

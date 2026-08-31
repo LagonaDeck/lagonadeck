@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  prettier:
+    name: Prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  label-pr:
+    name: PR labels
+    needs:
+      - prettier
+      - lint
+      - test
+    if: >-
+      ${{
+        always() && github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.fork == false
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          PRETTIER_RESULT: ${{ needs.prettier.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+        with:
+          script: |
+            const testPassed = process.env.TEST_RESULT === 'success';
+            const qualityPassed =
+              process.env.PRETTIER_RESULT === 'success' &&
+              process.env.LINT_RESULT === 'success';
+
+            async function applyOutcome(successLabel, failureLabel, passed) {
+              for (const label of [successLabel, failureLabel]) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    name: label,
+                  });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: [passed ? successLabel : failureLabel],
+              });
+            }
+
+            await applyOutcome('Tests réussis', 'Tests échoués', testPassed);
+            await applyOutcome(
+              'Code Quality réussie',
+              'Code Quality échouée',
+              qualityPassed,
+            );

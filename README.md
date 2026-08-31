@@ -92,6 +92,12 @@ npx nx run-many -t build
 
 > Le client Prisma généré (`apps/*/src/generated/`) et les fichiers `.env` ne sont pas versionnés. Les URLs de connexion et l'infrastructure locale (PostgreSQL, RabbitMQ et stockage objet) restent à configurer.
 
+## Qualité et contribution
+
+Les contrôles locaux et CI, le hook Lefthook, les labels de pull request et le
+flux de branches sont documentés dans
+[docs/development/quality-and-git-workflow.md](docs/development/quality-and-git-workflow.md).
+
 ## Objectif du projet
 
 LagonaDeck est réalisé dans le cadre d'un **projet académique en informatique** par une équipe de quatre développeurs.
