@@ -1,0 +1,33 @@
+// Schéma Prisma généré pour Prisma 7.
+// La datasource ne porte que le provider : l'URL de connexion vit dans
+// prisma.config.ts (variable d'environnement DATABASE_URL) et le client
+// reçoit un driver adapter (@prisma/adapter-pg) au runtime.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Modèle de démarrage — métadonnées des médias (les binaires vont sur l'object storage).
+model MediaAsset {
+  id          String      @id @default(uuid())
+  ownerId     String
+  storageKey  String      @unique
+  contentType String
+  sizeBytes   Int
+  width       Int?
+  height      Int?
+  status      MediaStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  FAILED
+}
