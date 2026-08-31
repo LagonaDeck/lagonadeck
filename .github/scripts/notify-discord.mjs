@@ -47,6 +47,66 @@ async function commitFor({ apiUrl, repository, sha, token }) {
   }
 }
 
+async function commitsForPullRequest({ apiUrl, repository, number, token }) {
+  if (!number || !token) return [];
+  const commits = [];
+  for (let page = 1; page <= 100; page += 1) {
+    try {
+      const response = await fetch(
+        `${apiUrl}/repos/${repository}/pulls/${number}/commits?per_page=100&page=${page}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
+          },
+        },
+      );
+      if (!response.ok) return commits;
+      const pageCommits = await response.json();
+      if (!Array.isArray(pageCommits) || pageCommits.length === 0) break;
+      commits.push(...pageCommits);
+      if (pageCommits.length < 100) break;
+    } catch (error) {
+      console.warn(`Unable to retrieve pull request commits: ${error.message}`);
+      break;
+    }
+  }
+  return commits;
+}
+
+function commitListFields(commits) {
+  const lines = commits.map((item) => {
+    const itemSha = item.sha || '';
+    const message = truncate(
+      escapeMentions(
+        item.commit?.message?.split('\n')[0] || 'Message indisponible',
+      ),
+      180,
+    );
+    const label = `\`${itemSha.slice(0, 7)}\` - ${message}`;
+    return item.html_url ? `[${label}](${item.html_url})` : label;
+  });
+  const chunks = [];
+  let chunk = '';
+  for (const line of lines) {
+    if (chunk && `${chunk}\n${line}`.length > 950) {
+      chunks.push(chunk);
+      chunk = line;
+    } else {
+      chunk = chunk ? `${chunk}\n${line}` : line;
+    }
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks.map((value, index) => ({
+    name:
+      index === 0
+        ? `📚 Commits de la PR (${commits.length})`
+        : '📚 Commits de la PR (suite)',
+    value,
+    inline: false,
+  }));
+}
+
 async function errorExcerpt(logPath) {
   if (!logPath) return 'Le journal de l’étape est indisponible.';
   try {
@@ -110,6 +170,14 @@ const presentation = {
 
 const pr = event.pull_request;
 const sha = pr?.head?.sha || process.env.GITHUB_SHA;
+const pullRequestCommits = pr
+  ? await commitsForPullRequest({
+      apiUrl: process.env.GITHUB_API_URL || 'https://api.github.com',
+      repository: process.env.GITHUB_REPOSITORY,
+      number: pr.number,
+      token: process.env.GITHUB_TOKEN,
+    })
+  : [];
 const commit = await commitFor({
   apiUrl: process.env.GITHUB_API_URL || 'https://api.github.com',
   repository: process.env.GITHUB_REPOSITORY,
@@ -176,6 +244,8 @@ if (pr) {
   });
 }
 fields.push({ name: '📝 Commit', value: commitValue, inline: false });
+if (pullRequestCommits.length)
+  fields.push(...commitListFields(pullRequestCommits));
 
 if (status === 'failure') {
   fields.push(
