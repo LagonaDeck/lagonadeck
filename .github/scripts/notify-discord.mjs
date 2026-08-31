@@ -74,7 +74,7 @@ async function commitsForPullRequest({ apiUrl, repository, number, token }) {
   return commits;
 }
 
-function commitListFields(commits) {
+function commitListFields(commits, commitsUrl) {
   const lines = commits.map((item) => {
     const itemSha = item.sha || '';
     const message = truncate(
@@ -86,25 +86,30 @@ function commitListFields(commits) {
     const label = `\`${itemSha.slice(0, 7)}\` - ${message}`;
     return item.html_url ? `[${label}](${item.html_url})` : label;
   });
-  const chunks = [];
-  let chunk = '';
+  const fullListLink = commitsUrl
+    ? `\n[Voir tous les commits sur GitHub](${commitsUrl})`
+    : '';
+  const suffix = `\n… ${commits.length} commits au total${fullListLink}`;
+  let value = '';
+  let complete = true;
   for (const line of lines) {
-    if (chunk && `${chunk}\n${line}`.length > 950) {
-      chunks.push(chunk);
-      chunk = line;
-    } else {
-      chunk = chunk ? `${chunk}\n${line}` : line;
+    const candidate = value ? `${value}\n${line}` : line;
+    if (`${candidate}${suffix}`.length > 950) {
+      complete = false;
+      break;
     }
+    value = candidate;
   }
-  if (chunk) chunks.push(chunk);
-  return chunks.map((value, index) => ({
-    name:
-      index === 0
-        ? `📚 Commits de la PR (${commits.length})`
-        : '📚 Commits de la PR (suite)',
-    value,
-    inline: false,
-  }));
+  if (!complete) value = `${value}${suffix}`;
+  else if (commitsUrl)
+    value = `${value}\n[Voir la liste complète sur GitHub](${commitsUrl})`;
+  return [
+    {
+      name: `📚 Commits de la PR (${commits.length})`,
+      value: truncate(value, maxFieldLength),
+      inline: false,
+    },
+  ];
 }
 
 async function errorExcerpt(logPath) {
@@ -147,14 +152,31 @@ const checks = [
     log: process.env.TEST_LOG,
   },
 ];
+const installChecks = [
+  {
+    name: 'Installation des dépendances (Prettier)',
+    result: process.env.PRETTIER_INSTALL_RESULT,
+    log: process.env.PRETTIER_INSTALL_LOG,
+  },
+  {
+    name: 'Installation des dépendances (Lint)',
+    result: process.env.LINT_INSTALL_RESULT,
+    log: process.env.LINT_INSTALL_LOG,
+  },
+  {
+    name: 'Installation des dépendances (Tests)',
+    result: process.env.TEST_INSTALL_RESULT,
+    log: process.env.TEST_INSTALL_LOG,
+  },
+];
 const normalise = (result) => (result || 'unknown').toLowerCase();
-const failedCheck = checks.find(
-  (check) => normalise(check.result) === 'failure',
-);
-const cancelled = checks.some(
+const failedCheck =
+  installChecks.find((check) => normalise(check.result) === 'failure') ||
+  checks.find((check) => normalise(check.result) === 'failure');
+const cancelled = [...installChecks, ...checks].some(
   (check) => normalise(check.result) === 'cancelled',
 );
-const succeeded = checks.every(
+const succeeded = [...installChecks, ...checks].every(
   (check) => normalise(check.result) === 'success',
 );
 const status = succeeded
@@ -245,7 +267,9 @@ if (pr) {
 }
 fields.push({ name: '📝 Commit', value: commitValue, inline: false });
 if (pullRequestCommits.length)
-  fields.push(...commitListFields(pullRequestCommits));
+  fields.push(
+    ...commitListFields(pullRequestCommits, `${pr.html_url}/commits`),
+  );
 
 if (status === 'failure') {
   fields.push(

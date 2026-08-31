@@ -22,6 +22,7 @@ jobs:
     name: Prettier
     runs-on: ubuntu-latest
     outputs:
+      install_outcome: ${{ steps.install.outcome }}
       outcome: ${{ steps.prettier.outcome }}
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +30,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        id: install
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee /tmp/prettier-install.log
       - name: Prettier
         id: prettier
         run: |
@@ -43,11 +48,20 @@ jobs:
           path: /tmp/prettier.log
           if-no-files-found: ignore
           retention-days: 1
+      - name: Upload Prettier install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-prettier-install
+          path: /tmp/prettier-install.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     outputs:
+      install_outcome: ${{ steps.install.outcome }}
       outcome: ${{ steps.lint.outcome }}
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +69,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        id: install
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee /tmp/lint-install.log
       - name: Lint
         id: lint
         run: |
@@ -69,11 +87,20 @@ jobs:
           path: /tmp/lint.log
           if-no-files-found: ignore
           retention-days: 1
+      - name: Upload lint install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-lint-install
+          path: /tmp/lint-install.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   test:
     name: Tests
     runs-on: ubuntu-latest
     outputs:
+      install_outcome: ${{ steps.install.outcome }}
       outcome: ${{ steps.tests.outcome }}
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +108,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        id: install
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee /tmp/tests-install.log
       - name: Unit Tests
         id: tests
         run: |
@@ -93,6 +124,14 @@ jobs:
         with:
           name: ci-log-tests
           path: /tmp/tests.log
+          if-no-files-found: ignore
+          retention-days: 1
+      - name: Upload test install log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-tests-install
+          path: /tmp/tests-install.log
           if-no-files-found: ignore
           retention-days: 1
 
@@ -118,8 +157,14 @@ jobs:
           DISCORD_CICD_WEBHOOK: ${{ secrets.DISCORD_CICD_WEBHOOK }}
           GITHUB_TOKEN: ${{ github.token }}
           PRETTIER_RESULT: ${{ needs.prettier.outputs.outcome || needs.prettier.result }}
+          PRETTIER_INSTALL_RESULT: ${{ needs.prettier.outputs.install_outcome || needs.prettier.result }}
           LINT_RESULT: ${{ needs.lint.outputs.outcome || needs.lint.result }}
+          LINT_INSTALL_RESULT: ${{ needs.lint.outputs.install_outcome || needs.lint.result }}
           TEST_RESULT: ${{ needs.test.outputs.outcome || needs.test.result }}
+          TEST_INSTALL_RESULT: ${{ needs.test.outputs.install_outcome || needs.test.result }}
+          PRETTIER_INSTALL_LOG: /tmp/ci-logs/prettier-install.log
+          LINT_INSTALL_LOG: /tmp/ci-logs/lint-install.log
+          TEST_INSTALL_LOG: /tmp/ci-logs/tests-install.log
           PRETTIER_LOG: /tmp/ci-logs/prettier.log
           LINT_LOG: /tmp/ci-logs/lint.log
           TEST_LOG: /tmp/ci-logs/tests.log
