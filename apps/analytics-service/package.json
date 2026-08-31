@@ -1,0 +1,109 @@
+{
+  "name": "@flipdeck/analytics-service",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "analytics-service",
+    "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "webpack-cli build",
+          "env": {
+            "NODE_ENV": "production"
+          },
+          "cwd": "apps/analytics-service"
+        },
+        "configurations": {
+          "development": {
+            "env": {
+              "NODE_ENV": "development"
+            }
+          }
+        }
+      },
+      "prune-lockfile": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "executor": "@nx/js:prune-lockfile",
+        "outputs": [
+          "{workspaceRoot}/apps/analytics-service/dist/package.json",
+          "{workspaceRoot}/apps/analytics-service/dist/package-lock.json"
+        ],
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "copy-workspace-modules": {
+        "dependsOn": [
+          "build"
+        ],
+        "cache": true,
+        "outputs": [
+          "{workspaceRoot}/apps/analytics-service/dist/workspace_modules"
+        ],
+        "executor": "@nx/js:copy-workspace-modules",
+        "options": {
+          "buildTarget": "build"
+        }
+      },
+      "prune": {
+        "dependsOn": [
+          "prune-lockfile",
+          "copy-workspace-modules"
+        ],
+        "executor": "nx:noop"
+      },
+      "serve": {
+        "continuous": true,
+        "executor": "@nx/js:node",
+        "defaultConfiguration": "development",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "buildTarget": "analytics-service:build",
+          "runBuildTargetDependencies": false
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "analytics-service:build:development"
+          },
+          "production": {
+            "buildTarget": "analytics-service:build:production"
+          }
+        }
+      },
+      "test": {
+        "options": {
+          "passWithNoTests": true
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.3.0",
+    "@prisma/client": "^7.10.0",
+    "@prisma/adapter-pg": "^7.10.0",
+    "pg": "^8.23.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.0.0",
+    "prisma": "^7.10.0",
+    "@types/pg": "^8.23.1"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
+  }
+}
