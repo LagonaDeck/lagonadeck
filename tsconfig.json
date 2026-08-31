@@ -1,0 +1,29 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/api-gateway"
+    },
+    {
+      "path": "./apps/identity-service"
+    },
+    {
+      "path": "./apps/catalog-service"
+    },
+    {
+      "path": "./apps/inventory-service"
+    },
+    {
+      "path": "./apps/sales-service"
+    },
+    {
+      "path": "./apps/analytics-service"
+    },
+    {
+      "path": "./apps/media-service"
+    }
+  ],
+  "compilerOptions": {}
+}

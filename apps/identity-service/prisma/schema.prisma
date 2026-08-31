@@ -1,0 +1,21 @@
+// Schéma Prisma généré pour Prisma 7.
+// La datasource ne porte que le provider : l'URL de connexion vit dans
+// prisma.config.ts (variable d'environnement DATABASE_URL) et le client
+// reçoit un driver adapter (@prisma/adapter-pg) au runtime.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Modèle de démarrage — à adapter au domaine identity.
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
