@@ -16,7 +16,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@flipdeck/source"],
+    "customConditions": ["@lagonadeck/source"],
     "noUncheckedSideEffectImports": false,
     "types": ["*"]
   }

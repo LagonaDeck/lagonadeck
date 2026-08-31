@@ -1,5 +1,5 @@
 {
-  "name": "@flipdeck/inventory-service",
+  "name": "@lagonadeck/inventory-service",
   "version": "0.0.1",
   "private": true,
   "nx": {

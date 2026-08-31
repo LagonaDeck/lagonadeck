@@ -1,5 +1,5 @@
 {
-  "name": "@flipdeck/identity-service",
+  "name": "@lagonadeck/identity-service",
   "version": "0.0.1",
   "private": true,
   "nx": {

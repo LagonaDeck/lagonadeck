@@ -6,7 +6,7 @@
 
 ## Contexte
 
-flipdeck est une architecture microservices event-driven (RabbitMQ) composée de
+lagonadeck est une architecture microservices event-driven (RabbitMQ) composée de
 plusieurs applications NestJS (`api-gateway` + 6 services métier) et d'un frontend
 Angular. Le dépôt contient des bibliothèques partagées :
 
@@ -25,7 +25,7 @@ Nous adoptons un **monorepo intégré géré avec Nx**.
 ## Raisons
 
 - **Partage des bibliothèques.** Les `contracts/` n'ont de valeur que si les services
-  les importent directement (`@flipdeck/contracts/events`). Nx fournit ce mapping via
+  les importent directement (`@lagonadeck/contracts/events`). Nx fournit ce mapping via
   `tsconfig.base.json`. En projets autonomes, il faudrait publier chaque lib comme
   package npm versionné, ou dupliquer le code — intenable pour des contrats qui
   doivent rester synchronisés.

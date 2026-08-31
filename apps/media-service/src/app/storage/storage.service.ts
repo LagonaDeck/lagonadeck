@@ -17,7 +17,7 @@ export class StorageService {
   private readonly bucket: string;
 
   constructor() {
-    this.bucket = process.env.MEDIA_S3_BUCKET ?? 'flipdeck-media';
+    this.bucket = process.env.MEDIA_S3_BUCKET ?? 'lagonadeck-media';
     this.client = new S3Client({
       endpoint: process.env.MEDIA_S3_ENDPOINT,
       region: process.env.MEDIA_S3_REGION ?? 'us-east-1',

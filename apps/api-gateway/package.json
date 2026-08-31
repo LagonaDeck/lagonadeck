@@ -1,5 +1,5 @@
 {
-  "name": "@flipdeck/api-gateway",
+  "name": "@lagonadeck/api-gateway",
   "version": "0.0.1",
   "private": true,
   "nx": {

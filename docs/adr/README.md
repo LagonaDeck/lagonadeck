@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADR)
 
-Ce dossier consigne les décisions d'architecture structurantes du projet **flipdeck**,
+Ce dossier consigne les décisions d'architecture structurantes du projet **lagonadeck**,
 avec leur contexte et leurs conséquences. Chaque décision est un fichier numéroté et
 ne se réécrit pas : si une décision évolue, on en crée une nouvelle qui remplace
 (« Superseded by ») l'ancienne.
