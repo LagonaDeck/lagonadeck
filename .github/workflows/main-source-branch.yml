@@ -1,0 +1,23 @@
+name: Main source branch policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  require-develop-source:
+    name: Require develop source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject branches other than develop
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "Only pull requests from develop may be merged into main."
+            exit 1
+          fi
