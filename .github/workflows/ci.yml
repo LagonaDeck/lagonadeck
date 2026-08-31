@@ -21,6 +21,8 @@ jobs:
   prettier:
     name: Prettier
     runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.prettier.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,11 +30,25 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run format:check
+      - name: Prettier
+        id: prettier
+        run: |
+          set -o pipefail
+          npm run format:check 2>&1 | tee /tmp/prettier.log
+      - name: Upload Prettier log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-prettier
+          path: /tmp/prettier.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.lint.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,11 +56,25 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run lint
+      - name: Lint
+        id: lint
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee /tmp/lint.log
+      - name: Upload lint log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-lint
+          path: /tmp/lint.log
+          if-no-files-found: ignore
+          retention-days: 1
 
   test:
     name: Tests
     runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.tests.outcome }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +82,50 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
+      - name: Unit Tests
+        id: tests
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/tests.log
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-tests
+          path: /tmp/tests.log
+          if-no-files-found: ignore
+          retention-days: 1
+
+  notify-discord:
+    name: Discord notification
+    needs:
+      - prettier
+      - lint
+      - test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download CI logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ci-log-*
+          path: /tmp/ci-logs
+          merge-multiple: true
+        continue-on-error: true
+      - name: Notify Discord
+        env:
+          DISCORD_CICD_WEBHOOK: ${{ secrets.DISCORD_CICD_WEBHOOK }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PRETTIER_RESULT: ${{ needs.prettier.outputs.outcome || needs.prettier.result }}
+          LINT_RESULT: ${{ needs.lint.outputs.outcome || needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.outputs.outcome || needs.test.result }}
+          PRETTIER_LOG: /tmp/ci-logs/prettier.log
+          LINT_LOG: /tmp/ci-logs/lint.log
+          TEST_LOG: /tmp/ci-logs/tests.log
+        run: node .github/scripts/notify-discord.mjs
+        # Discord must never alter the CI result (missing secret, network, webhook error…).
+        continue-on-error: true
 
   label-pr:
     name: PR labels
