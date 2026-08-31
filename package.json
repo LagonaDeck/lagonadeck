@@ -3,7 +3,13 @@
   "version": "0.0.0",
   "license": "UNLICENSED",
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "format:check": "prettier --check .",
+    "lint": "nx run-many -t lint --all",
+    "test": "nx run-many -t test --all",
+    "quality": "npm run format:check && npm run lint",
+    "prepare": "lefthook install"
+  },
   "dependencies": {
     "@angular/common": "^22.1.4",
     "@angular/compiler": "^22.1.4",
@@ -60,6 +66,7 @@
     "jest": "~30.3.0",
     "jest-environment-node": "~30.3.0",
     "jest-util": "~30.3.0",
+    "lefthook": "^2.1.12",
     "nx": "23.1.2",
     "prettier": "^3.8.1",
     "prisma": "^7.10.0",
@@ -85,6 +92,7 @@
     "@swc/core@1.15.8": true,
     "prisma@7.10.0": true,
     "@prisma/engines@7.10.0": true,
-    "@prisma/client@7.10.0": true
+    "@prisma/client@7.10.0": true,
+    "lefthook@2.1.12": true
   }
 }

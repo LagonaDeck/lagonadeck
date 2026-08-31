@@ -14,71 +14,66 @@ données, tableaux et graphiques conservent une lecture immédiate.
 
 ## Palette de marque
 
-| Token | Couleur | Hex |
-| --- | --- | --- |
-| Navy | Bleu nuit | `#11173A` |
-| Blue | Bleu électrique | `#1764F9` |
-| Sky | Bleu clair | `#0C89F7` |
-| Purple | Violet | `#672CF2` |
-| Violet | Violet intense | `#8521F1` |
-| Teal | Turquoise | `#05CFAC` |
+| Token  | Couleur         | Hex       |
+| ------ | --------------- | --------- |
+| Navy   | Bleu nuit       | `#11173A` |
+| Blue   | Bleu électrique | `#1764F9` |
+| Sky    | Bleu clair      | `#0C89F7` |
+| Purple | Violet          | `#672CF2` |
+| Violet | Violet intense  | `#8521F1` |
+| Teal   | Turquoise       | `#05CFAC` |
 
 ```css
---ld-gradient: linear-gradient(
-  135deg,
-  #1764f9 0%,
-  #672cf2 55%,
-  #8521f1 100%
-);
+--ld-gradient: linear-gradient(135deg, #1764f9 0%, #672cf2 55%, #8521f1 100%);
 ```
 
 ## Surfaces et bordures
 
-| Usage | Hex |
-| --- | --- |
-| Background | `#F7F8FC` |
-| Surface | `#FFFFFF` |
+| Usage              | Hex       |
+| ------------------ | --------- |
+| Background         | `#F7F8FC` |
+| Surface            | `#FFFFFF` |
 | Surface secondaire | `#F1F3F9` |
-| Surface hover | `#EBEEF6` |
-| Border | `#E1E5EF` |
-| Border forte | `#CCD2E0` |
+| Surface hover      | `#EBEEF6` |
+| Border             | `#E1E5EF` |
+| Border forte       | `#CCD2E0` |
 
 ## Texte
 
-| Usage | Hex |
-| --- | --- |
-| Principal | `#11173A` |
-| Secondaire | `#52566F` |
-| Tertiaire | `#787D94` |
-| Désactivé | `#A4A8B7` |
+| Usage           | Hex       |
+| --------------- | --------- |
+| Principal       | `#11173A` |
+| Secondaire      | `#52566F` |
+| Tertiaire       | `#787D94` |
+| Désactivé       | `#A4A8B7` |
 | Sur fond sombre | `#FFFFFF` |
 
 ## Actions
 
-| Élément | Normal | Hover / active |
-| --- | --- | --- |
-| Bouton principal | fond `#1764F9`, texte `#FFFFFF` | `#1255D8` / `#0F46B6` |
-| Bouton secondaire | contour et texte `#672CF2` | fond `#F4F0FF` |
-| Petit accent | `#05CFAC` | réservé aux états sélectionnés et indicateurs positifs |
+| Élément           | Normal                          | Hover / active                                         |
+| ----------------- | ------------------------------- | ------------------------------------------------------ |
+| Bouton principal  | fond `#1764F9`, texte `#FFFFFF` | `#1255D8` / `#0F46B6`                                  |
+| Bouton secondaire | contour et texte `#672CF2`      | fond `#F4F0FF`                                         |
+| Petit accent      | `#05CFAC`                       | réservé aux états sélectionnés et indicateurs positifs |
 
 ## Couleurs métier
 
-| Usage | Hex | Exemples |
-| --- | --- | --- |
-| Succès / profit | `#05B98F` | rentable, vendu, payé, gain |
-| Avertissement | `#F59E0B` | stock dormant, prix à vérifier, lot incomplet |
-| Danger / perte | `#E5484D` | erreur, annulation, perte |
-| Information | `#0C89F7` | information et aide contextuelle |
+| Usage           | Hex       | Exemples                                      |
+| --------------- | --------- | --------------------------------------------- |
+| Succès / profit | `#05B98F` | rentable, vendu, payé, gain                   |
+| Avertissement   | `#F59E0B` | stock dormant, prix à vérifier, lot incomplet |
+| Danger / perte  | `#E5484D` | erreur, annulation, perte                     |
+| Information     | `#0C89F7` | information et aide contextuelle              |
 
 ## Indicateurs de dashboard
 
-| KPI | Hex |
-| --- | --- |
-| Capital investi | `#11173A` |
-| Valeur marché | `#1764F9` |
-| Profit potentiel | `#672CF2` |
-| Profit réalisé | `#05B98F` |
-| Pertes | `#E5484D` |
+| KPI                | Hex       |
+| ------------------ | --------- |
+| Capital investi    | `#11173A` |
+| Valeur marché      | `#1764F9` |
+| Profit potentiel   | `#672CF2` |
+| Profit réalisé     | `#05B98F` |
+| Pertes             | `#E5484D` |
 | Capital immobilisé | `#F59E0B` |
 
 ## Sidebar
@@ -90,17 +85,17 @@ données, tableaux et graphiques conservent une lecture immédiate.
 
 ## Préparation du mode sombre
 
-| Usage | Hex |
-| --- | --- |
-| Background | `#090D20` |
-| Surface | `#11172D` |
-| Surface 2 | `#191F38` |
-| Border | `#29314F` |
-| Texte principal | `#F5F7FF` |
+| Usage            | Hex       |
+| ---------------- | --------- |
+| Background       | `#090D20` |
+| Surface          | `#11172D` |
+| Surface 2        | `#191F38` |
+| Border           | `#29314F` |
+| Texte principal  | `#F5F7FF` |
 | Texte secondaire | `#AEB5CC` |
-| Primary | `#4385FF` |
-| Purple | `#8257FF` |
-| Accent | `#17D9B7` |
+| Primary          | `#4385FF` |
+| Purple           | `#8257FF` |
+| Accent           | `#17D9B7` |
 
 ## Variables CSS recommandées
 

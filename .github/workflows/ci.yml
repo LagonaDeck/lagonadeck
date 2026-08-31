@@ -28,7 +28,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx prettier --check .
+      - run: npm run format:check
 
   lint:
     name: Lint
@@ -40,7 +40,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx nx run-many -t lint --all
+      - run: npm run lint
 
   test:
     name: Tests
@@ -52,7 +52,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx nx run-many -t test --all
+      - run: npm test
 
   label-pr:
     name: PR labels
