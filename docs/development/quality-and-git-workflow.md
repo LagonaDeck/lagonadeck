@@ -90,8 +90,11 @@ Le workflow
 fournit le check obligatoire qui rejette une source différente de `develop` pour
 une PR vers `main`.
 
-Les protections s'appliquent aussi aux administrateurs. La branche `main` ne doit
-donc jamais recevoir un push direct ou une PR issue de `feature/*`.
+Les membres non administrateurs restent soumis à ces protections. Un propriétaire
+du dépôt disposant des droits d'administration peut les contourner en cas
+d'exception ; cette dérogation doit rester exceptionnelle. La branche `main` ne
+doit donc normalement jamais recevoir un push direct ou une PR issue de
+`feature/*`.
 
 ## Procédure de contribution
 
