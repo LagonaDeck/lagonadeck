@@ -76,6 +76,22 @@ docs/                  architecture, diagrammes, API, ADR
 
 ## Démarrage
 
+### Docker (recommandé)
+
+L'environnement de développement complet se lance avec Docker et Docker Compose ;
+Node.js, PostgreSQL, RabbitMQ et MinIO ne sont alors pas requis sur la machine
+hôte.
+
+```bash
+make docker-up
+```
+
+Pour le lancer en arrière-plan, utilisez `make docker-up-detached`. Les URL,
+variables, volumes, commandes d'arrêt, réinitialisation, hot reload et
+dépannage sont détaillés dans le [guide Docker de développement](docs/development/docker-development.md).
+
+### Sans Docker
+
 ```bash
 # Installer les dépendances
 npm install
