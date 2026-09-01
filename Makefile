@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install format-check format-fix lint-check lint-fix linter-check linter-fix test
+.PHONY: help install format-check format-fix lint-check lint-fix linter-check linter-fix test docker-up docker-up-detached docker-down docker-logs docker-reset docker-config
 
 help:
 	@printf '\n\033[1;36mLagonaDeck\033[0m - commandes disponibles\n'
@@ -18,6 +18,13 @@ help:
 	@printf '  \033[2m(alias: linter-check / linter-fix)\033[0m\n'
 	@printf '\n\033[1;33mTests\033[0m\n'
 	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make test' 'Exécute les tests de tous les projets'
+	@printf '\n\033[1;33mDocker (développement)\033[0m\n'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-up' 'Construit et démarre l’environnement de développement'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-up-detached' 'Construit et démarre l’environnement en arrière-plan'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-down' 'Arrête l’environnement en conservant les données'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-logs' 'Suit les logs de tous les services'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-reset' 'Supprime les conteneurs et volumes de développement'
+	@printf '  \033[1;32m%-20s\033[0m %s\n' 'make docker-config' 'Affiche la configuration Compose résolue'
 	@printf '\n\033[2mUtilisation : make <commande>\033[0m\n\n'
 
 install:
@@ -37,3 +44,22 @@ lint-fix linter-fix:
 
 test:
 	npm test
+
+COMPOSE_DEV = docker compose -f infrastructure/docker-compose.dev.yml
+
+docker-up:
+	$(COMPOSE_DEV) up --build
+
+docker-up-detached:
+	$(COMPOSE_DEV) up --build --detach
+
+docker-down:
+	$(COMPOSE_DEV) down
+
+docker-logs:
+	$(COMPOSE_DEV) logs -f --tail=200
+
+docker-reset:
+	$(COMPOSE_DEV) down --volumes --remove-orphans
+
+docker-config:
