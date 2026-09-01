@@ -1,10 +1,16 @@
 name: lagonadeck-dev
 
-x-application: &application
+x-application-base: &application-base
   working_dir: /workspace
   volumes:
     - ..:/workspace
     - node_modules:/workspace/node_modules
+
+x-application: &application
+  <<: *application-base
+  depends_on: &application-depends
+    install-dependencies:
+      condition: service_completed_successfully
   environment: &application-environment
     NODE_ENV: development
     NX_DAEMON: 'true'
@@ -19,6 +25,7 @@ x-application: &application
 x-database-service: &database-service
   <<: *application
   depends_on:
+    <<: *application-depends
     postgres:
       condition: service_healthy
     prisma-generate:
@@ -81,6 +88,18 @@ services:
       && mc mb --ignore-existing local/lagonadeck-media"
     restart: 'no'
 
+  install-dependencies:
+    <<: *application-base
+    build:
+      { context: .., dockerfile: infrastructure/docker/identity/Dockerfile }
+    command: >-
+      sh -c 'lock_hash="$$(sha256sum package-lock.json | cut -d " " -f1)";
+      marker=node_modules/.lagonadeck-package-lock;
+      if [ ! -f "$$marker" ] || [ "$$(cat "$$marker")" != "$$lock_hash" ]; then
+      npm ci --ignore-scripts --workspaces=false && printf "%s\\n" "$$lock_hash" > "$$marker";
+      fi'
+    restart: 'no'
+
   prisma-generate:
     <<: *application
     build:
@@ -125,6 +144,7 @@ services:
       RABBITMQ_URL: amqp://lagonadeck:lagonadeck@rabbitmq:5672
     ports: ['3000:3000']
     depends_on:
+      <<: *application-depends
       rabbitmq:
         condition: service_healthy
     healthcheck: &api-health
@@ -248,6 +268,7 @@ services:
       MEDIA_S3_FORCE_PATH_STYLE: 'true'
     ports: ['3006:3006']
     depends_on:
+      <<: *application-depends
       postgres:
         condition: service_healthy
       minio-init:

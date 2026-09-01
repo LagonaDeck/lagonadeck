@@ -63,3 +63,4 @@ docker-reset:
 	$(COMPOSE_DEV) down --volumes --remove-orphans
 
 docker-config:
+	$(COMPOSE_DEV) config
