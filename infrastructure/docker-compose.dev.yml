@@ -83,7 +83,8 @@ services:
 
   prisma-generate:
     <<: *application
-    build: { context: .., dockerfile: infrastructure/docker/identity/Dockerfile }
+    build:
+      { context: .., dockerfile: infrastructure/docker/identity/Dockerfile }
     environment:
       <<: *application-environment
       DATABASE_URL: postgresql://lagonadeck:lagonadeck@postgres:5432/lagonadeck_identity?schema=public
