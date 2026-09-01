@@ -56,5 +56,6 @@ apps/*/src/generated
 # Variables d'environnement (garder les .env.example)
 .env
 apps/*/.env
+infrastructure/.env
 
 .angular
