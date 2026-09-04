@@ -85,13 +85,24 @@ flowchart TB
 Volumes Docker persistants : `node_modules`, `postgres_data`, `rabbitmq_data`,
 `minio_data`. Les ports listés sont exposés sur l'hôte.
 
+Un service peut aussi être répliqué localement pour tester le scaling :
+`docker compose up --scale <service>=N`. Les N réplicas partagent la même image
+et deviennent des _competing consumers_ sur RabbitMQ
+([ADR 0004](../adr/0004-docker-build-load-balancing.md)).
+
 ## Environnement de production (Kubernetes, proposé)
 
 En prod, chaque **base de service** devient un **cluster PostgreSQL** géré par un
 operator (1 primary + N réplicas en lecture, réplication streaming — voir
 [ADR 0006](../adr/0006-replication-bases-service.md)). Le stockage objet est un
-service S3 managé, externe au cluster. Chaque workload est un Deployment
-répliqué avec autoscaling (HPA).
+service S3 managé, externe au cluster.
+
+Côté calcul, **chaque micro-service est instancié en N pods et s'autoscale** : un
+Deployment répliqué derrière un Service Kubernetes, un HPA qui ajuste le nombre de
+pods selon la charge, et — pour les événements — des _competing consumers_ sur la
+même queue RabbitMQ (voir [ADR 0004](../adr/0004-docker-build-load-balancing.md)).
+Les services sont sans état partagé en mémoire ; le scaling ne demande pas de
+coordination applicative.
 
 ```mermaid
 flowchart TB
@@ -99,15 +110,15 @@ flowchart TB
 
   subgraph K8S["Cluster Kubernetes · namespace lagonadeck"]
     ING --> FE[frontend\nDeployment nginx + statique\nService]
-    ING --> GW[api-gateway\nDeployment + HPA\nService]
+    ING --> GW[api-gateway\nDeployment · N pods + HPA\nService]
 
-    subgraph WL["Services métier · Deployments + HPA"]
-      IDS[identity-service]
-      CAT[catalog-service]
-      INV[inventory-service]
-      SAL[sales-service]
-      ANA[analytics-service]
-      MED[media-service]
+    subgraph WL["Services métier · Deployments répliqués + HPA"]
+      IDS[identity-service\nN pods]
+      CAT[catalog-service\nN pods]
+      INV[inventory-service\nN pods]
+      SAL[sales-service\nN pods]
+      ANA[analytics-service\nN pods]
+      MED[media-service\nN pods]
     end
     GW --> IDS
     GW --> CAT
@@ -161,4 +172,23 @@ flowchart LR
   S -->|lecture| R2[(réplica N\nService lecture)]
   P -. réplication streaming .-> R1
   P -. réplication streaming .-> R2
+```
+
+### Détail scaling d'un service
+
+Chaque micro-service est répliqué en N pods derrière son Service Kubernetes. Le
+HPA ajuste le nombre de pods selon la charge ; pour les événements, les pods sont
+des _competing consumers_ sur la même queue RabbitMQ, qui répartit les messages
+([ADR 0004](../adr/0004-docker-build-load-balancing.md)).
+
+```mermaid
+flowchart LR
+  GW[api-gateway] -->|REST réparti| SV[Service K8s\nsales-service]
+  SV --> P1[pod 1]
+  SV --> P2[pod 2]
+  SV --> P3[pod N]
+  HPA[HPA\nseuils CPU / charge] -. ajuste le nombre de pods .-> SV
+  Q[(RabbitMQ\nqueue)] -.competing consumers.-> P1
+  Q -.competing consumers.-> P2
+  Q -.competing consumers.-> P3
 ```
