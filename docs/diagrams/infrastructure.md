@@ -78,6 +78,8 @@ flowchart TB
 
   MED --> MINIO
 
+  INSTALL -.node_modules.-> FE
+  INSTALL -.node_modules.-> GW
   INSTALL -.node_modules.-> SVC
   PRISMA -.client Prisma.-> SVC
 ```
@@ -93,9 +95,11 @@ et deviennent des _competing consumers_ sur RabbitMQ
 ## Environnement de production (Kubernetes, proposé)
 
 En prod, chaque **base de service** devient un **cluster PostgreSQL** géré par un
-operator (1 primary + N réplicas en lecture, réplication streaming — voir
-[ADR 0006](../adr/0006-replication-bases-service.md)). Le stockage objet est un
-service S3 managé, externe au cluster.
+operator (1 primary + N réplicas en lecture — voir
+[ADR 0006](../adr/0006-replication-bases-service.md)). Le **mécanisme de réplication**
+exact (réplication streaming ou autre) reste à trancher lors de la mise en œuvre :
+l'ADR 0006 fixe la topologie primary + réplicas mais laisse ce point ouvert. Le
+stockage objet est un service S3 managé, externe au cluster.
 
 Côté calcul, **chaque micro-service est instancié en N pods et s'autoscale** : un
 Deployment répliqué derrière un Service Kubernetes, un HPA qui ajuste le nombre de
@@ -162,7 +166,8 @@ flowchart TB
 
 Zoom sur un cluster de base de service : les écritures visent le primary, les
 lectures se répartissent sur les réplicas ; la réconciliation couvre le retard de
-réplication, la resynchronisation et le basculement
+réplication, la resynchronisation et le basculement. Le mécanisme de réplication
+concret reste à trancher lors de la mise en œuvre
 ([ADR 0006](../adr/0006-replication-bases-service.md)).
 
 ```mermaid
@@ -170,8 +175,8 @@ flowchart LR
   S[Service métier\nDeployment + HPA] -->|écriture| P[(primary\nService écriture)]
   S -->|lecture| R1[(réplica 1\nService lecture)]
   S -->|lecture| R2[(réplica N\nService lecture)]
-  P -. réplication streaming .-> R1
-  P -. réplication streaming .-> R2
+  P -. réplication .-> R1
+  P -. réplication .-> R2
 ```
 
 ### Détail scaling d'un service

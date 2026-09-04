@@ -89,3 +89,5 @@ Point laissé ouvert, à trancher lors de la mise en œuvre :
 - [ADR 0002 — Database-per-service avec Prisma](0002-database-per-service-prisma.md)
 - [ADR 0004 — Stratégie de build Docker et load balancing](0004-docker-build-load-balancing.md)
 - [Données et Prisma](../architecture/databases.md) — section « Scalabilité ».
+- [Diagrammes d'infrastructure](../diagrams/infrastructure.md) — vue prod Kubernetes
+  et détail read/write split d'un cluster de base.

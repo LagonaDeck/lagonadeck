@@ -27,6 +27,8 @@ développeurs sur douze semaines.
 - [Bases de données](databases.md) — règle _database per service_ et Prisma.
 - [Médias et stockage](media-storage.md) — séparation métadonnées / objets S3.
 - [Diagrammes Mermaid](../diagrams/architecture.md) — vues globales et flux.
+- [Diagrammes d'infrastructure](../diagrams/infrastructure.md) — environnements dev
+  (constaté) et prod Kubernetes (proposé).
 - [ADR](../adr/README.md) — décisions architecturales déjà enregistrées.
 
 Les termes « prévu » et « à implémenter » signalent une direction

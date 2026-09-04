@@ -3,6 +3,9 @@
 Les libellés « prévu » désignent une cible d'architecture sans implémentation ou
 configuration correspondante dans le dépôt actuel.
 
+Pour les vues par environnement (dev constaté et prod Kubernetes proposé), voir les
+[diagrammes d'infrastructure](infrastructure.md).
+
 ## Architecture globale
 
 ```mermaid
