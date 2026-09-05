@@ -16,6 +16,7 @@ Format inspiré de [MADR](https://adr.github.io/madr/).
 | 0003 | [api-gateway sans base de données](0003-api-gateway-sans-base.md)                  | Accepté | 2026-08-31 |
 | 0004 | [Stratégie de build Docker et load balancing](0004-docker-build-load-balancing.md) | Accepté | 2026-08-31 |
 | 0005 | [media-service : object storage + Prisma](0005-media-object-storage.md)            | Accepté | 2026-08-31 |
+| 0006 | [Réplication des bases par service](0006-replication-bases-service.md)             | Accepté | 2026-09-04 |
 
 ## Statuts possibles
 

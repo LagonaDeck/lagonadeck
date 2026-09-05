@@ -36,6 +36,33 @@ Prisma 7 utilise le provider PostgreSQL et le driver adapter `@prisma/adapter-pg
 Les modèles existants sont des modèles de départ, pas encore le modèle complet
 du domaine métier.
 
+## Scalabilité : réplication des bases par service
+
+La règle _database per service_ porte sur les **frontières** de données, pas sur
+leur mise à l'échelle ni leur disponibilité : une base de service reste par défaut
+une instance PostgreSQL unique, qui borne le débit de lecture et constitue un point
+de défaillance unique.
+
+Pour y remédier, la base d'un service peut être déployée en **plusieurs instances
+répliquées** (topologie **primary + réplicas en lecture**), chacune détenant une
+**copie complète** des données — réplication, **pas** sharding, et toujours à
+l'intérieur de la frontière d'un service. L'objectif est de passer à l'échelle en
+**lecture** et d'améliorer la **disponibilité** ; la réplication est une capacité
+disponible, pas une obligation systématique.
+
+```mermaid
+flowchart LR
+  S[Service métier] -->|écriture| P[(base-service · primary)]
+  S -->|lecture| C1[(base-service · réplica 1)]
+  S -->|lecture| C2[(base-service · réplica N)]
+  P -. réplication .-> C1
+  P -. réplication .-> C2
+```
+
+Le détail de la décision — répartition lecture/écriture, réconciliation entre
+instances (retard de réplication, resynchronisation, basculement) et cohérence
+éventuelle — est traité dans l'[ADR 0006](../adr/0006-replication-bases-service.md).
+
 ## Interdictions
 
 ```mermaid

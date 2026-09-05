@@ -42,9 +42,14 @@ proprement, dans le socle Docker.
   consumers_ sur la même queue ; RabbitMQ répartit la charge. Aucune configuration
   liée au monorepo n'intervient.
 
-Les services étant sans état partagé (chacun sa base — [ADR 0002](0002-database-per-service-prisma.md))
-et le gateway étant sans état ([ADR 0003](0003-api-gateway-sans-base.md)), le scaling
-horizontal ne demande pas de coordination applicative.
+Les replicas d'un service ne partagent aucun état en mémoire, et le gateway est sans
+état ([ADR 0003](0003-api-gateway-sans-base.md)) : le scaling horizontal du calcul ne
+demande donc pas de coordination applicative. Le tiers de persistance, lui, gagne en
+disponibilité et en capacité de lecture par **réplication** de la base de chaque
+service ([ADR 0006](0006-replication-bases-service.md)) — topologie primary + réplicas
+en lecture : les écritures visent le primary, les lectures se répartissent sur les
+réplicas, sans que cela change la frontière _database per service_
+([ADR 0002](0002-database-per-service-prisma.md)).
 
 ## Conséquences
 

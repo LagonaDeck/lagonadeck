@@ -3,6 +3,9 @@
 Les libellés « prévu » désignent une cible d'architecture sans implémentation ou
 configuration correspondante dans le dépôt actuel.
 
+Pour les vues par environnement (dev constaté et prod Kubernetes proposé), voir les
+[diagrammes d'infrastructure](infrastructure.md).
+
 ## Architecture globale
 
 ```mermaid
@@ -74,4 +77,23 @@ flowchart LR
   M[Media] --> MDB[(media-db)]
   V -. accès interdit .-> SDB
   A -. accès interdit .-> VDB
+```
+
+## Réplication d'une base de service
+
+L'isolation entre services (ci-dessus) reste inchangée. À l'intérieur de la
+frontière d'un service, la base peut être répliquée en plusieurs instances pour la
+lecture et la disponibilité — voir
+[ADR 0006](../adr/0006-replication-bases-service.md). Topologie primary + réplicas
+en lecture : les écritures visent le primary, les lectures se répartissent sur les
+réplicas.
+
+```mermaid
+flowchart LR
+  G[API Gateway] -->|REST + contexte| S[Service métier]
+  S -->|écriture| P[(base-service · primary)]
+  S -->|lecture| C1[(base-service · réplica 1)]
+  S -->|lecture| C2[(base-service · réplica N)]
+  P -. réplication .-> C1
+  P -. réplication .-> C2
 ```
