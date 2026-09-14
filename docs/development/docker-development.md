@@ -57,6 +57,13 @@ docker compose -f infrastructure/docker-compose.dev.yml up --build
 | RabbitMQ    | `localhost:5672` / <http://localhost:15672> | AMQP / interface de gestion |
 | MinIO       | `localhost:9000` / <http://localhost:9001>  | API S3 / console            |
 
+Chaque service NestJS expose sa documentation Swagger sur `/api/docs` (ex.
+<http://localhost:3002/api/docs> pour Catalog). L'API Gateway sert en plus une
+page unique agrégeant les 7 documentations via le sélecteur de spécifications
+de Swagger UI : <http://localhost:3000/docs>. La documentation se régénère
+automatiquement à partir du code au redémarrage du service, sans étape de build
+séparée.
+
 Les applications communiquent entre elles et avec les dépendances via le réseau
 Compose et les noms de services (`postgres`, `rabbitmq`, `minio`), jamais via
 `localhost` dans les conteneurs. PostgreSQL initialise six bases isolées :
