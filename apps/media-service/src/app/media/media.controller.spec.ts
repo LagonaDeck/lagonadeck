@@ -44,7 +44,7 @@ describe('MediaController', () => {
     controller = module.get(MediaController);
   });
 
-  it('délègue la demande d\'upload au service', async () => {
+  it("délègue la demande d'upload au service", async () => {
     const dto = {
       ownerId: 'owner-1',
       fileName: 'photo.png',
@@ -62,7 +62,7 @@ describe('MediaController', () => {
     expect(service.requestUpload).toHaveBeenCalledWith(dto);
   });
 
-  it('délègue la confirmation d\'upload au service', async () => {
+  it("délègue la confirmation d'upload au service", async () => {
     service.confirmUpload.mockResolvedValue(asset);
 
     await expect(controller.confirmUpload('media-1')).resolves.toBe(asset);
@@ -77,7 +77,7 @@ describe('MediaController', () => {
     expect(service.findAll).toHaveBeenCalledWith(query);
   });
 
-  it('délègue la lecture d\'un média au service', async () => {
+  it("délègue la lecture d'un média au service", async () => {
     service.findOne.mockResolvedValue(asset);
 
     await expect(controller.findOne('media-1')).resolves.toBe(asset);

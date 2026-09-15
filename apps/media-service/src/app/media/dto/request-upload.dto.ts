@@ -11,7 +11,8 @@ import { ALLOWED_CONTENT_TYPES } from '../media.constants';
 
 export class RequestUploadDto {
   @ApiProperty({
-    description: 'Identifiant du propriétaire du fichier (utilisateur ou service appelant).',
+    description:
+      'Identifiant du propriétaire du fichier (utilisateur ou service appelant).',
     example: 'a3f1c2d4-5b6a-4e7f-8c9d-0e1f2a3b4c5d',
   })
   @IsString()
@@ -19,7 +20,7 @@ export class RequestUploadDto {
   ownerId: string;
 
   @ApiProperty({
-    description: 'Nom de fichier original, tel qu\'envoyé par le client.',
+    description: "Nom de fichier original, tel qu'envoyé par le client.",
     example: 'facture-2026-09.pdf',
   })
   @IsString()
@@ -37,7 +38,8 @@ export class RequestUploadDto {
   contentType: string;
 
   @ApiProperty({
-    description: 'Taille annoncée du fichier en octets (vérifiée après upload).',
+    description:
+      'Taille annoncée du fichier en octets (vérifiée après upload).',
     example: 204800,
   })
   @IsInt()

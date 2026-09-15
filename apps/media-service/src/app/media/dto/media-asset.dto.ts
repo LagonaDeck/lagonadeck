@@ -31,7 +31,8 @@ export class MediaAssetDto {
 
   @ApiProperty({
     required: false,
-    description: 'URL pré-signée de téléchargement, présente uniquement quand le média est prêt (READY).',
+    description:
+      'URL pré-signée de téléchargement, présente uniquement quand le média est prêt (READY).',
   })
   downloadUrl?: string;
 

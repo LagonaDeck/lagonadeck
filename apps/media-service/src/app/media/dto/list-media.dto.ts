@@ -9,7 +9,10 @@ export class ListMediaDto {
   @IsString()
   ownerId?: string;
 
-  @ApiPropertyOptional({ enum: MediaKind, description: 'Filtre sur la nature du média.' })
+  @ApiPropertyOptional({
+    enum: MediaKind,
+    description: 'Filtre sur la nature du média.',
+  })
   @IsOptional()
   @IsEnum(MediaKind)
   kind?: MediaKind;

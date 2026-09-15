@@ -29,7 +29,9 @@ export class MediaService {
     private readonly storage: StorageService,
   ) {}
 
-  async requestUpload(dto: RequestUploadDto): Promise<RequestUploadResponseDto> {
+  async requestUpload(
+    dto: RequestUploadDto,
+  ): Promise<RequestUploadResponseDto> {
     const kind = resolveMediaKind(dto.contentType);
     if (!kind) {
       throw new BadRequestException(

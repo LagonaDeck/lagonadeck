@@ -27,7 +27,7 @@ export class MediaController {
       "Demande une URL d'upload pré-signée pour un fichier (image ou document).",
     description:
       "Crée la métadonnée du média (statut PENDING) et renvoie son id ainsi qu'une URL " +
-      "pré-signée sur laquelle le client doit effectuer un PUT direct du binaire. " +
+      'pré-signée sur laquelle le client doit effectuer un PUT direct du binaire. ' +
       "L'id renvoyé est celui à conserver pour référencer ce fichier plus tard.",
   })
   @ApiResponse({ status: 201, type: RequestUploadResponseDto })
@@ -59,7 +59,7 @@ export class MediaController {
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Récupère la métadonnée d\'un média et son URL de téléchargement.',
+    summary: "Récupère la métadonnée d'un média et son URL de téléchargement.",
     description:
       "L'URL de téléchargement pré-signée n'est renvoyée que si le média est READY.",
   })

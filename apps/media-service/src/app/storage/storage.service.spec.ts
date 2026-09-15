@@ -68,7 +68,7 @@ describe('StorageService', () => {
   });
 
   describe('statObject', () => {
-    it('renvoie les métadonnées quand l\'objet existe', async () => {
+    it("renvoie les métadonnées quand l'objet existe", async () => {
       sendMock.mockResolvedValue({
         ContentType: 'image/png',
         ContentLength: 2048,
