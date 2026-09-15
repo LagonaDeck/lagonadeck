@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
+  NotFound,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+export interface StoredObjectInfo {
+  contentType?: string;
+  sizeBytes: number;
+}
 
 /**
  * Accès à l'object storage (MinIO en local, S3 en prod) pour les binaires média.
@@ -44,6 +52,34 @@ export class StorageService {
       this.client,
       new GetObjectCommand({ Bucket: this.bucket, Key: key }),
       { expiresIn: expiresInSeconds },
+    );
+  }
+
+  /**
+   * Vérifie qu'un binaire a bien été déposé et renvoie ses métadonnées réelles.
+   * Renvoie `null` si l'objet n'existe pas (upload jamais confirmé côté client).
+   */
+  async statObject(key: string): Promise<StoredObjectInfo | null> {
+    try {
+      const head = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      return {
+        contentType: head.ContentType,
+        sizeBytes: head.ContentLength ?? 0,
+      };
+    } catch (error) {
+      if (error instanceof NotFound) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /** Supprime un binaire de l'object storage. */
+  async deleteObject(key: string): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
     );
   }
 }
