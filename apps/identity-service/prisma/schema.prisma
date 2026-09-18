@@ -14,8 +14,14 @@ datasource db {
 
 // Modèle de démarrage — à adapter au domaine identity.
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  email        String   @unique
+  firstName    String
+  lastName     String
+  pseudo       String   @unique
+  passwordHash String
+  salt         String
+  createdAt    DateTime @default(now())
+
+  @@map("users")
 }
