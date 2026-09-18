@@ -142,7 +142,7 @@ describe('MediaService', () => {
       });
     });
 
-    it('passe le média en FAILED si la taille ne correspond pas', async () => {
+    it('passe le média en FAILED et supprime le binaire si la taille ne correspond pas', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
       storage.statObject.mockResolvedValue({
         contentType: 'image/png',
@@ -152,6 +152,24 @@ describe('MediaService', () => {
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
+      expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
+      expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
+        where: { id: 'media-1' },
+        data: { status: MediaStatus.FAILED },
+      });
+    });
+
+    it('passe le média en FAILED et supprime le binaire si le type de contenu ne correspond pas', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
+      storage.statObject.mockResolvedValue({
+        contentType: 'application/pdf',
+        sizeBytes: 1024,
+      });
+
+      await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
       expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
         where: { id: 'media-1' },
         data: { status: MediaStatus.FAILED },

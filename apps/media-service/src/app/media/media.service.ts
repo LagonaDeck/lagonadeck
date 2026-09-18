@@ -83,13 +83,20 @@ export class MediaService {
     }
 
     const sizeDelta = Math.abs(objectInfo.sizeBytes - asset.sizeBytes);
-    if (sizeDelta > SIZE_MISMATCH_TOLERANCE_BYTES) {
+    const sizeMismatch = sizeDelta > SIZE_MISMATCH_TOLERANCE_BYTES;
+    const contentTypeMismatch =
+      !!objectInfo.contentType && objectInfo.contentType !== asset.contentType;
+
+    if (sizeMismatch || contentTypeMismatch) {
+      await this.storage.deleteObject(asset.storageKey);
       await this.prisma.mediaAsset.update({
         where: { id },
         data: { status: MediaStatus.FAILED },
       });
       throw new UnprocessableEntityException(
-        'La taille du binaire uploadé ne correspond pas à la taille annoncée.',
+        sizeMismatch
+          ? 'La taille du binaire uploadé ne correspond pas à la taille annoncée.'
+          : 'Le type de contenu du binaire uploadé ne correspond pas au type annoncé.',
       );
     }
 

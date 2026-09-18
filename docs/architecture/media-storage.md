@@ -11,25 +11,39 @@ Le service distingue :
 - les binaires, stockés dans le bucket S3 compatible ;
 - les métadonnées, stockées dans `media-db` via Prisma.
 
-Le modèle `MediaAsset` actuellement présent contient notamment `id`, `ownerId`,
-`storageKey`, `contentType`, `sizeBytes`, les dimensions optionnelles, un statut
-et les dates de création/mise à jour. Les champs `workspaceId`, `bucket`,
-`fileName` et `createdBy` font partie du modèle cible décrit par le projet, mais
-ne sont pas encore dans le schéma versionné.
+Le modèle `MediaAsset` actuellement présent contient `id`, `ownerId`,
+`fileName`, `storageKey`, `kind` (`IMAGE`/`DOCUMENT`), `contentType`,
+`sizeBytes`, les dimensions optionnelles, un statut et les dates de
+création/mise à jour. Les champs `workspaceId`, `bucket` et `createdBy` font
+partie du modèle cible décrit par le projet, mais ne sont pas encore dans le
+schéma versionné.
 
 ## État actuel
 
-`StorageService` est déjà implémenté avec `@aws-sdk/client-s3` et
-`@aws-sdk/s3-request-presigner`. Il crée des URLs pré-signées PUT et GET,
-configurées par `MEDIA_S3_ENDPOINT`, `MEDIA_S3_BUCKET`, `MEDIA_S3_REGION`,
-`MEDIA_S3_FORCE_PATH_STYLE` et les identifiants S3. Le bucket par défaut est
-`lagonadeck-media`.
+`StorageService` est implémenté avec `@aws-sdk/client-s3` et
+`@aws-sdk/s3-request-presigner` : URLs pré-signées PUT/GET, vérification de la
+présence d'un binaire (`statObject`, via `HeadObject`) et suppression
+(`deleteObject`), configurés par `MEDIA_S3_ENDPOINT`, `MEDIA_S3_BUCKET`,
+`MEDIA_S3_REGION`, `MEDIA_S3_FORCE_PATH_STYLE` et les identifiants S3. Le
+bucket par défaut est `lagonadeck-media`. MinIO est configuré pour le
+développement local dans `infrastructure/docker-compose.dev.yml`.
 
-Les contrôleurs HTTP, la validation MIME/taille, la persistance des métadonnées,
-la suppression, l'association aux ressources métier et la configuration du
-stockage local restent **à implémenter**. Aucun MinIO ou autre stockage local
-n'est configuré dans le dépôt : la documentation ne présume donc pas du produit
-qui sera choisi pour le développement local.
+Le contrôleur HTTP (`MediaController`) expose :
+
+- `POST /media` : valide le type MIME et la taille annoncée, crée la
+  métadonnée (`PENDING`) et renvoie l'`id` du média ainsi qu'une URL pré-signée
+  d'upload ;
+- `POST /media/:id/confirm` : vérifie la présence du binaire et sa cohérence
+  (taille, type de contenu) via `HeadObject`, passe le média en `READY`, ou en
+  `FAILED` (en supprimant le binaire incohérent) sinon ;
+- `GET /media` et `GET /media/:id` : lecture des métadonnées, avec URL de
+  téléchargement pré-signée une fois le média `READY` ;
+- `DELETE /media/:id` : supprime le binaire puis la métadonnée.
+
+Restent **à implémenter** : les médias par workspace, l'association explicite
+aux ressources métier des autres services, et l'authentification des appelants
+(aucun service du monorepo n'a encore de mécanisme d'auth — l'`ownerId` est
+actuellement fourni tel quel par l'appelant).
 
 ## Flux d'upload visé
 
