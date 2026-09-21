@@ -7,19 +7,23 @@ base, de son schéma Prisma et de ses migrations. `api-gateway` n'a aucune base.
 Un service ne se connecte jamais à la base d'un autre ; les échanges passent par
 REST ou, pour la propagation de faits, par RabbitMQ.
 
-| Service             | Base logique visée | Schéma présent | Modèle de démarrage |
-| ------------------- | ------------------ | -------------- | ------------------- |
-| `identity-service`  | `identity-db`      | Oui            | `User`              |
-| `catalog-service`   | `catalog-db`       | Oui            | `Product`           |
-| `inventory-service` | `inventory-db`     | Oui            | `StockItem`         |
-| `sales-service`     | `sales-db`         | Oui            | `Order`             |
-| `analytics-service` | `analytics-db`     | Oui            | `Event`             |
-| `media-service`     | `media-db`         | Oui            | `MediaAsset`        |
+| Service             | Base logique visée | Modèles Prisma                                                                    |
+| ------------------- | ------------------ | --------------------------------------------------------------------------------- |
+| `identity-service`  | `identity-db`      | `User` (modèle de démarrage)                                                      |
+| `catalog-service`   | `catalog-db`       | `Game`, `CardSet`, `Card`, `CardVariant`, `ExternalId`, `MarketPrice`             |
+| `inventory-service` | `inventory-db`     | `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
+| `sales-service`     | `sales-db`         | `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                       |
+| `analytics-service` | `analytics-db`     | `Event`, `DailyWorkspaceKpi`, `ItemPerformance`                                   |
+| `media-service`     | `media-db`         | `MediaAsset` (modèle de démarrage)                                                |
 
 Les noms de base sont des noms logiques documentés : le dépôt configure chaque
-connexion via `DATABASE_URL` dans son `prisma.config.ts`, mais ne versionne pas
-de fichiers d'environnement ni d'infrastructure PostgreSQL locale. Aucun dossier
-`prisma/migrations/` n'est présent à ce jour.
+connexion via `DATABASE_URL` dans son `prisma.config.ts` et ne versionne pas de
+fichiers d'environnement. Catalog, Inventory, Sales et Analytics versionnent une
+migration initiale dans `prisma/migrations/` ; elle s'applique avec
+`npm run db:deploy -w @lagonadeck/<service>`. Aucune étape de l'environnement
+Docker de développement ne l'applique automatiquement à ce jour : la commande
+pour les six services figure dans le
+[guide Docker de développement](../development/docker-development.md#créer-les-tables-migrations-prisma).
 
 ## Mise en œuvre actuelle
 
@@ -29,12 +33,34 @@ Chaque service ci-dessus contient :
 apps/<service>/
 ├── prisma.config.ts
 ├── prisma/schema.prisma
+├── prisma/migrations/          # migrations versionnées, quand le service en a
 └── src/generated/prisma/       # généré, non versionné
 ```
 
 Prisma 7 utilise le provider PostgreSQL et le driver adapter `@prisma/adapter-pg`.
-Les modèles existants sont des modèles de départ, pas encore le modèle complet
-du domaine métier.
+Les modèles de Catalog, Inventory, Sales et Analytics couvrent le cycle
+achat → stock → vente avec un jeu de champs volontairement minimal ; un champ
+facultatif s'ajoute par migration dans le seul service concerné. Identity et
+Media conservent leur modèle de démarrage : leur modèle est développé sur des
+branches dédiées.
+
+### Conventions des schémas
+
+Elles s'appliquent aux quatre services modélisés et ont vocation à être reprises
+par Identity et Media.
+
+- Identifiants `uuid` (`@db.Uuid`) sur toutes les tables.
+- Une donnée appartenant à un autre service est référencée par son UUID, **sans
+  clé étrangère** : `workspaceId`, `cardVariantId`, `inventoryItemId`, `saleId`…
+  Les relations Prisma (`@relation`) restent internes à une base.
+- Montants en `Decimal` accompagnés d'une devise ISO 4217 (`@db.Char(3)`).
+- Les tables de faits (`MarketPrice`, `StockMovement`, `Event`) sont en ajout
+  seul et n'ont pas de `updatedAt`.
+- `CardCondition` est dupliquée dans `catalog-db` et `inventory-db` : les deux
+  énumérations doivent rester alignées.
+- `inventory-service` active la preview feature Prisma `partialIndexes` : un
+  index unique partiel n'autorise qu'une `Reservation` de statut `ACTIVE` par
+  exemplaire, ce qui protège de la double vente au niveau de PostgreSQL.
 
 ## Scalabilité : réplication des bases par service
 
