@@ -4,19 +4,161 @@
 // reçoit un driver adapter (@prisma/adapter-pg) au runtime.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  // Requis par l'index unique partiel de `Reservation`.
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Modèle de démarrage — à adapter au domaine inventory.
-model StockItem {
-  id        String   @id @default(uuid())
-  sku       String   @unique
-  quantity  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// inventory-db — cycle achat → lot → allocation du coût → stock.
+// `workspaceId`, `cardVariantId`, `saleId` et `actorId` sont des références
+// logiques vers d'autres bases : pas de clé étrangère, seulement un UUID.
+
+enum PurchaseStatus {
+  DRAFT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+enum PurchaseFeeType {
+  SHIPPING
+  CUSTOMS
+  PLATFORM
+  OTHER
+}
+
+// Règle de répartition du coût d'un lot entre ses exemplaires.
+enum AllocationMethod {
+  EQUAL
+  MARKET_VALUE
+  MANUAL
+}
+
+// État physique d'une carte. Dupliqué dans catalog-db (une base par
+// service) : garder les deux énumérations alignées.
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  EXCELLENT
+  GOOD
+  LIGHT_PLAYED
+  PLAYED
+  POOR
+}
+
+enum ItemStatus {
+  IN_STOCK
+  LISTED
+  RESERVED
+  SOLD
+  // Sortie de stock hors vente : perte, don, collection personnelle.
+  WITHDRAWN
+}
+
+enum ReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+
+model Purchase {
+  id           String         @id @default(uuid()) @db.Uuid
+  workspaceId  String         @db.Uuid
+  supplierName String
+  purchasedAt  DateTime
+  currency     String         @db.Char(3)
+  totalPrice   Decimal        @db.Decimal(12, 2)
+  status       PurchaseStatus @default(DRAFT)
+  fees         PurchaseFee[]
+  lots         Lot[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([workspaceId, purchasedAt])
+}
+
+model PurchaseFee {
+  id         String          @id @default(uuid()) @db.Uuid
+  purchaseId String          @db.Uuid
+  purchase   Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  type       PurchaseFeeType
+  amount     Decimal         @db.Decimal(12, 2)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([purchaseId])
+}
+
+model Lot {
+  id               String           @id @default(uuid()) @db.Uuid
+  purchaseId       String           @db.Uuid
+  purchase         Purchase         @relation(fields: [purchaseId], references: [id])
+  label            String
+  // Prix du lot + quote-part des frais de l'achat. Invariant : égal à la
+  // somme des `allocatedCost` de ses exemplaires, au centime près.
+  acquisitionCost  Decimal          @db.Decimal(12, 2)
+  allocationMethod AllocationMethod @default(MARKET_VALUE)
+  items            InventoryItem[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([purchaseId])
+}
+
+// Un exemplaire physique = une ligne. Le stock est le nombre d'exemplaires
+// dans un statut donné, pas un compteur.
+model InventoryItem {
+  id            String          @id @default(uuid()) @db.Uuid
+  workspaceId   String          @db.Uuid
+  lotId         String          @db.Uuid
+  lot           Lot             @relation(fields: [lotId], references: [id])
+  cardVariantId String          @db.Uuid
+  condition     CardCondition
+  // Coût de revient ; n'est plus recalculé une fois l'exemplaire RESERVED ou SOLD.
+  allocatedCost Decimal         @default(0) @db.Decimal(12, 2)
+  status        ItemStatus      @default(IN_STOCK)
+  acquiredAt    DateTime
+  movements     StockMovement[]
+  reservations  Reservation[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, cardVariantId])
+  @@index([lotId])
+}
+
+// Journal en ajout seul : chaque changement de statut produit un mouvement.
+model StockMovement {
+  id         String        @id @default(uuid()) @db.Uuid
+  itemId     String        @db.Uuid
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fromStatus ItemStatus?
+  toStatus   ItemStatus
+  actorId    String        @db.Uuid
+  occurredAt DateTime      @default(now())
+
+  @@index([itemId, occurredAt])
+}
+
+// Blocage d'un exemplaire pour une vente en cours (protection contre la
+// double vente) : l'index unique partiel n'autorise qu'une réservation ACTIVE
+// par exemplaire.
+model Reservation {
+  id        String            @id @default(uuid()) @db.Uuid
+  itemId    String            @db.Uuid
+  item      InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  saleId    String            @db.Uuid
+  status    ReservationStatus @default(ACTIVE)
+  expiresAt DateTime
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([itemId], where: { status: "ACTIVE" })
+  @@index([saleId])
 }

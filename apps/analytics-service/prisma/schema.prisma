@@ -12,10 +12,67 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modèle de démarrage — à adapter au domaine analytics.
+// analytics-db — ne lit aucune autre base : tout est dérivé des événements
+// reçus. `Event` est la source ; les deux autres tables sont des projections
+// reconstructibles en rejouant les événements.
+
+// Boîte de réception des événements consommés (ajout seul).
 model Event {
-  id         String   @id @default(uuid())
-  type       String
-  payload    Json
-  occurredAt DateTime @default(now())
+  id          String   @id @default(uuid()) @db.Uuid
+  // Identifiant de l'événement chez le producteur : clé d'idempotence.
+  eventId     String   @unique @db.Uuid
+  // Nom versionné, ex. `sales.sale.completed.v1`.
+  type        String
+  // Absent pour les événements du catalogue, commun à tous les workspaces.
+  workspaceId String?  @db.Uuid
+  payload     Json
+  occurredAt  DateTime
+  receivedAt  DateTime @default(now())
+
+  @@index([type, occurredAt])
+  @@index([workspaceId, occurredAt])
+}
+
+// Indicateurs quotidiens d'un workspace, dans sa devise de référence.
+model DailyWorkspaceKpi {
+  id               String   @id @default(uuid()) @db.Uuid
+  workspaceId      String   @db.Uuid
+  date             DateTime @db.Date
+  currency         String   @db.Char(3)
+  revenue          Decimal  @default(0) @db.Decimal(14, 2)
+  netProfit        Decimal  @default(0) @db.Decimal(14, 2)
+  feesTotal        Decimal  @default(0) @db.Decimal(14, 2)
+  itemsSold        Int      @default(0)
+  itemsPurchased   Int      @default(0)
+  capitalInvested  Decimal  @default(0) @db.Decimal(14, 2)
+  stockCostValue   Decimal  @default(0) @db.Decimal(14, 2)
+  stockMarketValue Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([workspaceId, date])
+}
+
+// Une ligne dénormalisée par exemplaire vendu.
+model ItemPerformance {
+  id              String   @id @default(uuid()) @db.Uuid
+  workspaceId     String   @db.Uuid
+  inventoryItemId String   @unique @db.Uuid
+  cardVariantId   String   @db.Uuid
+  cardName        String
+  marketplace     String
+  currency        String   @db.Char(3)
+  acquiredAt      DateTime
+  soldAt          DateTime
+  holdingDays     Int
+  cost            Decimal  @db.Decimal(12, 2)
+  netProceeds     Decimal  @db.Decimal(12, 2)
+  profit          Decimal  @db.Decimal(12, 2)
+  // Bénéfice ÷ coût de revient (0.2500 = 25 %).
+  roi             Decimal  @db.Decimal(8, 4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([workspaceId, soldAt])
+  @@index([workspaceId, cardVariantId])
 }

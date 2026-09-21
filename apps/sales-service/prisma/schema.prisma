@@ -12,18 +12,97 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modèle de démarrage — à adapter au domaine sales.
-model Order {
-  id        String      @id @default(uuid())
-  status    OrderStatus @default(PENDING)
-  total     Decimal     @default(0)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-}
+// sales-db — résultat des ventes. Sales ne modifie jamais inventory-db :
+// `workspaceId`, `inventoryItemId` et `cardVariantId` sont des références
+// logiques vers d'autres bases (UUID sans clé étrangère).
+// Bénéfice, marge et ROI se calculent à partir des lignes : ils ne sont pas stockés.
 
-enum OrderStatus {
-  PENDING
+enum SaleStatus {
+  DRAFT
   PAID
   SHIPPED
+  COMPLETED
   CANCELLED
+}
+
+// Canal de vente.
+enum Marketplace {
+  CARDMARKET
+  EBAY
+  VINTED
+  SALON
+  DIRECT
+}
+
+enum SaleFeeType {
+  MARKETPLACE_COMMISSION
+  PAYMENT
+  SHIPPING_COST
+  PACKAGING
+  OTHER
+}
+
+model Sale {
+  id              String      @id @default(uuid()) @db.Uuid
+  workspaceId     String      @db.Uuid
+  marketplace     Marketplace
+  // Pseudonyme de l'acheteur sur le canal : seule donnée personnelle conservée.
+  buyerHandle     String?
+  status          SaleStatus  @default(DRAFT)
+  currency        String      @db.Char(3)
+  // Frais de port facturés à l'acheteur.
+  shippingCharged Decimal     @default(0) @db.Decimal(12, 2)
+  soldAt          DateTime
+  lines           SaleLine[]
+  fees            SaleFee[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([workspaceId, soldAt])
+  @@index([workspaceId, status])
+}
+
+// Une carte vendue. Les champs `*Snapshot` figent le libellé et le coût de
+// revient au moment de la vente, pour que la marge reste stable dans le temps.
+model SaleLine {
+  id                String      @id @default(uuid()) @db.Uuid
+  saleId            String      @db.Uuid
+  sale              Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  inventoryItemId   String      @db.Uuid
+  cardVariantId     String      @db.Uuid
+  cardNameSnapshot  String
+  unitPrice         Decimal     @db.Decimal(12, 2)
+  costBasisSnapshot Decimal     @db.Decimal(12, 2)
+  saleReturn        SaleReturn?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([saleId])
+  @@index([inventoryItemId])
+}
+
+// Frais supportés par le vendeur.
+model SaleFee {
+  id        String      @id @default(uuid()) @db.Uuid
+  saleId    String      @db.Uuid
+  sale      Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  type      SaleFeeType
+  amount    Decimal     @db.Decimal(12, 2)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([saleId])
+}
+
+// Retour ou remboursement d'une ligne (au plus un par ligne).
+model SaleReturn {
+  id           String   @id @default(uuid()) @db.Uuid
+  saleLineId   String   @unique @db.Uuid
+  saleLine     SaleLine @relation(fields: [saleLineId], references: [id], onDelete: Cascade)
+  refundAmount Decimal  @db.Decimal(12, 2)
+  // Vrai si l'exemplaire réintègre le stock.
+  restock      Boolean  @default(false)
+  returnedAt   DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
