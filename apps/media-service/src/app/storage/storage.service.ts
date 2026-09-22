@@ -4,14 +4,21 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   NotFound,
-  PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 
 export interface StoredObjectInfo {
   contentType?: string;
   sizeBytes: number;
+}
+
+export interface PresignedUpload {
+  /** URL cible du POST multipart/form-data. */
+  url: string;
+  /** Champs de formulaire à envoyer tels quels avant le champ `file`. */
+  fields: Record<string, string>;
 }
 
 /**
@@ -37,13 +44,36 @@ export class StorageService {
     });
   }
 
-  /** URL pré-signée pour téléverser un binaire (PUT). */
-  presignUpload(key: string, expiresInSeconds = 900): Promise<string> {
-    return getSignedUrl(
-      this.client,
-      new PutObjectCommand({ Bucket: this.bucket, Key: key }),
-      { expiresIn: expiresInSeconds },
-    );
+  /**
+   * POST pré-signé (formulaire multipart) pour téléverser un binaire.
+   *
+   * Contrairement à un PUT pré-signé, un POST S3 signé via une policy permet
+   * de figer le `Content-Type` et la taille exacte du fichier dans la
+   * signature elle-même : l'en-tête `Content-Type` d'un PUT présigné n'est
+   * jamais inclus dans le calcul de signature par le SDK AWS (il est marqué
+   * "unsignable"), donc un client pourrait y envoyer n'importe quel binaire
+   * sous n'importe quel type. Ici, S3/MinIO rejette la requête (403/400) si
+   * le `Content-Type` ou la taille du corps ne correspondent pas exactement
+   * à ce qui a été annoncé lors de la demande d'upload.
+   */
+  presignUpload(
+    key: string,
+    contentType: string,
+    sizeBytes: number,
+    expiresInSeconds = 900,
+  ): Promise<PresignedUpload> {
+    return createPresignedPost(this.client, {
+      Bucket: this.bucket,
+      Key: key,
+      Expires: expiresInSeconds,
+      Conditions: [
+        ['content-length-range', sizeBytes, sizeBytes],
+        ['eq', '$Content-Type', contentType],
+      ],
+      Fields: {
+        'Content-Type': contentType,
+      },
+    });
   }
 
   /** URL pré-signée pour télécharger un binaire (GET). */

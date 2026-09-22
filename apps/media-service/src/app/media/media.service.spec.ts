@@ -95,9 +95,12 @@ describe('MediaService', () => {
       expect(prisma.mediaAsset.create).not.toHaveBeenCalled();
     });
 
-    it('crée la métadonnée PENDING et renvoie une URL pré-signée', async () => {
+    it('crée la métadonnée PENDING et renvoie un POST pré-signé figeant le type et la taille', async () => {
       prisma.mediaAsset.create.mockResolvedValue(baseAsset);
-      storage.presignUpload.mockResolvedValue('https://minio.local/upload');
+      storage.presignUpload.mockResolvedValue({
+        url: 'https://minio.local/lagonadeck-media',
+        fields: { key: 'image/owner-1/media-1', 'Content-Type': 'image/png' },
+      });
 
       const result = await service.requestUpload({
         ownerId: 'owner-1',
@@ -116,7 +119,17 @@ describe('MediaService', () => {
           }),
         }),
       );
-      expect(result.uploadUrl).toBe('https://minio.local/upload');
+      expect(storage.presignUpload).toHaveBeenCalledWith(
+        expect.any(String),
+        'image/png',
+        1024,
+        expect.any(Number),
+      );
+      expect(result.uploadUrl).toBe('https://minio.local/lagonadeck-media');
+      expect(result.uploadFields).toEqual({
+        key: 'image/owner-1/media-1',
+        'Content-Type': 'image/png',
+      });
       expect(result.id).toEqual(expect.any(String));
     });
   });
@@ -142,21 +155,30 @@ describe('MediaService', () => {
       });
     });
 
-    it('passe le média en FAILED et supprime le binaire si la taille ne correspond pas', async () => {
+    it('passe le média en FAILED puis supprime le binaire si la taille ne correspond pas (FAILED avant la suppression)', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
       storage.statObject.mockResolvedValue({
         contentType: 'image/png',
         sizeBytes: 2048,
       });
+      const callOrder: string[] = [];
+      prisma.mediaAsset.update.mockImplementation(async () => {
+        callOrder.push('update-failed');
+        return baseAsset;
+      });
+      storage.deleteObject.mockImplementation(async () => {
+        callOrder.push('delete-object');
+      });
 
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
         UnprocessableEntityException,
       );
-      expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
       expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
         where: { id: 'media-1' },
         data: { status: MediaStatus.FAILED },
       });
+      expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
+      expect(callOrder).toEqual(['update-failed', 'delete-object']);
     });
 
     it('passe le média en FAILED et supprime le binaire si le type de contenu ne correspond pas', async () => {
@@ -170,6 +192,39 @@ describe('MediaService', () => {
         UnprocessableEntityException,
       );
       expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
+      expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
+        where: { id: 'media-1' },
+        data: { status: MediaStatus.FAILED },
+      });
+    });
+
+    it('passe le média en FAILED même si HeadObject ne renvoie aucun Content-Type', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
+      storage.statObject.mockResolvedValue({
+        contentType: undefined,
+        sizeBytes: 1024,
+      });
+
+      await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
+      expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
+        where: { id: 'media-1' },
+        data: { status: MediaStatus.FAILED },
+      });
+    });
+
+    it('renvoie tout de même le 422 si la suppression du binaire incohérent échoue', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
+      storage.statObject.mockResolvedValue({
+        contentType: 'application/pdf',
+        sizeBytes: 1024,
+      });
+      storage.deleteObject.mockRejectedValue(new Error('storage indisponible'));
+
+      await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
+        UnprocessableEntityException,
+      );
       expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
         where: { id: 'media-1' },
         data: { status: MediaStatus.FAILED },
@@ -236,6 +291,62 @@ describe('MediaService', () => {
       expect(storage.deleteObject).toHaveBeenCalledWith(baseAsset.storageKey);
       expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
         where: { id: 'media-1' },
+      });
+    });
+  });
+
+  describe('purgeStalePendingAssets', () => {
+    it("ne fait rien si aucun média PENDING n'est périmé", async () => {
+      prisma.mediaAsset.findMany.mockResolvedValue([]);
+
+      await service.purgeStalePendingAssets();
+
+      expect(storage.deleteObject).not.toHaveBeenCalled();
+      expect(prisma.mediaAsset.delete).not.toHaveBeenCalled();
+    });
+
+    it("filtre sur les médias PENDING créés avant la fenêtre d'upload", async () => {
+      prisma.mediaAsset.findMany.mockResolvedValue([]);
+
+      await service.purgeStalePendingAssets();
+
+      expect(prisma.mediaAsset.findMany).toHaveBeenCalledWith({
+        where: {
+          status: MediaStatus.PENDING,
+          createdAt: { lt: expect.any(Date) },
+        },
+      });
+    });
+
+    it('supprime le binaire (best-effort) puis la métadonnée de chaque média périmé', async () => {
+      const stale = {
+        ...baseAsset,
+        id: 'stale-1',
+        storageKey: 'image/owner-1/stale-1',
+      };
+      prisma.mediaAsset.findMany.mockResolvedValue([stale]);
+
+      await service.purgeStalePendingAssets();
+
+      expect(storage.deleteObject).toHaveBeenCalledWith(stale.storageKey);
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
+        where: { id: 'stale-1' },
+      });
+    });
+
+    it('purge quand même la métadonnée si la suppression du binaire échoue', async () => {
+      const stale = {
+        ...baseAsset,
+        id: 'stale-1',
+        storageKey: 'image/owner-1/stale-1',
+      };
+      prisma.mediaAsset.findMany.mockResolvedValue([stale]);
+      storage.deleteObject.mockRejectedValue(new Error('storage indisponible'));
+
+      await service.purgeStalePendingAssets();
+
+      expect(prisma.mediaAsset.delete).toHaveBeenCalledWith({
+        where: { id: 'stale-1' },
       });
     });
   });

@@ -77,3 +77,51 @@ describe('MAX_UPLOAD_SIZE_BYTES', () => {
     await expect(loadWithEnv('1048576')).resolves.toBe(1048576);
   });
 });
+
+describe('PENDING_CLEANUP_INTERVAL_MS', () => {
+  const ENV_KEY = 'MEDIA_PENDING_CLEANUP_INTERVAL_MS';
+  const originalValue = process.env[ENV_KEY];
+  const DEFAULT_PENDING_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+  afterEach(() => {
+    if (originalValue === undefined) {
+      delete process.env[ENV_KEY];
+    } else {
+      process.env[ENV_KEY] = originalValue;
+    }
+    jest.resetModules();
+  });
+
+  async function loadWithEnv(value: string | undefined): Promise<number> {
+    jest.resetModules();
+    if (value === undefined) {
+      delete process.env[ENV_KEY];
+    } else {
+      process.env[ENV_KEY] = value;
+    }
+    const module = await import('./media.constants');
+    return module.PENDING_CLEANUP_INTERVAL_MS;
+  }
+
+  it('utilise la valeur par défaut si la variable est absente', async () => {
+    await expect(loadWithEnv(undefined)).resolves.toBe(
+      DEFAULT_PENDING_CLEANUP_INTERVAL_MS,
+    );
+  });
+
+  it('utilise la valeur par défaut si la variable est invalide', async () => {
+    await expect(loadWithEnv('')).resolves.toBe(
+      DEFAULT_PENDING_CLEANUP_INTERVAL_MS,
+    );
+    await expect(loadWithEnv('not-a-number')).resolves.toBe(
+      DEFAULT_PENDING_CLEANUP_INTERVAL_MS,
+    );
+    await expect(loadWithEnv('-1')).resolves.toBe(
+      DEFAULT_PENDING_CLEANUP_INTERVAL_MS,
+    );
+  });
+
+  it('utilise la valeur fournie quand elle est valide', async () => {
+    await expect(loadWithEnv('60000')).resolves.toBe(60000);
+  });
+});

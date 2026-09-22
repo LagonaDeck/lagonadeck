@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -15,6 +17,7 @@ import { MediaAssetDto } from './dto/media-asset.dto';
 import {
   DOWNLOAD_URL_EXPIRY_SECONDS,
   MAX_UPLOAD_SIZE_BYTES,
+  PENDING_CLEANUP_INTERVAL_MS,
   UPLOAD_URL_EXPIRY_SECONDS,
   resolveMediaKind,
 } from './media.constants';
@@ -24,6 +27,8 @@ const SIZE_MISMATCH_TOLERANCE_BYTES = 0;
 
 @Injectable()
 export class MediaService {
+  private readonly logger = new Logger(MediaService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -60,12 +65,19 @@ export class MediaService {
       },
     });
 
-    const uploadUrl = await this.storage.presignUpload(
+    const { url, fields } = await this.storage.presignUpload(
       storageKey,
+      dto.contentType,
+      dto.sizeBytes,
       UPLOAD_URL_EXPIRY_SECONDS,
     );
 
-    return { id, uploadUrl, expiresInSeconds: UPLOAD_URL_EXPIRY_SECONDS };
+    return {
+      id,
+      uploadUrl: url,
+      uploadFields: fields,
+      expiresInSeconds: UPLOAD_URL_EXPIRY_SECONDS,
+    };
   }
 
   async confirmUpload(id: string): Promise<MediaAssetDto> {
@@ -84,15 +96,25 @@ export class MediaService {
 
     const sizeDelta = Math.abs(objectInfo.sizeBytes - asset.sizeBytes);
     const sizeMismatch = sizeDelta > SIZE_MISMATCH_TOLERANCE_BYTES;
-    const contentTypeMismatch =
-      !!objectInfo.contentType && objectInfo.contentType !== asset.contentType;
+    const contentTypeMismatch = objectInfo.contentType !== asset.contentType;
 
     if (sizeMismatch || contentTypeMismatch) {
-      await this.storage.deleteObject(asset.storageKey);
+      // On fige d'abord l'état métier (FAILED) : le nettoyage du binaire est
+      // de l'hygiène de stockage et ne doit pas empêcher l'appelant d'obtenir
+      // une réponse cohérente si la suppression échoue (droits, storage
+      // indisponible...). Un binaire orphelin résiduel sera repris par
+      // purgeStalePendingAssets, ou peut être nettoyé manuellement.
       await this.prisma.mediaAsset.update({
         where: { id },
         data: { status: MediaStatus.FAILED },
       });
+      try {
+        await this.storage.deleteObject(asset.storageKey);
+      } catch (error) {
+        this.logger.warn(
+          `Échec de la suppression du binaire incohérent ${asset.storageKey} : ${error}`,
+        );
+      }
       throw new UnprocessableEntityException(
         sizeMismatch
           ? 'La taille du binaire uploadé ne correspond pas à la taille annoncée.'
@@ -106,6 +128,37 @@ export class MediaService {
     });
 
     return this.toDto(updated);
+  }
+
+  /**
+   * Purge les médias restés PENDING après l'expiration de leur URL d'upload :
+   * soit le client n'a jamais uploadé, soit il a été interrompu avant de
+   * confirmer. Sans cette purge, ces enregistrements (et un éventuel binaire
+   * partiel) restent orphelins indéfiniment.
+   */
+  @Interval(PENDING_CLEANUP_INTERVAL_MS)
+  async purgeStalePendingAssets(): Promise<void> {
+    const staleBefore = new Date(Date.now() - UPLOAD_URL_EXPIRY_SECONDS * 1000);
+    const staleAssets = await this.prisma.mediaAsset.findMany({
+      where: { status: MediaStatus.PENDING, createdAt: { lt: staleBefore } },
+    });
+
+    for (const asset of staleAssets) {
+      try {
+        await this.storage.deleteObject(asset.storageKey);
+      } catch (error) {
+        this.logger.warn(
+          `Échec de la suppression du binaire orphelin ${asset.storageKey} : ${error}`,
+        );
+      }
+      await this.prisma.mediaAsset.delete({ where: { id: asset.id } });
+    }
+
+    if (staleAssets.length > 0) {
+      this.logger.log(
+        `${staleAssets.length} média(s) PENDING jamais confirmé(s) purgé(s).`,
+      );
+    }
   }
 
   async findOne(id: string): Promise<MediaAssetDto> {

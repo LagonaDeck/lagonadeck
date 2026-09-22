@@ -12,14 +12,18 @@ jest.mock('@aws-sdk/s3-request-presigner', () => ({
   getSignedUrl: jest.fn(),
 }));
 
+jest.mock('@aws-sdk/s3-presigned-post', () => ({
+  createPresignedPost: jest.fn(),
+}));
+
 import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   NotFound,
-  PutObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { StorageService } from './storage.service';
 
 describe('StorageService', () => {
@@ -35,20 +39,34 @@ describe('StorageService', () => {
     process.env = { ...env };
   });
 
-  it('présigne une URL de PUT sur le bon bucket/clé', async () => {
-    (getSignedUrl as jest.Mock).mockResolvedValue('https://minio.local/put');
+  it('présigne un POST sur le bon bucket/clé, en figeant le Content-Type et la taille exacte', async () => {
+    (createPresignedPost as jest.Mock).mockResolvedValue({
+      url: 'https://minio.local/lagonadeck-media',
+      fields: { key: 'image/owner-1/media-1', 'Content-Type': 'image/png' },
+    });
     const service = new StorageService();
 
-    const url = await service.presignUpload('image/owner-1/media-1', 120);
+    const result = await service.presignUpload(
+      'image/owner-1/media-1',
+      'image/png',
+      2048,
+      120,
+    );
 
-    expect(url).toBe('https://minio.local/put');
-    const [, command, options] = (getSignedUrl as jest.Mock).mock.calls[0];
-    expect(command).toBeInstanceOf(PutObjectCommand);
-    expect(command.input).toEqual({
+    expect(result).toEqual({
+      url: 'https://minio.local/lagonadeck-media',
+      fields: { key: 'image/owner-1/media-1', 'Content-Type': 'image/png' },
+    });
+    expect(createPresignedPost).toHaveBeenCalledWith(expect.anything(), {
       Bucket: 'lagonadeck-media',
       Key: 'image/owner-1/media-1',
+      Expires: 120,
+      Conditions: [
+        ['content-length-range', 2048, 2048],
+        ['eq', '$Content-Type', 'image/png'],
+      ],
+      Fields: { 'Content-Type': 'image/png' },
     });
-    expect(options).toEqual({ expiresIn: 120 });
   });
 
   it('présigne une URL de GET sur le bon bucket/clé', async () => {

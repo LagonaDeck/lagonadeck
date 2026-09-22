@@ -23,11 +23,13 @@ export class MediaController {
 
   @Post()
   @ApiOperation({
-    summary:
-      "Demande une URL d'upload pré-signée pour un fichier (image ou document).",
+    summary: 'Demande un upload pré-signé pour un fichier (image ou document).',
     description:
-      "Crée la métadonnée du média (statut PENDING) et renvoie son id ainsi qu'une URL " +
-      'pré-signée sur laquelle le client doit effectuer un PUT direct du binaire. ' +
+      "Crée la métadonnée du média (statut PENDING) et renvoie son id ainsi que l'URL et les champs " +
+      "d'un POST multipart/form-data à effectuer directement vers l'object storage (voir `uploadFields`). " +
+      "Le Content-Type et la taille exacte du fichier sont figés dans la signature : l'object storage " +
+      'rejette le POST si le binaire envoyé ne correspond pas exactement au type et à la taille déclarés. ' +
+      "L'upload doit être suivi d'un appel à `POST /media/:id/confirm`. " +
       "L'id renvoyé est celui à conserver pour référencer ce fichier plus tard.",
   })
   @ApiResponse({ status: 201, type: RequestUploadResponseDto })
@@ -41,8 +43,10 @@ export class MediaController {
   @ApiOperation({
     summary: "Confirme qu'un upload a bien été déposé sur l'object storage.",
     description:
-      "À appeler par le client une fois le PUT sur l'URL pré-signée terminé. " +
-      'Vérifie la présence et la taille du binaire puis passe le média en statut READY.',
+      'À appeler par le client une fois le POST multipart terminé (obligatoire : un média reste ' +
+      "PENDING, puis est purgé, tant que cette étape n'a pas été effectuée). Vérifie la présence, " +
+      'la taille et le type de contenu réels du binaire puis passe le média en statut READY, ou en ' +
+      "FAILED (en supprimant le binaire incohérent) si l'un d'eux ne correspond pas.",
   })
   @ApiParam({ name: 'id', description: 'Identifiant du média' })
   @ApiResponse({ status: 200, type: MediaAssetDto })
