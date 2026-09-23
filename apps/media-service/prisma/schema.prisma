@@ -12,11 +12,13 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modèle de démarrage — métadonnées des médias (les binaires vont sur l'object storage).
+// Métadonnées des médias (les binaires vont sur l'object storage, cf. StorageService).
 model MediaAsset {
   id          String      @id @default(uuid())
   ownerId     String
+  fileName    String
   storageKey  String      @unique
+  kind        MediaKind
   contentType String
   sizeBytes   Int
   width       Int?
@@ -24,6 +26,13 @@ model MediaAsset {
   status      MediaStatus @default(PENDING)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  @@index([ownerId])
+}
+
+enum MediaKind {
+  IMAGE
+  DOCUMENT
 }
 
 enum MediaStatus {
