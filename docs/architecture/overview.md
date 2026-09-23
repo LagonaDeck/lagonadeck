@@ -18,7 +18,7 @@ unique.
 | ------------------- | ---------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
 | `frontend`          | Angular 22, NgRx       | Interface utilisateur unique                         | Squelette fonctionnel, store racine vide                                    |
 | `api-gateway`       | NestJS                 | Entrée HTTP, routage et préoccupations transversales | Squelette sans logique de gateway                                           |
-| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Schéma de démarrage                                                         |
+| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Entité `User` CRUD opérationnelle ; login/JWT/workspaces à implémenter      |
 | `catalog-service`   | NestJS, Prisma         | Référentiel des cartes et prix                       | Schéma de démarrage                                                         |
 | `inventory-service` | NestJS, Prisma         | Achats, lots et stock                                | Schéma de démarrage                                                         |
 | `sales-service`     | NestJS, Prisma         | Ventes et rentabilité                                | Schéma de démarrage                                                         |
