@@ -20,7 +20,7 @@ métier et ne doit jamais accéder à une base de données d'un service.
 | Inventory | achats, lots, frais, allocation de coût, exemplaires physiques, stock, mouvements, réservations et aging | modèle `StockItem` de démarrage ; cycle métier à implémenter                                                                                                                             |
 | Sales     | ventes, lignes, acheteurs, marketplaces, frais, retours, bénéfice, marge et ROI                          | modèle `Order` de démarrage ; calculs à implémenter                                                                                                                                      |
 | Analytics | dashboard, KPI, CA, bénéfice, ROI, valeur de stock, agrégations et projections                           | modèle d'événement local `Event` ; consommateurs et projections à implémenter                                                                                                            |
-| Media     | médias, métadonnées, URLs d'accès, validation, clés S3 et médias par workspace                           | `MediaAsset` et `StorageService` présents ; endpoints et gestion métier à implémenter                                                                                                    |
+| Media     | médias, métadonnées, URLs d'accès, validation, clés S3 et médias par workspace                           | endpoints CRUD (upload pré-signé, confirmation, téléchargement, suppression) implémentés ; médias par workspace à implémenter                                                            |
 
 ### Frontières importantes
 
