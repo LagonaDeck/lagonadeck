@@ -12,7 +12,9 @@ datasource db {
   provider = "postgresql"
 }
 
-// Modèle de démarrage — à adapter au domaine identity.
+// Identité d'un utilisateur : email et pseudo uniques (stockés normalisés,
+// cf. common/normalize.ts), mot de passe haché + salt (jamais en clair,
+// cf. ADR 0007 pour l'algorithme et la stratégie de salage).
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -22,6 +24,7 @@ model User {
   passwordHash String
   salt         String
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("users")
 }

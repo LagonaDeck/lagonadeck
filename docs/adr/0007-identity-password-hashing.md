@@ -42,11 +42,15 @@ redondante pour bcrypt spécifiquement. Elle est conservée telle quelle car :
   compatible si l'algorithme change un jour vers un schéma qui, lui,
   nécessite un salt stocké séparément.
 
-La validation du mot de passe **avant** hachage (longueur minimale de 8
-caractères, présence d'une majuscule, d'une minuscule et d'un chiffre ou
-caractère spécial) est portée par `CreateUserDto`
-(`@MinLength(8)` + `@Matches(...)`, `class-validator`) : un mot de passe trop
-faible est rejeté avant même d'atteindre `PasswordService`.
+La validation du mot de passe **avant** hachage (entre 8 et 64 caractères,
+présence d'une majuscule, d'une minuscule et d'un chiffre ou caractère
+spécial) est portée par `CreateUserDto`
+(`@MinLength(8)` + `@MaxLength(64)` + `@Matches(...)`, `class-validator`) : un
+mot de passe trop faible, ou trop long, est rejeté avant même d'atteindre
+`PasswordService`. La longueur maximale existe spécifiquement pour éviter la
+troncature silencieuse de bcrypt au-delà de 72 octets (cf. Conséquences) :
+64 caractères garde une marge sous cette limite même avec des caractères
+multi-octets (UTF-8).
 
 ## Raisons
 
@@ -85,9 +89,10 @@ faible est rejeté avant même d'atteindre `PasswordService`.
   revoir si le besoin de l'ajuster par environnement (dev vs prod) se
   présente.
 - ➖ bcrypt tronque silencieusement les mots de passe au-delà de 72 octets
-  (limite intrinsèque à l'algorithme) ; sans incidence avec la contrainte
-  actuelle (pas de longueur maximale explicite sur `CreateUserDto.password`),
-  mais à garder en tête si une longueur maximale doit être ajoutée plus tard.
+  (limite intrinsèque à l'algorithme) : sans plafond explicite côté validation,
+  deux mots de passe partageant les 72 premiers octets seraient traités comme
+  identiques. `CreateUserDto.password` porte donc un `@MaxLength(64)` qui
+  empêche d'atteindre cette limite en pratique.
 
 ## Mise en œuvre
 

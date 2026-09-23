@@ -20,6 +20,7 @@ describe('UserController', () => {
     passwordHash: 'hashed',
     salt: 'salt',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   beforeEach(async () => {
@@ -58,6 +59,7 @@ describe('UserController', () => {
       lastName: 'Doe',
       pseudo: 'janedoe',
       createdAt: userEntity.createdAt,
+      updatedAt: userEntity.updatedAt,
     });
     expect(result).not.toHaveProperty('passwordHash');
     expect(result).not.toHaveProperty('salt');

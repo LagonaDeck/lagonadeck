@@ -1,12 +1,17 @@
 import {
-  Injectable,
   ConflictException,
+  Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../common/password.service';
+import { normalizeEmail } from '../common/normalize';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Prisma } from '../../generated/prisma/client';
+
+/** Code Prisma d'une violation de contrainte unique (index email/pseudo). */
+const UNIQUE_CONSTRAINT_VIOLATION_CODE = 'P2002';
 
 @Injectable()
 export class UserService {
@@ -16,25 +21,20 @@ export class UserService {
   ) {}
 
   async create(dto: CreateUserDto) {
-    const exists = await this.prisma.user.findFirst({
-      where: { OR: [{ email: dto.email }, { pseudo: dto.pseudo }] },
-    });
-    if (exists) {
-      throw new ConflictException('Email ou pseudo déjà utilisé');
-    }
-
     const { hash, salt } = await this.passwordService.hash(dto.password);
 
-    return this.prisma.user.create({
-      data: {
-        email: dto.email,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        pseudo: dto.pseudo,
-        passwordHash: hash,
-        salt,
-      },
-    });
+    return this.writeOrConflict(() =>
+      this.prisma.user.create({
+        data: {
+          email: dto.email,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          pseudo: dto.pseudo,
+          passwordHash: hash,
+          salt,
+        },
+      }),
+    );
   }
 
   async findById(id: string) {
@@ -44,26 +44,41 @@ export class UserService {
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({
+      where: { email: normalizeEmail(email) },
+    });
   }
 
   async update(id: string, dto: UpdateUserDto) {
     await this.findById(id); // vérifie l'existence
 
-    if (dto.email || dto.pseudo) {
-      const orConditions: Array<{ email: string } | { pseudo: string }> = [];
-      if (dto.email) orConditions.push({ email: dto.email });
-      if (dto.pseudo) orConditions.push({ pseudo: dto.pseudo });
+    return this.writeOrConflict(() =>
+      this.prisma.user.update({ where: { id }, data: dto }),
+    );
+  }
 
-      const conflict = await this.prisma.user.findFirst({
-        where: {
-          id: { not: id },
-          OR: orConditions,
-        },
-      });
-      if (conflict) throw new ConflictException('Email ou pseudo déjà utilisé');
+  /**
+   * Exécute une écriture Prisma et convertit une violation de l'index unique
+   * (email/pseudo, code P2002) en 409 explicite.
+   *
+   * Il n'y a volontairement pas de pré-contrôle applicatif (`findFirst`) avant
+   * l'écriture : un tel contrôle n'est pas atomique avec l'écriture qui suit,
+   * donc deux requêtes concurrentes avec le même email/pseudo le passeraient
+   * toutes les deux, et la seconde écriture échouerait quand même sur l'index.
+   * L'index unique en base reste donc la seule source de vérité ; ce wrapper
+   * se contente de traduire son erreur en réponse HTTP appropriée.
+   */
+  private async writeOrConflict<T>(write: () => Promise<T>): Promise<T> {
+    try {
+      return await write();
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_CONSTRAINT_VIOLATION_CODE
+      ) {
+        throw new ConflictException('Email ou pseudo déjà utilisé');
+      }
+      throw error;
     }
-
-    return this.prisma.user.update({ where: { id }, data: dto });
   }
 }

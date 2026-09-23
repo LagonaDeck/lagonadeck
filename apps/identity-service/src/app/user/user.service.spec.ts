@@ -3,12 +3,19 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { UserService } from './user.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../common/password.service';
+import { Prisma } from '../../generated/prisma/client';
+
+function uniqueConstraintError() {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: '7.10.0',
+  });
+}
 
 describe('UserService', () => {
   let service: UserService;
   let prisma: {
     user: {
-      findFirst: jest.Mock;
       findUnique: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
@@ -25,12 +32,12 @@ describe('UserService', () => {
     passwordHash: 'hashed',
     salt: 'salt',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   beforeEach(async () => {
     prisma = {
       user: {
-        findFirst: jest.fn(),
         findUnique: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
@@ -61,21 +68,7 @@ describe('UserService', () => {
       password: 'Sup3rSecret!',
     };
 
-    it('rejette si un utilisateur existe déjà avec le même email ou pseudo', async () => {
-      prisma.user.findFirst.mockResolvedValue(baseUser);
-
-      await expect(service.create(dto)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: { OR: [{ email: dto.email }, { pseudo: dto.pseudo }] },
-      });
-      expect(passwordService.hash).not.toHaveBeenCalled();
-      expect(prisma.user.create).not.toHaveBeenCalled();
-    });
-
     it("hache le mot de passe et crée l'utilisateur", async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
       passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
       prisma.user.create.mockResolvedValue(baseUser);
 
@@ -93,6 +86,23 @@ describe('UserService', () => {
         },
       });
       expect(result).toEqual(baseUser);
+    });
+
+    it('convertit une violation de contrainte unique (P2002) en 409', async () => {
+      passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
+      prisma.user.create.mockRejectedValue(uniqueConstraintError());
+
+      await expect(service.create(dto)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('propage les autres erreurs sans les convertir', async () => {
+      passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
+      const dbError = new Error('connexion perdue');
+      prisma.user.create.mockRejectedValue(dbError);
+
+      await expect(service.create(dto)).rejects.toBe(dbError);
     });
   });
 
@@ -130,6 +140,16 @@ describe('UserService', () => {
         where: { email: baseUser.email },
       });
     });
+
+    it('normalise (trim + minuscules) avant de chercher', async () => {
+      prisma.user.findUnique.mockResolvedValue(baseUser);
+
+      await service.findByEmail('  Jane@Example.com  ');
+
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'jane@example.com' },
+      });
+    });
   });
 
   describe('update', () => {
@@ -142,32 +162,12 @@ describe('UserService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('rejette si le nouvel email ou pseudo est déjà pris par un autre utilisateur', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
-      prisma.user.findFirst.mockResolvedValue({
-        ...baseUser,
-        id: 'other-user',
-      });
-
-      await expect(
-        service.update('user-1', { email: 'taken@example.com' }),
-      ).rejects.toBeInstanceOf(ConflictException);
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: {
-          id: { not: 'user-1' },
-          OR: [{ email: 'taken@example.com' }],
-        },
-      });
-      expect(prisma.user.update).not.toHaveBeenCalled();
-    });
-
-    it('ne vérifie aucun conflit si ni email ni pseudo ne changent', async () => {
+    it('met à jour un utilisateur existant', async () => {
       prisma.user.findUnique.mockResolvedValue(baseUser);
       prisma.user.update.mockResolvedValue({ ...baseUser, firstName: 'Janet' });
 
       const result = await service.update('user-1', { firstName: 'Janet' });
 
-      expect(prisma.user.findFirst).not.toHaveBeenCalled();
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { firstName: 'Janet' },
@@ -175,23 +175,13 @@ describe('UserService', () => {
       expect(result.firstName).toBe('Janet');
     });
 
-    it("met à jour l'utilisateur quand email/pseudo changent sans conflit", async () => {
+    it('convertit une violation de contrainte unique (P2002) en 409', async () => {
       prisma.user.findUnique.mockResolvedValue(baseUser);
-      prisma.user.findFirst.mockResolvedValue(null);
-      prisma.user.update.mockResolvedValue({
-        ...baseUser,
-        pseudo: 'newpseudo',
-      });
+      prisma.user.update.mockRejectedValue(uniqueConstraintError());
 
-      const result = await service.update('user-1', { pseudo: 'newpseudo' });
-
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: {
-          id: { not: 'user-1' },
-          OR: [{ pseudo: 'newpseudo' }],
-        },
-      });
-      expect(result.pseudo).toBe('newpseudo');
+      await expect(
+        service.update('user-1', { email: 'taken@example.com' }),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

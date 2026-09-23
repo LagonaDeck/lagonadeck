@@ -63,6 +63,36 @@ describe('CreateUserDto', () => {
     expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
   });
 
+  it('rejette un mot de passe trop long (au-delà de la troncature bcrypt à 72 octets)', async () => {
+    // 65 caractères : au-dessus de la limite (64) sans pour autant tester
+    // spécifiquement la troncature bcrypt à 72 octets, qui est documentée
+    // séparément (ADR 0007) et vérifiée dans password.service.spec.ts.
+    const longPassword = 'A1!' + 'a'.repeat(62);
+    const errors = await validateDto({
+      ...validPayload,
+      password: longPassword,
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
+
+  it("normalise l'email (espaces retirés, minuscules) avant validation", async () => {
+    const dto = plainToInstance(CreateUserDto, {
+      ...validPayload,
+      email: '  Jane@Example.com  ',
+    });
+    expect(dto.email).toBe('jane@example.com');
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('normalise le pseudo (espaces retirés, minuscules) avant validation', async () => {
+    const dto = plainToInstance(CreateUserDto, {
+      ...validPayload,
+      pseudo: '  JaneDoe  ',
+    });
+    expect(dto.pseudo).toBe('janedoe');
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
   it.each(['email', 'firstName', 'lastName', 'pseudo', 'password'] as const)(
     'rejette un payload sans %s',
     async (field) => {
