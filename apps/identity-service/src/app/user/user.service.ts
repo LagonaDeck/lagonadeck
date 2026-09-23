@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../common/password.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -47,13 +51,14 @@ export class UserService {
     await this.findById(id); // vérifie l'existence
 
     if (dto.email || dto.pseudo) {
+      const orConditions: Array<{ email: string } | { pseudo: string }> = [];
+      if (dto.email) orConditions.push({ email: dto.email });
+      if (dto.pseudo) orConditions.push({ pseudo: dto.pseudo });
+
       const conflict = await this.prisma.user.findFirst({
         where: {
           id: { not: id },
-          OR: [
-            dto.email ? { email: dto.email } : undefined,
-            dto.pseudo ? { pseudo: dto.pseudo } : undefined,
-          ].filter(Boolean) as any,
+          OR: orConditions,
         },
       });
       if (conflict) throw new ConflictException('Email ou pseudo déjà utilisé');

@@ -9,14 +9,15 @@ Format inspiré de [MADR](https://adr.github.io/madr/).
 
 ## Index
 
-| N°   | Titre                                                                              | Statut  | Date       |
-| ---- | ---------------------------------------------------------------------------------- | ------- | ---------- |
-| 0001 | [Monorepo géré avec Nx](0001-monorepo-nx.md)                                       | Accepté | 2026-08-31 |
-| 0002 | [Database-per-service avec Prisma](0002-database-per-service-prisma.md)            | Accepté | 2026-08-31 |
-| 0003 | [api-gateway sans base de données](0003-api-gateway-sans-base.md)                  | Accepté | 2026-08-31 |
-| 0004 | [Stratégie de build Docker et load balancing](0004-docker-build-load-balancing.md) | Accepté | 2026-08-31 |
-| 0005 | [media-service : object storage + Prisma](0005-media-object-storage.md)            | Accepté | 2026-08-31 |
-| 0006 | [Réplication des bases par service](0006-replication-bases-service.md)             | Accepté | 2026-09-04 |
+| N°   | Titre                                                                                            | Statut  | Date       |
+| ---- | ------------------------------------------------------------------------------------------------ | ------- | ---------- |
+| 0001 | [Monorepo géré avec Nx](0001-monorepo-nx.md)                                                     | Accepté | 2026-08-31 |
+| 0002 | [Database-per-service avec Prisma](0002-database-per-service-prisma.md)                          | Accepté | 2026-08-31 |
+| 0003 | [api-gateway sans base de données](0003-api-gateway-sans-base.md)                                | Accepté | 2026-08-31 |
+| 0004 | [Stratégie de build Docker et load balancing](0004-docker-build-load-balancing.md)               | Accepté | 2026-08-31 |
+| 0005 | [media-service : object storage + Prisma](0005-media-object-storage.md)                          | Accepté | 2026-08-31 |
+| 0006 | [Réplication des bases par service](0006-replication-bases-service.md)                           | Accepté | 2026-09-04 |
+| 0007 | [identity-service : bcrypt pour le hachage des mots de passe](0007-identity-password-hashing.md) | Accepté | 2026-09-23 |
 
 ## Statuts possibles
 

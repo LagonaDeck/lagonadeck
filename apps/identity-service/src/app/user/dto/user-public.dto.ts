@@ -1,5 +1,4 @@
-import { User } from "../../../generated/prisma/client";
-
+import { User } from '../../../generated/prisma/client';
 
 export class UserPublicDto {
   id!: string;
