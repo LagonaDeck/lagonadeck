@@ -9,10 +9,11 @@ les protections GitHub restent la source d'autorité avant toute fusion.
 À la racine du monorepo :
 
 ```bash
-npm run format:check  # vérifie Prettier sur le dépôt
-npm run lint          # lance le lint Nx de toutes les applications
-npm test              # lance tous les tests Nx disponibles
-npm run quality       # format:check puis lint
+npm run format:check   # vérifie Prettier sur le dépôt
+npm run lint           # lance le lint Nx de toutes les applications
+npm test               # lance tous les tests Nx disponibles
+npm run contracts:sync # propage les énumérations Prisma partagées
+npm run quality        # format:check, contrats puis lint
 ```
 
 `npm run quality` est le contrôle de qualité de code : il doit réussir avant de
@@ -46,11 +47,11 @@ Le workflow [`CI`](../../.github/workflows/ci.yml) s'exécute :
 
 Chaque exécution installe les dépendances avec `npm ci` et publie trois checks :
 
-| Check      | Commande               | Portée                                  |
-| ---------- | ---------------------- | --------------------------------------- |
-| `Prettier` | `npm run format:check` | tous les fichiers formatés par Prettier |
-| `Lint`     | `npm run lint`         | toutes les applications Nx              |
-| `Tests`    | `npm test`             | toutes les cibles de test Nx existantes |
+| Check      | Commande                                      | Portée                                                         |
+| ---------- | --------------------------------------------- | -------------------------------------------------------------- |
+| `Prettier` | `npm run format:check`                        | tous les fichiers formatés par Prettier                        |
+| `Lint`     | `npm run contracts:check` puis `npm run lint` | énumérations Prisma partagées, puis toutes les applications Nx |
+| `Tests`    | `npm test`                                    | toutes les cibles de test Nx existantes                        |
 
 Le frontend Angular ne possède pas encore de cible de test ; à ce stade, le job
 `Tests` couvre les sept applications backend qui exposent une cible Nx `test`.

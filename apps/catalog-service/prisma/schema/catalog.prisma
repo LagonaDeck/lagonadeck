@@ -5,7 +5,7 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../../src/generated/prisma"
 }
 
 datasource db {
@@ -28,18 +28,6 @@ enum PriceSource {
   CARDMARKET
   TCGPLAYER
   MANUAL
-}
-
-// État physique d'une carte. Dupliqué dans inventory-db (une base par
-// service) : garder les deux énumérations alignées.
-enum CardCondition {
-  MINT
-  NEAR_MINT
-  EXCELLENT
-  GOOD
-  LIGHT_PLAYED
-  PLAYED
-  POOR
 }
 
 model Game {

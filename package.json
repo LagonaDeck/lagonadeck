@@ -5,9 +5,11 @@
   "private": true,
   "scripts": {
     "format:check": "prettier --check .",
+    "contracts:sync": "node tools/sync-prisma-enums.mjs",
+    "contracts:check": "node tools/sync-prisma-enums.mjs --check",
     "lint": "nx run-many -t lint --all",
     "test": "nx run-many -t test --all",
-    "quality": "npm run format:check && npm run lint",
+    "quality": "npm run format:check && npm run contracts:check && npm run lint",
     "prepare": "lefthook install"
   },
   "dependencies": {

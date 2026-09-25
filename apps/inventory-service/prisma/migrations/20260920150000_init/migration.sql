@@ -11,13 +11,13 @@ CREATE TYPE "PurchaseFeeType" AS ENUM ('SHIPPING', 'CUSTOMS', 'PLATFORM', 'OTHER
 CREATE TYPE "AllocationMethod" AS ENUM ('EQUAL', 'MARKET_VALUE', 'MANUAL');
 
 -- CreateEnum
-CREATE TYPE "CardCondition" AS ENUM ('MINT', 'NEAR_MINT', 'EXCELLENT', 'GOOD', 'LIGHT_PLAYED', 'PLAYED', 'POOR');
-
--- CreateEnum
 CREATE TYPE "ItemStatus" AS ENUM ('IN_STOCK', 'LISTED', 'RESERVED', 'SOLD', 'WITHDRAWN');
 
 -- CreateEnum
 CREATE TYPE "ReservationStatus" AS ENUM ('ACTIVE', 'RELEASED', 'CONSUMED');
+
+-- CreateEnum
+CREATE TYPE "CardCondition" AS ENUM ('MINT', 'NEAR_MINT', 'EXCELLENT', 'GOOD', 'LIGHT_PLAYED', 'PLAYED', 'POOR');
 
 -- CreateTable
 CREATE TABLE "Supplier" (

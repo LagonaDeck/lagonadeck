@@ -32,7 +32,7 @@ Chaque service ci-dessus contient :
 ```text
 apps/<service>/
 ├── prisma.config.ts
-├── prisma/schema.prisma
+├── prisma/schema.prisma       # ou prisma/schema/ quand un fragment est partagé
 ├── prisma/migrations/          # migrations versionnées, quand le service en a
 └── src/generated/prisma/       # généré, non versionné
 ```
@@ -61,8 +61,12 @@ par Identity et Media.
   peuvent pas être connus à l'avance (`ricardo.ch`, un salon local…). C'est le
   rôle de `Marketplace` (canaux de vente) et de `Supplier` (canaux d'achat).
   Une entrée déjà référencée s'archive (`isArchived`) au lieu d'être supprimée.
-- `CardCondition` est dupliquée dans `catalog-db` et `inventory-db` : les deux
-  énumérations doivent rester alignées.
+- Une énumération utilisée par plusieurs services est définie une seule fois
+  dans `libs/contracts/prisma/shared-enums.prisma`, puis propagée par
+  `npm run contracts:sync` dans le dossier `prisma/schema/` de chaque service
+  concerné. Deux bases ne peuvent pas partager un type `ENUM` PostgreSQL : la
+  copie est donc inévitable, mais elle est générée et vérifiée par la CI, pas
+  maintenue à la main. `CardCondition` suit cette règle (catalog et inventory).
 - `inventory-service` active la preview feature Prisma `partialIndexes` : un
   index unique partiel n'autorise qu'une `Reservation` de statut `ACTIVE` par
   exemplaire, ce qui protège de la double vente au niveau de PostgreSQL.

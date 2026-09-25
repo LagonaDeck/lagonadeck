@@ -1,0 +1,25 @@
+// Source de vérité des énumérations Prisma partagées par plusieurs services.
+//
+// Une base de données ne peut pas emprunter un type `ENUM` à une autre : sous
+// la règle database-per-service (ADR 0002), une énumération utilisée par deux
+// services existe physiquement dans les deux bases. Ce fichier évite que les
+// deux copies soient écrites — et maintenues — à la main.
+//
+// Modifier ce fichier, puis lancer `npm run contracts:sync` pour propager la
+// définition vers les services cibles listés dans
+// `tools/sync-prisma-enums.mjs`. La CI échoue si une copie est périmée.
+//
+// Tout ce qui suit le marqueur ci-dessous est copié tel quel.
+
+// >>> PROPAGÉ
+
+// État physique d'une carte, du meilleur au plus abîmé.
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  EXCELLENT
+  GOOD
+  LIGHT_PLAYED
+  PLAYED
+  POOR
+}
