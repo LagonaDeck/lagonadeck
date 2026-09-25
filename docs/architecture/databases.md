@@ -14,12 +14,12 @@ REST ou, pour la propagation de faits, par RabbitMQ.
 | `inventory-service` | `inventory-db`     | `Supplier`, `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
 | `sales-service`     | `sales-db`         | `Marketplace`, `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                    |
 | `analytics-service` | `analytics-db`     | `Event`, `DailyWorkspaceKpi`, `ItemPerformance`                                               |
-| `media-service`     | `media-db`         | `MediaAsset` (modèle de démarrage)                                                            |
+| `media-service`     | `media-db`         | `MediaAsset`                                                                                  |
 
 Les noms de base sont des noms logiques documentés : le dépôt configure chaque
 connexion via `DATABASE_URL` dans son `prisma.config.ts` et ne versionne pas de
-fichiers d'environnement. Catalog, Inventory, Sales et Analytics versionnent une
-migration initiale dans `prisma/migrations/` ; elle s'applique avec
+fichiers d'environnement. Catalog, Inventory, Sales, Analytics et Media
+versionnent une migration dans `prisma/migrations/` ; elle s'applique avec
 `npm run db:deploy -w @lagonadeck/<service>`. Aucune étape de l'environnement
 Docker de développement ne l'applique automatiquement à ce jour : la commande
 pour les six services figure dans le
@@ -40,9 +40,9 @@ apps/<service>/
 Prisma 7 utilise le provider PostgreSQL et le driver adapter `@prisma/adapter-pg`.
 Les modèles de Catalog, Inventory, Sales et Analytics couvrent le cycle
 achat → stock → vente avec un jeu de champs volontairement minimal ; un champ
-facultatif s'ajoute par migration dans le seul service concerné. Identity et
-Media conservent leur modèle de démarrage : leur modèle est développé sur des
-branches dédiées.
+facultatif s'ajoute par migration dans le seul service concerné. Media possède
+son modèle `MediaAsset` et ses endpoints ; seul Identity conserve son modèle de
+démarrage, développé sur une branche dédiée.
 
 ### Conventions des schémas
 
