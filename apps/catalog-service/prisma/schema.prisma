@@ -27,7 +27,6 @@ enum CardFinish {
 enum PriceSource {
   CARDMARKET
   TCGPLAYER
-  EBAY
   MANUAL
 }
 
