@@ -66,10 +66,33 @@ enum ReservationStatus {
   CONSUMED
 }
 
+// Fournisseur ou canal d'achat du workspace, configurable par l'utilisateur :
+// même raison que `Marketplace` côté sales, la liste ne peut pas être figée.
+model Supplier {
+  id            String     @id @default(uuid()) @db.Uuid
+  workspaceId   String     @db.Uuid
+  name          String
+  // Identifiant stable dérivé du nom, pour référencer un fournisseur sans
+  // dépendre de son libellé (que l'utilisateur peut renommer).
+  slug          String
+  // Vrai pour une place de marché (Cardmarket, ricardo.ch), faux pour un
+  // particulier, une boutique physique ou un salon.
+  isMarketplace Boolean    @default(false)
+  // Un fournisseur déjà utilisé par des achats ne se supprime pas : il s'archive.
+  isArchived    Boolean    @default(false)
+  purchases     Purchase[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isArchived])
+}
+
 model Purchase {
   id           String         @id @default(uuid()) @db.Uuid
   workspaceId  String         @db.Uuid
-  supplierName String
+  supplierId   String         @db.Uuid
+  supplier     Supplier       @relation(fields: [supplierId], references: [id])
   purchasedAt  DateTime
   currency     String         @db.Char(3)
   totalPrice   Decimal        @db.Decimal(12, 2)
@@ -80,6 +103,7 @@ model Purchase {
   updatedAt    DateTime       @updatedAt
 
   @@index([workspaceId, purchasedAt])
+  @@index([supplierId])
 }
 
 model PurchaseFee {

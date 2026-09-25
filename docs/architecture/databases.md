@@ -7,14 +7,14 @@ base, de son schéma Prisma et de ses migrations. `api-gateway` n'a aucune base.
 Un service ne se connecte jamais à la base d'un autre ; les échanges passent par
 REST ou, pour la propagation de faits, par RabbitMQ.
 
-| Service             | Base logique visée | Modèles Prisma                                                                    |
-| ------------------- | ------------------ | --------------------------------------------------------------------------------- |
-| `identity-service`  | `identity-db`      | `User` (modèle de démarrage)                                                      |
-| `catalog-service`   | `catalog-db`       | `Game`, `CardSet`, `Card`, `CardVariant`, `ExternalId`, `MarketPrice`             |
-| `inventory-service` | `inventory-db`     | `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
-| `sales-service`     | `sales-db`         | `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                       |
-| `analytics-service` | `analytics-db`     | `Event`, `DailyWorkspaceKpi`, `ItemPerformance`                                   |
-| `media-service`     | `media-db`         | `MediaAsset` (modèle de démarrage)                                                |
+| Service             | Base logique visée | Modèles Prisma                                                                                |
+| ------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
+| `identity-service`  | `identity-db`      | `User` (modèle de démarrage)                                                                  |
+| `catalog-service`   | `catalog-db`       | `Game`, `CardSet`, `Card`, `CardVariant`, `ExternalId`, `MarketPrice`                         |
+| `inventory-service` | `inventory-db`     | `Supplier`, `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
+| `sales-service`     | `sales-db`         | `Marketplace`, `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                    |
+| `analytics-service` | `analytics-db`     | `Event`, `DailyWorkspaceKpi`, `ItemPerformance`                                               |
+| `media-service`     | `media-db`         | `MediaAsset` (modèle de démarrage)                                                            |
 
 Les noms de base sont des noms logiques documentés : le dépôt configure chaque
 connexion via `DATABASE_URL` dans son `prisma.config.ts` et ne versionne pas de
@@ -56,6 +56,11 @@ par Identity et Media.
 - Montants en `Decimal` accompagnés d'une devise ISO 4217 (`@db.Char(3)`).
 - Les tables de faits (`MarketPrice`, `StockMovement`, `Event`) sont en ajout
   seul et n'ont pas de `updatedAt`.
+- Une liste de valeurs que l'utilisateur doit pouvoir étendre est une **table
+  de référence** scopée par `workspaceId`, jamais une énumération : les cas ne
+  peuvent pas être connus à l'avance (`ricardo.ch`, un salon local…). C'est le
+  rôle de `Marketplace` (canaux de vente) et de `Supplier` (canaux d'achat).
+  Une entrée déjà référencée s'archive (`isArchived`) au lieu d'être supprimée.
 - `CardCondition` est dupliquée dans `catalog-db` et `inventory-db` : les deux
   énumérations doivent rester alignées.
 - `inventory-service` active la preview feature Prisma `partialIndexes` : un

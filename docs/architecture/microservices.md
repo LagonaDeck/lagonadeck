@@ -13,14 +13,14 @@ métier et ne doit jamais accéder à une base de données d'un service.
 
 ## Services métier
 
-| Service   | Responsabilités architecturales                                                                          | État réel                                                                             |
-| --------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Identity  | utilisateurs, login, JWT, refresh tokens, workspaces, membres, invitations, rôles et permissions         | modèle Prisma `User` de démarrage ; cas d'usage à implémenter                         |
-| Catalog   | jeux TCG, sets, cartes, variantes, raretés, identifiants externes et prix de marché                      | schéma Prisma et migration initiale présents ; intégrations et imports à implémenter  |
-| Inventory | achats, lots, frais, allocation de coût, exemplaires physiques, stock, mouvements, réservations et aging | schéma Prisma et migration initiale présents ; cycle métier à implémenter             |
-| Sales     | ventes, lignes, acheteurs, marketplaces, frais, retours, bénéfice, marge et ROI                          | schéma Prisma et migration initiale présents ; calculs à implémenter                  |
-| Analytics | dashboard, KPI, CA, bénéfice, ROI, valeur de stock, agrégations et projections                           | schéma (`Event` et projections) présent ; consommateurs à implémenter                 |
-| Media     | médias, métadonnées, URLs d'accès, validation, clés S3 et médias par workspace                           | `MediaAsset` et `StorageService` présents ; endpoints et gestion métier à implémenter |
+| Service   | Responsabilités architecturales                                                                                        | État réel                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Identity  | utilisateurs, login, JWT, refresh tokens, workspaces, membres, invitations, rôles et permissions                       | modèle Prisma `User` de démarrage ; cas d'usage à implémenter                         |
+| Catalog   | jeux TCG, sets, cartes, variantes, raretés, identifiants externes et prix de marché                                    | schéma Prisma et migration initiale présents ; intégrations et imports à implémenter  |
+| Inventory | fournisseurs, achats, lots, frais, allocation de coût, exemplaires physiques, stock, mouvements, réservations et aging | schéma Prisma et migration initiale présents ; cycle métier à implémenter             |
+| Sales     | ventes, lignes, acheteurs, marketplaces, frais, retours, bénéfice, marge et ROI                                        | schéma Prisma et migration initiale présents ; calculs à implémenter                  |
+| Analytics | dashboard, KPI, CA, bénéfice, ROI, valeur de stock, agrégations et projections                                         | schéma (`Event` et projections) présent ; consommateurs à implémenter                 |
+| Media     | médias, métadonnées, URLs d'accès, validation, clés S3 et médias par workspace                                         | `MediaAsset` et `StorageService` présents ; endpoints et gestion métier à implémenter |
 
 ### Frontières importantes
 

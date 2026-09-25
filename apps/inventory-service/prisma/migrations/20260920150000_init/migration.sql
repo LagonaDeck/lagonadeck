@@ -20,10 +20,24 @@ CREATE TYPE "ItemStatus" AS ENUM ('IN_STOCK', 'LISTED', 'RESERVED', 'SOLD', 'WIT
 CREATE TYPE "ReservationStatus" AS ENUM ('ACTIVE', 'RELEASED', 'CONSUMED');
 
 -- CreateTable
+CREATE TABLE "Supplier" (
+    "id" UUID NOT NULL,
+    "workspaceId" UUID NOT NULL,
+    "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "isMarketplace" BOOLEAN NOT NULL DEFAULT false,
+    "isArchived" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Supplier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Purchase" (
     "id" UUID NOT NULL,
     "workspaceId" UUID NOT NULL,
-    "supplierName" TEXT NOT NULL,
+    "supplierId" UUID NOT NULL,
     "purchasedAt" TIMESTAMP(3) NOT NULL,
     "currency" CHAR(3) NOT NULL,
     "totalPrice" DECIMAL(12,2) NOT NULL,
@@ -101,7 +115,16 @@ CREATE TABLE "Reservation" (
 );
 
 -- CreateIndex
+CREATE INDEX "Supplier_workspaceId_isArchived_idx" ON "Supplier"("workspaceId", "isArchived");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Supplier_workspaceId_slug_key" ON "Supplier"("workspaceId", "slug");
+
+-- CreateIndex
 CREATE INDEX "Purchase_workspaceId_purchasedAt_idx" ON "Purchase"("workspaceId", "purchasedAt");
+
+-- CreateIndex
+CREATE INDEX "Purchase_supplierId_idx" ON "Purchase"("supplierId");
 
 -- CreateIndex
 CREATE INDEX "PurchaseFee_purchaseId_idx" ON "PurchaseFee"("purchaseId");
@@ -126,6 +149,9 @@ CREATE INDEX "Reservation_saleId_idx" ON "Reservation"("saleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Reservation_itemId_key" ON "Reservation"("itemId") WHERE ("status" = 'ACTIVE');
+
+-- AddForeignKey
+ALTER TABLE "Purchase" ADD CONSTRAINT "Purchase_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PurchaseFee" ADD CONSTRAINT "PurchaseFee_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "Purchase"("id") ON DELETE CASCADE ON UPDATE CASCADE;

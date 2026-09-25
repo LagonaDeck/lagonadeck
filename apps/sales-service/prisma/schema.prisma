@@ -25,15 +25,6 @@ enum SaleStatus {
   CANCELLED
 }
 
-// Canal de vente.
-enum Marketplace {
-  CARDMARKET
-  EBAY
-  VINTED
-  SALON
-  DIRECT
-}
-
 enum SaleFeeType {
   MARKETPLACE_COMMISSION
   PAYMENT
@@ -42,10 +33,34 @@ enum SaleFeeType {
   OTHER
 }
 
+// Canal de vente du workspace, configurable par l'utilisateur : la liste ne
+// peut pas être connue à l'avance (ricardo.ch, un salon local…), d'où une
+// table de référence plutôt qu'une énumération.
+model Marketplace {
+  id             String   @id @default(uuid()) @db.Uuid
+  workspaceId    String   @db.Uuid
+  name           String
+  // Identifiant stable dérivé du nom, pour référencer un canal sans dépendre
+  // de son libellé (que l'utilisateur peut renommer).
+  slug           String
+  // Commission habituelle du canal (0.0500 = 5 %), proposée à la saisie d'une
+  // vente ; le montant réellement retenu est figé dans `SaleFee`.
+  defaultFeeRate Decimal? @db.Decimal(6, 4)
+  // Un canal déjà utilisé par des ventes ne se supprime pas : il s'archive.
+  isArchived     Boolean  @default(false)
+  sales          Sale[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isArchived])
+}
+
 model Sale {
   id              String      @id @default(uuid()) @db.Uuid
   workspaceId     String      @db.Uuid
-  marketplace     Marketplace
+  marketplaceId   String      @db.Uuid
+  marketplace     Marketplace @relation(fields: [marketplaceId], references: [id])
   // Pseudonyme de l'acheteur sur le canal : seule donnée personnelle conservée.
   buyerHandle     String?
   status          SaleStatus  @default(DRAFT)
@@ -60,6 +75,7 @@ model Sale {
 
   @@index([workspaceId, soldAt])
   @@index([workspaceId, status])
+  @@index([marketplaceId])
 }
 
 // Une carte vendue. Les champs `*Snapshot` figent le libellé et le coût de

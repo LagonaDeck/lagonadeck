@@ -5,16 +5,27 @@ CREATE SCHEMA IF NOT EXISTS "public";
 CREATE TYPE "SaleStatus" AS ENUM ('DRAFT', 'PAID', 'SHIPPED', 'COMPLETED', 'CANCELLED');
 
 -- CreateEnum
-CREATE TYPE "Marketplace" AS ENUM ('CARDMARKET', 'EBAY', 'VINTED', 'SALON', 'DIRECT');
-
--- CreateEnum
 CREATE TYPE "SaleFeeType" AS ENUM ('MARKETPLACE_COMMISSION', 'PAYMENT', 'SHIPPING_COST', 'PACKAGING', 'OTHER');
+
+-- CreateTable
+CREATE TABLE "Marketplace" (
+    "id" UUID NOT NULL,
+    "workspaceId" UUID NOT NULL,
+    "name" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "defaultFeeRate" DECIMAL(6,4),
+    "isArchived" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Marketplace_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Sale" (
     "id" UUID NOT NULL,
     "workspaceId" UUID NOT NULL,
-    "marketplace" "Marketplace" NOT NULL,
+    "marketplaceId" UUID NOT NULL,
     "buyerHandle" TEXT,
     "status" "SaleStatus" NOT NULL DEFAULT 'DRAFT',
     "currency" CHAR(3) NOT NULL,
@@ -67,10 +78,19 @@ CREATE TABLE "SaleReturn" (
 );
 
 -- CreateIndex
+CREATE INDEX "Marketplace_workspaceId_isArchived_idx" ON "Marketplace"("workspaceId", "isArchived");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Marketplace_workspaceId_slug_key" ON "Marketplace"("workspaceId", "slug");
+
+-- CreateIndex
 CREATE INDEX "Sale_workspaceId_soldAt_idx" ON "Sale"("workspaceId", "soldAt");
 
 -- CreateIndex
 CREATE INDEX "Sale_workspaceId_status_idx" ON "Sale"("workspaceId", "status");
+
+-- CreateIndex
+CREATE INDEX "Sale_marketplaceId_idx" ON "Sale"("marketplaceId");
 
 -- CreateIndex
 CREATE INDEX "SaleLine_saleId_idx" ON "SaleLine"("saleId");
@@ -83,6 +103,9 @@ CREATE INDEX "SaleFee_saleId_idx" ON "SaleFee"("saleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SaleReturn_saleLineId_key" ON "SaleReturn"("saleLineId");
+
+-- AddForeignKey
+ALTER TABLE "Sale" ADD CONSTRAINT "Sale_marketplaceId_fkey" FOREIGN KEY ("marketplaceId") REFERENCES "Marketplace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SaleLine" ADD CONSTRAINT "SaleLine_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "Sale"("id") ON DELETE CASCADE ON UPDATE CASCADE;
