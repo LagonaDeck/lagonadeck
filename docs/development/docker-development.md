@@ -41,6 +41,31 @@ Sans Make, exécutez :
 docker compose -f infrastructure/docker-compose.dev.yml up --build
 ```
 
+## Créer les tables (migrations Prisma)
+
+`make docker-up` crée les six bases vides, mais **n'applique pas les migrations
+Prisma** : les tables n'existent donc pas encore. Une fois la stack démarrée,
+appliquez-les depuis un second terminal, à la racine du dépôt :
+
+```bash
+for s in identity catalog inventory sales analytics media; do
+  docker compose -f infrastructure/docker-compose.dev.yml exec $s-service \
+    npm run db:deploy -w @lagonadeck/$s-service
+done
+```
+
+Chaque migration s'exécute dans le conteneur de son service, qui possède déjà la
+bonne `DATABASE_URL`. La commande est à lancer :
+
+- au tout premier démarrage ;
+- après l'ajout d'une migration (par exemple après un `git pull`) ;
+- après `make docker-reset`, qui supprime les bases.
+
+Elle est sans risque si elle est relancée : sans migration en attente, Prisma
+répond `No pending migrations to apply` et ne modifie rien. Les tables sont
+conservées dans le volume `postgres_data` entre deux démarrages ; un lancement
+ordinaire ne demande donc que `make docker-up`.
+
 ## Services et accès local
 
 | Service     | URL ou port hôte                            | Usage                       |

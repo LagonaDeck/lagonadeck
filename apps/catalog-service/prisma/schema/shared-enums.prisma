@@ -1,0 +1,14 @@
+// ⚠️ Fichier généré — ne pas modifier à la main.
+// Source : libs/contracts/prisma/shared-enums.prisma
+// Régénérer : npm run contracts:sync
+
+// État physique d'une carte, du meilleur au plus abîmé.
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  EXCELLENT
+  GOOD
+  LIGHT_PLAYED
+  PLAYED
+  POOR
+}

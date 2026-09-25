@@ -1,0 +1,113 @@
+// Schéma Prisma généré pour Prisma 7.
+// La datasource ne porte que le provider : l'URL de connexion vit dans
+// prisma.config.ts (variable d'environnement DATABASE_URL) et le client
+// reçoit un driver adapter (@prisma/adapter-pg) au runtime.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// catalog-db — référentiel des cartes, partagé entre tous les workspaces
+// (pas de `workspaceId`). Décrit ce qu'est une carte, pas qui la possède.
+
+enum CardFinish {
+  NORMAL
+  HOLO
+  REVERSE
+  FOIL
+  OTHER
+}
+
+// Source externe d'identifiants et de prix.
+enum PriceSource {
+  CARDMARKET
+  TCGPLAYER
+  MANUAL
+}
+
+model Game {
+  id        String    @id @default(uuid()) @db.Uuid
+  code      String    @unique
+  name      String
+  sets      CardSet[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model CardSet {
+  id        String   @id @default(uuid()) @db.Uuid
+  gameId    String   @db.Uuid
+  game      Game     @relation(fields: [gameId], references: [id])
+  code      String
+  name      String
+  cards     Card[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gameId, code])
+}
+
+model Card {
+  id              String        @id @default(uuid()) @db.Uuid
+  setId           String        @db.Uuid
+  set             CardSet       @relation(fields: [setId], references: [id])
+  collectorNumber String
+  name            String
+  rarity          String
+  variants        CardVariant[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([setId, collectorNumber])
+  @@index([name])
+}
+
+// Déclinaison vendable d'une carte (langue + finition). Son `id` est le
+// `cardVariantId` référencé par inventory-db, sales-db et analytics-db.
+model CardVariant {
+  id          String        @id @default(uuid()) @db.Uuid
+  cardId      String        @db.Uuid
+  card        Card          @relation(fields: [cardId], references: [id])
+  // Code langue ISO 639-1 (fr, en, ja…).
+  language    String        @db.Char(2)
+  finish      CardFinish    @default(NORMAL)
+  externalIds ExternalId[]
+  prices      MarketPrice[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([cardId, language, finish])
+}
+
+model ExternalId {
+  id            String      @id @default(uuid()) @db.Uuid
+  cardVariantId String      @db.Uuid
+  cardVariant   CardVariant @relation(fields: [cardVariantId], references: [id], onDelete: Cascade)
+  source        PriceSource
+  externalId    String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([source, externalId])
+  @@index([cardVariantId])
+}
+
+// Relevé de prix en ajout seul : jamais modifié, d'où l'absence de `updatedAt`.
+model MarketPrice {
+  id            String        @id @default(uuid()) @db.Uuid
+  cardVariantId String        @db.Uuid
+  cardVariant   CardVariant   @relation(fields: [cardVariantId], references: [id], onDelete: Cascade)
+  source        PriceSource
+  condition     CardCondition
+  currency      String        @db.Char(3)
+  price         Decimal       @db.Decimal(12, 2)
+  observedAt    DateTime
+  createdAt     DateTime      @default(now())
+
+  @@index([cardVariantId, observedAt(sort: Desc)])
+}
