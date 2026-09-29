@@ -21,8 +21,9 @@ connexion via `DATABASE_URL` dans son `prisma.config.ts` et ne versionne pas de
 fichiers d'environnement. Catalog, Inventory, Sales, Analytics et Media
 versionnent une migration dans `prisma/migrations/` ; elle s'applique avec
 `npm run db:deploy -w @lagonadeck/<service>`. Aucune étape de l'environnement
-Docker de développement ne l'applique automatiquement à ce jour : la commande
-pour les six services figure dans le
+Docker de développement ne l'applique automatiquement à ce jour : la commande,
+qui couvre les six services (sans effet pour un service sans migration), figure
+dans le
 [guide Docker de développement](../development/docker-development.md#créer-les-tables-migrations-prisma).
 
 ## Mise en œuvre actuelle
@@ -61,6 +62,10 @@ par Identity et Media.
   peuvent pas être connus à l'avance (`ricardo.ch`, un salon local…). C'est le
   rôle de `Marketplace` (canaux de vente) et de `Supplier` (canaux d'achat).
   Une entrée déjà référencée s'archive (`isArchived`) au lieu d'être supprimée.
+- Une relation entre deux tables scopées par `workspaceId` est une **clé
+  étrangère composite** `(id, workspaceId)` : une vente ne peut référencer qu'un
+  canal de son workspace, un exemplaire qu'un lot de son workspace. L'isolation
+  entre workspaces ne repose donc pas uniquement sur le code applicatif.
 - Une énumération utilisée par plusieurs services est définie une seule fois
   dans `libs/contracts/prisma/shared-enums.prisma`, puis propagée par
   `npm run contracts:sync` dans le dossier `prisma/schema/` de chaque service

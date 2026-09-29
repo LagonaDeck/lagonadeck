@@ -50,7 +50,7 @@ appliquez-les depuis un second terminal, à la racine du dépôt :
 ```bash
 for s in identity catalog inventory sales analytics media; do
   docker compose -f infrastructure/docker-compose.dev.yml exec $s-service \
-    npm run db:deploy -w @lagonadeck/$s-service
+    npm run db:deploy -w @lagonadeck/$s-service || break
 done
 ```
 

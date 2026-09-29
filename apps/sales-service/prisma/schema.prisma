@@ -53,6 +53,9 @@ model Marketplace {
   updatedAt      DateTime @updatedAt
 
   @@unique([workspaceId, slug])
+  // Cible de la clé étrangère composite de `Sale` : garantit qu'une vente ne
+  // référence qu'un canal de son propre workspace.
+  @@unique([id, workspaceId])
   @@index([workspaceId, isArchived])
 }
 
@@ -60,14 +63,15 @@ model Sale {
   id              String      @id @default(uuid()) @db.Uuid
   workspaceId     String      @db.Uuid
   marketplaceId   String      @db.Uuid
-  marketplace     Marketplace @relation(fields: [marketplaceId], references: [id])
+  marketplace     Marketplace @relation(fields: [marketplaceId, workspaceId], references: [id, workspaceId])
   // Pseudonyme de l'acheteur sur le canal : seule donnée personnelle conservée.
   buyerHandle     String?
   status          SaleStatus  @default(DRAFT)
   currency        String      @db.Char(3)
   // Frais de port facturés à l'acheteur.
   shippingCharged Decimal     @default(0) @db.Decimal(12, 2)
-  soldAt          DateTime
+  // Renseignée au passage en PAID : un brouillon n'a pas encore été vendu.
+  soldAt          DateTime?
   lines           SaleLine[]
   fees            SaleFee[]
   createdAt       DateTime    @default(now())

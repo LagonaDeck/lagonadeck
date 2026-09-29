@@ -73,8 +73,9 @@ model CardVariant {
   id          String        @id @default(uuid()) @db.Uuid
   cardId      String        @db.Uuid
   card        Card          @relation(fields: [cardId], references: [id])
-  // Code langue ISO 639-1 (fr, en, ja…).
-  language    String        @db.Char(2)
+  // Tag de langue BCP 47 (fr, en, ja, zh-Hans, zh-Hant…) : ISO 639-1 seul ne
+  // distingue pas chinois simplifié et traditionnel, deux produits distincts.
+  language    String        @db.VarChar(10)
   finish      CardFinish    @default(NORMAL)
   externalIds ExternalId[]
   prices      MarketPrice[]
@@ -84,6 +85,10 @@ model CardVariant {
   @@unique([cardId, language, finish])
 }
 
+// Une source identifie souvent une impression, pas une variante : l'idProduct
+// Cardmarket est commun à toutes les langues, le productId TCGplayer à toutes
+// les finitions. Plusieurs variantes partagent donc le même `externalId` ; seule
+// la paire (variante, source) est unique.
 model ExternalId {
   id            String      @id @default(uuid()) @db.Uuid
   cardVariantId String      @db.Uuid
@@ -93,11 +98,12 @@ model ExternalId {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  @@unique([source, externalId])
-  @@index([cardVariantId])
+  @@unique([cardVariantId, source])
+  @@index([source, externalId])
 }
 
 // Relevé de prix en ajout seul : jamais modifié, d'où l'absence de `updatedAt`.
+// L'unicité empêche un import rejoué de dupliquer les relevés.
 model MarketPrice {
   id            String        @id @default(uuid()) @db.Uuid
   cardVariantId String        @db.Uuid
@@ -109,5 +115,6 @@ model MarketPrice {
   observedAt    DateTime
   createdAt     DateTime      @default(now())
 
+  @@unique([cardVariantId, source, condition, currency, observedAt])
   @@index([cardVariantId, observedAt(sort: Desc)])
 }

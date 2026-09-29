@@ -30,7 +30,7 @@ CREATE TABLE "Sale" (
     "status" "SaleStatus" NOT NULL DEFAULT 'DRAFT',
     "currency" CHAR(3) NOT NULL,
     "shippingCharged" DECIMAL(12,2) NOT NULL DEFAULT 0,
-    "soldAt" TIMESTAMP(3) NOT NULL,
+    "soldAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -84,6 +84,9 @@ CREATE INDEX "Marketplace_workspaceId_isArchived_idx" ON "Marketplace"("workspac
 CREATE UNIQUE INDEX "Marketplace_workspaceId_slug_key" ON "Marketplace"("workspaceId", "slug");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Marketplace_id_workspaceId_key" ON "Marketplace"("id", "workspaceId");
+
+-- CreateIndex
 CREATE INDEX "Sale_workspaceId_soldAt_idx" ON "Sale"("workspaceId", "soldAt");
 
 -- CreateIndex
@@ -105,7 +108,7 @@ CREATE INDEX "SaleFee_saleId_idx" ON "SaleFee"("saleId");
 CREATE UNIQUE INDEX "SaleReturn_saleLineId_key" ON "SaleReturn"("saleLineId");
 
 -- AddForeignKey
-ALTER TABLE "Sale" ADD CONSTRAINT "Sale_marketplaceId_fkey" FOREIGN KEY ("marketplaceId") REFERENCES "Marketplace"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Sale" ADD CONSTRAINT "Sale_marketplaceId_workspaceId_fkey" FOREIGN KEY ("marketplaceId", "workspaceId") REFERENCES "Marketplace"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SaleLine" ADD CONSTRAINT "SaleLine_saleId_fkey" FOREIGN KEY ("saleId") REFERENCES "Sale"("id") ON DELETE CASCADE ON UPDATE CASCADE;

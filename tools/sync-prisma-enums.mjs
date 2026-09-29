@@ -29,7 +29,15 @@ const TARGETS = [
 /** Seul le contenu placé après ce marqueur est propagé. */
 const MARKER = '// >>> PROPAGÉ';
 
-const source = readFileSync(join(repoRoot, SOURCE), 'utf8');
+/**
+ * Lit un fichier en normalisant les fins de ligne : sous Windows avec
+ * `core.autocrlf=true`, git extrait les `.prisma` en CRLF, ce qui ferait
+ * signaler à tort des copies à jour comme périmées.
+ */
+const readText = (path) =>
+  readFileSync(join(repoRoot, path), 'utf8').replace(/\r\n/g, '\n');
+
+const source = readText(SOURCE);
 const markerAt = source.indexOf(MARKER);
 if (markerAt === -1) {
   console.error(`Marqueur "${MARKER}" absent de ${SOURCE}.`);
@@ -49,7 +57,7 @@ const stale = [];
 for (const target of TARGETS) {
   let current = null;
   try {
-    current = readFileSync(join(repoRoot, target), 'utf8');
+    current = readText(target);
   } catch {
     // Copie absente : elle sera écrite, ou signalée périmée en mode --check.
   }

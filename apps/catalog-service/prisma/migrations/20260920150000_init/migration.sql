@@ -50,7 +50,7 @@ CREATE TABLE "Card" (
 CREATE TABLE "CardVariant" (
     "id" UUID NOT NULL,
     "cardId" UUID NOT NULL,
-    "language" CHAR(2) NOT NULL,
+    "language" VARCHAR(10) NOT NULL,
     "finish" "CardFinish" NOT NULL DEFAULT 'NORMAL',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -100,13 +100,16 @@ CREATE UNIQUE INDEX "Card_setId_collectorNumber_key" ON "Card"("setId", "collect
 CREATE UNIQUE INDEX "CardVariant_cardId_language_finish_key" ON "CardVariant"("cardId", "language", "finish");
 
 -- CreateIndex
-CREATE INDEX "ExternalId_cardVariantId_idx" ON "ExternalId"("cardVariantId");
+CREATE INDEX "ExternalId_source_externalId_idx" ON "ExternalId"("source", "externalId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ExternalId_source_externalId_key" ON "ExternalId"("source", "externalId");
+CREATE UNIQUE INDEX "ExternalId_cardVariantId_source_key" ON "ExternalId"("cardVariantId", "source");
 
 -- CreateIndex
 CREATE INDEX "MarketPrice_cardVariantId_observedAt_idx" ON "MarketPrice"("cardVariantId", "observedAt" DESC);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MarketPrice_cardVariantId_source_condition_currency_observe_key" ON "MarketPrice"("cardVariantId", "source", "condition", "currency", "observedAt");
 
 -- AddForeignKey
 ALTER TABLE "CardSet" ADD CONSTRAINT "CardSet_gameId_fkey" FOREIGN KEY ("gameId") REFERENCES "Game"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

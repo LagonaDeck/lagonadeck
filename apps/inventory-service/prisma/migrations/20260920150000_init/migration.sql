@@ -63,6 +63,7 @@ CREATE TABLE "PurchaseFee" (
 -- CreateTable
 CREATE TABLE "Lot" (
     "id" UUID NOT NULL,
+    "workspaceId" UUID NOT NULL,
     "purchaseId" UUID NOT NULL,
     "label" TEXT NOT NULL,
     "acquisitionCost" DECIMAL(12,2) NOT NULL,
@@ -121,16 +122,25 @@ CREATE INDEX "Supplier_workspaceId_isArchived_idx" ON "Supplier"("workspaceId", 
 CREATE UNIQUE INDEX "Supplier_workspaceId_slug_key" ON "Supplier"("workspaceId", "slug");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Supplier_id_workspaceId_key" ON "Supplier"("id", "workspaceId");
+
+-- CreateIndex
 CREATE INDEX "Purchase_workspaceId_purchasedAt_idx" ON "Purchase"("workspaceId", "purchasedAt");
 
 -- CreateIndex
 CREATE INDEX "Purchase_supplierId_idx" ON "Purchase"("supplierId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Purchase_id_workspaceId_key" ON "Purchase"("id", "workspaceId");
+
+-- CreateIndex
 CREATE INDEX "PurchaseFee_purchaseId_idx" ON "PurchaseFee"("purchaseId");
 
 -- CreateIndex
 CREATE INDEX "Lot_purchaseId_idx" ON "Lot"("purchaseId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Lot_id_workspaceId_key" ON "Lot"("id", "workspaceId");
 
 -- CreateIndex
 CREATE INDEX "InventoryItem_workspaceId_status_idx" ON "InventoryItem"("workspaceId", "status");
@@ -151,19 +161,19 @@ CREATE INDEX "Reservation_saleId_idx" ON "Reservation"("saleId");
 CREATE UNIQUE INDEX "Reservation_itemId_key" ON "Reservation"("itemId") WHERE ("status" = 'ACTIVE');
 
 -- AddForeignKey
-ALTER TABLE "Purchase" ADD CONSTRAINT "Purchase_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Purchase" ADD CONSTRAINT "Purchase_supplierId_workspaceId_fkey" FOREIGN KEY ("supplierId", "workspaceId") REFERENCES "Supplier"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PurchaseFee" ADD CONSTRAINT "PurchaseFee_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "Purchase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Lot" ADD CONSTRAINT "Lot_purchaseId_fkey" FOREIGN KEY ("purchaseId") REFERENCES "Purchase"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Lot" ADD CONSTRAINT "Lot_purchaseId_workspaceId_fkey" FOREIGN KEY ("purchaseId", "workspaceId") REFERENCES "Purchase"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_lotId_fkey" FOREIGN KEY ("lotId") REFERENCES "Lot"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "InventoryItem" ADD CONSTRAINT "InventoryItem_lotId_workspaceId_fkey" FOREIGN KEY ("lotId", "workspaceId") REFERENCES "Lot"("id", "workspaceId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "StockMovement" ADD CONSTRAINT "StockMovement_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "StockMovement" ADD CONSTRAINT "StockMovement_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Reservation" ADD CONSTRAINT "Reservation_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "InventoryItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
