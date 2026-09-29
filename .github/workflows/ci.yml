@@ -74,6 +74,8 @@ jobs:
         run: |
           set -o pipefail
           npm ci 2>&1 | tee /tmp/lint-install.log
+      - name: Contrats Prisma synchronisés
+        run: npm run contracts:check
       - name: Lint
         id: lint
         run: |
