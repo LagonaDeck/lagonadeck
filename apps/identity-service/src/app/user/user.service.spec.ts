@@ -5,12 +5,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../common/password.service';
 import { Prisma } from '../../generated/prisma/client';
 
-function uniqueConstraintError() {
-  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-    code: 'P2002',
+function prismaError(code: string) {
+  return new Prisma.PrismaClientKnownRequestError(`Prisma error ${code}`, {
+    code,
     clientVersion: '7.10.0',
   });
 }
+
+const uniqueConstraintError = () => prismaError('P2002');
+const recordNotFoundError = () => prismaError('P2025');
 
 describe('UserService', () => {
   let service: UserService;
@@ -28,7 +31,8 @@ describe('UserService', () => {
     email: 'jane@example.com',
     firstName: 'Jane',
     lastName: 'Doe',
-    pseudo: 'janedoe',
+    pseudo: 'JaneDoe',
+    pseudoNormalized: 'janedoe',
     passwordHash: 'hashed',
     salt: 'salt',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -64,7 +68,7 @@ describe('UserService', () => {
       email: 'jane@example.com',
       firstName: 'Jane',
       lastName: 'Doe',
-      pseudo: 'janedoe',
+      pseudo: 'JaneDoe',
       password: 'Sup3rSecret!',
     };
 
@@ -80,7 +84,8 @@ describe('UserService', () => {
           email: dto.email,
           firstName: dto.firstName,
           lastName: dto.lastName,
-          pseudo: dto.pseudo,
+          pseudo: 'JaneDoe',
+          pseudoNormalized: 'janedoe',
           passwordHash: 'hashed',
           salt: 'salt',
         },
@@ -153,17 +158,16 @@ describe('UserService', () => {
   });
 
   describe('update', () => {
-    it("lève une 404 si l'utilisateur est introuvable", async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
+    it('convertit un enregistrement introuvable (P2025) en 404, sans pré-contrôle', async () => {
+      prisma.user.update.mockRejectedValue(recordNotFoundError());
 
       await expect(
         service.update('missing', { firstName: 'X' }),
       ).rejects.toBeInstanceOf(NotFoundException);
-      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
     });
 
     it('met à jour un utilisateur existant', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
       prisma.user.update.mockResolvedValue({ ...baseUser, firstName: 'Janet' });
 
       const result = await service.update('user-1', { firstName: 'Janet' });
@@ -175,8 +179,18 @@ describe('UserService', () => {
       expect(result.firstName).toBe('Janet');
     });
 
+    it('recalcule la clé de comparaison quand le pseudo change', async () => {
+      prisma.user.update.mockResolvedValue({ ...baseUser, pseudo: 'Janet42' });
+
+      await service.update('user-1', { pseudo: 'Janet42' });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { pseudo: 'Janet42', pseudoNormalized: 'janet42' },
+      });
+    });
+
     it('convertit une violation de contrainte unique (P2002) en 409', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
       prisma.user.update.mockRejectedValue(uniqueConstraintError());
 
       await expect(

@@ -42,15 +42,17 @@ redondante pour bcrypt spécifiquement. Elle est conservée telle quelle car :
   compatible si l'algorithme change un jour vers un schéma qui, lui,
   nécessite un salt stocké séparément.
 
-La validation du mot de passe **avant** hachage (entre 8 et 64 caractères,
-présence d'une majuscule, d'une minuscule et d'un chiffre ou caractère
-spécial) est portée par `CreateUserDto`
-(`@MinLength(8)` + `@MaxLength(64)` + `@Matches(...)`, `class-validator`) : un
-mot de passe trop faible, ou trop long, est rejeté avant même d'atteindre
+La validation du mot de passe **avant** hachage (au moins 8 caractères, au plus
+72 octets UTF-8, présence d'une majuscule, d'une minuscule et d'un chiffre ou
+caractère spécial) est portée par `CreateUserDto`
+(`@MinLength(8)` + `@IsByteLength(0, 72)` + `@Matches(...)`, `class-validator`) :
+un mot de passe trop faible, ou trop long, est rejeté avant même d'atteindre
 `PasswordService`. La longueur maximale existe spécifiquement pour éviter la
-troncature silencieuse de bcrypt au-delà de 72 octets (cf. Conséquences) :
-64 caractères garde une marge sous cette limite même avec des caractères
-multi-octets (UTF-8).
+troncature silencieuse de bcrypt au-delà de 72 octets (cf. Conséquences). Elle
+est mesurée en octets et non en caractères : un caractère accentué pèse 2
+octets et un emoji 4, donc une limite en caractères ne suffit pas. La regex
+utilise les classes Unicode (flag `u`) pour qu'une lettre accentuée ne compte
+pas comme caractère spécial.
 
 ## Raisons
 
@@ -91,12 +93,13 @@ multi-octets (UTF-8).
 - ➖ bcrypt tronque silencieusement les mots de passe au-delà de 72 octets
   (limite intrinsèque à l'algorithme) : sans plafond explicite côté validation,
   deux mots de passe partageant les 72 premiers octets seraient traités comme
-  identiques. `CreateUserDto.password` porte donc un `@MaxLength(64)` qui
-  empêche d'atteindre cette limite en pratique.
+  identiques. `CreateUserDto.password` porte donc un `@IsByteLength(0, 72)`
+  qui rejette tout mot de passe au-delà de cette limite.
 
 ## Mise en œuvre
 
 - `PasswordService` (`hash()` / `verify()`), `apps/identity-service/src/app/common/`.
 - Modèle Prisma `User` : `passwordHash`, `salt`.
 - Validation : `CreateUserDto` (`class-validator`).
-- DTOs publics (`UserPublicDto`) : n'exposent jamais `passwordHash` ni `salt`.
+- DTOs publics (`UserPublicDto`) : n'exposent jamais `passwordHash` ni `salt`,
+  ni l'email.

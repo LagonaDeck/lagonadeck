@@ -11,7 +11,7 @@ const validPayload = {
   email: 'jane@example.com',
   firstName: 'Jane',
   lastName: 'Doe',
-  pseudo: 'janedoe',
+  pseudo: 'JaneDoe',
   password: 'Sup3rSecret!',
 };
 
@@ -63,16 +63,72 @@ describe('CreateUserDto', () => {
     expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
   });
 
-  it('rejette un mot de passe trop long (au-delà de la troncature bcrypt à 72 octets)', async () => {
-    // 65 caractères : au-dessus de la limite (64) sans pour autant tester
-    // spécifiquement la troncature bcrypt à 72 octets, qui est documentée
-    // séparément (ADR 0007) et vérifiée dans password.service.spec.ts.
-    const longPassword = 'A1!' + 'a'.repeat(62);
+  it('accepte un mot de passe de 72 octets, la limite de bcrypt', async () => {
     const errors = await validateDto({
       ...validPayload,
-      password: longPassword,
+      password: 'A1!' + 'a'.repeat(69),
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(false);
+  });
+
+  it('rejette un mot de passe ASCII de plus de 72 octets', async () => {
+    const errors = await validateDto({
+      ...validPayload,
+      password: 'A1!' + 'a'.repeat(70),
     });
     expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
+
+  it('mesure la limite en octets : 40 caractères accentués dépassent 72 octets', async () => {
+    // 40 caractères mais 77 octets UTF-8 : bcrypt en ignorerait la fin.
+    const password = 'Aa1' + 'é'.repeat(37);
+    expect(password).toHaveLength(40);
+    expect(Buffer.byteLength(password, 'utf8')).toBe(77);
+
+    const errors = await validateDto({ ...validPayload, password });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
+
+  it('ne compte pas une lettre accentuée comme caractère spécial', async () => {
+    const errors = await validateDto({
+      ...validPayload,
+      password: 'Passwordé',
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
+
+  it('accepte des lettres accentuées comme majuscule et minuscule', async () => {
+    const errors = await validateDto({
+      ...validPayload,
+      password: 'ÉLÉMENTé1',
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(false);
+  });
+
+  it('rejette un pseudo contenant des espaces ou des emojis', async () => {
+    for (const pseudo of ['jane doe', 'jane😀']) {
+      const errors = await validateDto({ ...validPayload, pseudo });
+      expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
+    }
+  });
+
+  it('retire les espaces autour des noms et rejette un nom vide une fois nettoyé', async () => {
+    const dto = plainToInstance(CreateUserDto, {
+      ...validPayload,
+      firstName: '  Jane  ',
+    });
+    expect(dto.firstName).toBe('Jane');
+
+    const errors = await validateDto({ ...validPayload, lastName: '    ' });
+    expect(errors.some((e) => e.property === 'lastName')).toBe(true);
+  });
+
+  it('rejette un nom de plus de 100 caractères', async () => {
+    const errors = await validateDto({
+      ...validPayload,
+      firstName: 'a'.repeat(101),
+    });
+    expect(errors.some((e) => e.property === 'firstName')).toBe(true);
   });
 
   it("normalise l'email (espaces retirés, minuscules) avant validation", async () => {
@@ -84,12 +140,12 @@ describe('CreateUserDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('normalise le pseudo (espaces retirés, minuscules) avant validation', async () => {
+  it('retire les espaces autour du pseudo en conservant sa casse', async () => {
     const dto = plainToInstance(CreateUserDto, {
       ...validPayload,
       pseudo: '  JaneDoe  ',
     });
-    expect(dto.pseudo).toBe('janedoe');
+    expect(dto.pseudo).toBe('JaneDoe');
     expect(await validate(dto)).toHaveLength(0);
   });
 

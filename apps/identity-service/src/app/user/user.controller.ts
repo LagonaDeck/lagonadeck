@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -28,22 +36,34 @@ export class UserController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupère un utilisateur par id.' })
-  @ApiParam({ name: 'id', description: "Identifiant de l'utilisateur" })
+  @ApiParam({
+    name: 'id',
+    format: 'uuid',
+    description: "Identifiant de l'utilisateur",
+  })
   @ApiResponse({ status: 200, type: UserPublicDto })
+  @ApiResponse({ status: 400, description: 'Identifiant invalide.' })
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
-  async findOne(@Param('id') id: string): Promise<UserPublicDto> {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<UserPublicDto> {
     const user = await this.userService.findById(id);
     return UserPublicDto.fromEntity(user);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Met à jour un utilisateur.' })
-  @ApiParam({ name: 'id', description: "Identifiant de l'utilisateur" })
+  @ApiParam({
+    name: 'id',
+    format: 'uuid',
+    description: "Identifiant de l'utilisateur",
+  })
   @ApiResponse({ status: 200, type: UserPublicDto })
+  @ApiResponse({ status: 400, description: 'Identifiant ou corps invalide.' })
   @ApiResponse({ status: 404, description: 'Utilisateur introuvable.' })
   @ApiResponse({ status: 409, description: 'Email ou pseudo déjà utilisé.' })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ): Promise<UserPublicDto> {
     const user = await this.userService.update(id, dto);

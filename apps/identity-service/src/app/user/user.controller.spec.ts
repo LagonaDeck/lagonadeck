@@ -16,7 +16,8 @@ describe('UserController', () => {
     email: 'jane@example.com',
     firstName: 'Jane',
     lastName: 'Doe',
-    pseudo: 'janedoe',
+    pseudo: 'JaneDoe',
+    pseudoNormalized: 'janedoe',
     passwordHash: 'hashed',
     salt: 'salt',
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
@@ -44,7 +45,7 @@ describe('UserController', () => {
       email: 'jane@example.com',
       firstName: 'Jane',
       lastName: 'Doe',
-      pseudo: 'janedoe',
+      pseudo: 'JaneDoe',
       password: 'Sup3rSecret!',
     };
 
@@ -54,15 +55,16 @@ describe('UserController', () => {
     expect(result).toBeInstanceOf(UserPublicDto);
     expect(result).toEqual({
       id: 'user-1',
-      email: 'jane@example.com',
       firstName: 'Jane',
       lastName: 'Doe',
-      pseudo: 'janedoe',
+      pseudo: 'JaneDoe',
       createdAt: userEntity.createdAt,
       updatedAt: userEntity.updatedAt,
     });
+    expect(result).not.toHaveProperty('email');
     expect(result).not.toHaveProperty('passwordHash');
     expect(result).not.toHaveProperty('salt');
+    expect(result).not.toHaveProperty('pseudoNormalized');
   });
 
   it('récupère un utilisateur par id', async () => {

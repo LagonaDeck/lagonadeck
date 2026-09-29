@@ -1,12 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../../generated/prisma/client';
 
+/**
+ * Vue d'un utilisateur lisible par un tiers : ni email, ni hash, ni salt.
+ * L'email reste une donnée personnelle ; il ne sera renvoyé qu'à l'utilisateur
+ * lui-même, par un endpoint dédié une fois l'authentification en place.
+ */
 export class UserPublicDto {
-  @ApiProperty()
+  @ApiProperty({ format: 'uuid' })
   id!: string;
-
-  @ApiProperty()
-  email!: string;
 
   @ApiProperty()
   firstName!: string;
@@ -26,7 +28,6 @@ export class UserPublicDto {
   static fromEntity(user: User): UserPublicDto {
     const dto = new UserPublicDto();
     dto.id = user.id;
-    dto.email = user.email;
     dto.firstName = user.firstName;
     dto.lastName = user.lastName;
     dto.pseudo = user.pseudo;

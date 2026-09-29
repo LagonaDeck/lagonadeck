@@ -5,13 +5,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PasswordService } from '../common/password.service';
-import { normalizeEmail } from '../common/normalize';
+import { normalizeEmail, normalizePseudo } from '../common/normalize';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Prisma } from '../../generated/prisma/client';
 
 /** Code Prisma d'une violation de contrainte unique (index email/pseudo). */
 const UNIQUE_CONSTRAINT_VIOLATION_CODE = 'P2002';
+/** Code Prisma d'un enregistrement introuvable lors d'une écriture. */
+const RECORD_NOT_FOUND_CODE = 'P2025';
 
 @Injectable()
 export class UserService {
@@ -30,6 +32,7 @@ export class UserService {
           firstName: dto.firstName,
           lastName: dto.lastName,
           pseudo: dto.pseudo,
+          pseudoNormalized: normalizePseudo(dto.pseudo),
           passwordHash: hash,
           salt,
         },
@@ -50,33 +53,38 @@ export class UserService {
   }
 
   async update(id: string, dto: UpdateUserDto) {
-    await this.findById(id); // vérifie l'existence
+    const data =
+      dto.pseudo === undefined
+        ? dto
+        : { ...dto, pseudoNormalized: normalizePseudo(dto.pseudo) };
 
     return this.writeOrConflict(() =>
-      this.prisma.user.update({ where: { id }, data: dto }),
+      this.prisma.user.update({ where: { id }, data }),
     );
   }
 
   /**
-   * Exécute une écriture Prisma et convertit une violation de l'index unique
-   * (email/pseudo, code P2002) en 409 explicite.
+   * Exécute une écriture Prisma et traduit ses erreurs attendues en réponse
+   * HTTP : violation de l'index unique (email/pseudo, P2002) en 409,
+   * enregistrement introuvable (P2025) en 404.
    *
-   * Il n'y a volontairement pas de pré-contrôle applicatif (`findFirst`) avant
-   * l'écriture : un tel contrôle n'est pas atomique avec l'écriture qui suit,
-   * donc deux requêtes concurrentes avec le même email/pseudo le passeraient
-   * toutes les deux, et la seconde écriture échouerait quand même sur l'index.
-   * L'index unique en base reste donc la seule source de vérité ; ce wrapper
-   * se contente de traduire son erreur en réponse HTTP appropriée.
+   * Il n'y a volontairement pas de pré-contrôle applicatif (`findFirst`,
+   * `findById`) avant l'écriture : un tel contrôle n'est pas atomique avec
+   * l'écriture qui suit. Deux requêtes concurrentes le passeraient toutes les
+   * deux, et l'écriture échouerait quand même en base. La base reste donc la
+   * seule source de vérité ; ce wrapper se contente de traduire son erreur.
    */
   private async writeOrConflict<T>(write: () => Promise<T>): Promise<T> {
     try {
       return await write();
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_CONSTRAINT_VIOLATION_CODE
-      ) {
-        throw new ConflictException('Email ou pseudo déjà utilisé');
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === UNIQUE_CONSTRAINT_VIOLATION_CODE) {
+          throw new ConflictException('Email ou pseudo déjà utilisé');
+        }
+        if (error.code === RECORD_NOT_FOUND_CODE) {
+          throw new NotFoundException('Utilisateur introuvable');
+        }
       }
       throw error;
     }
