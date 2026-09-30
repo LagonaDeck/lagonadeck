@@ -2,10 +2,11 @@
 
 ## Règle de choix
 
-| Besoin                                               | Canal                     | Statut                                                            |
-| ---------------------------------------------------- | ------------------------- | ----------------------------------------------------------------- |
-| Commande ou query nécessitant une réponse immédiate  | HTTP REST via API Gateway | Frontend et services HTTP existent ; routage métier à implémenter |
-| Propagation d'un fait métier vers plusieurs services | RabbitMQ                  | Prévu ; non configuré dans le dépôt                               |
+| Besoin                                                      | Canal                                 | Statut                                                                              |
+| ----------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
+| Commande ou query nécessitant une réponse immédiate         | HTTP REST via API Gateway             | Frontend et services HTTP existent ; routage métier à implémenter                   |
+| Propagation d'un fait métier vers plusieurs services        | RabbitMQ                              | Prévu ; non configuré dans le dépôt                                                 |
+| Envoi d'un e-mail transactionnel (confirmation, invitation) | HTTP REST interne vers `mail-service` | `mail-service` implémenté ; appel depuis Identity à implémenter ; événements prévus |
 
 Le frontend appelle uniquement l'API Gateway. Une longue chaîne d'appels
 synchrones entre microservices doit être évitée : elle augmente le couplage et
@@ -26,6 +27,27 @@ sequenceDiagram
   G->>S: HTTP REST + contexte utilisateur/workspace
   S-->>G: réponse immédiate
   G-->>F: réponse HTTP
+```
+
+## E-mails transactionnels
+
+Un service qui doit envoyer un e-mail appelle `mail-service` en REST interne,
+avec un nom de gabarit et des variables ; `mail-service` rend le message et le
+remet au serveur SMTP. Le frontend n'appelle jamais `mail-service` directement.
+Quand RabbitMQ sera en place, `mail-service` consommera des événements
+(`identity.user.registered.v1`, `identity.workspace.invited.v1` — noms
+**prévus**) à la place de cet appel synchrone ; les gabarits ne changent pas.
+
+```mermaid
+sequenceDiagram
+  participant I as Identity Service
+  participant M as Mail Service
+  participant S as SMTP (Mailpit en dev)
+  I->>M: POST /mail/send (gabarit + variables)
+  M->>M: validation des variables, rendu du gabarit
+  M->>S: SMTP
+  S-->>M: acceptation
+  M-->>I: messageId, accepted, rejected
 ```
 
 ## Événements asynchrones

@@ -14,19 +14,20 @@ unique.
 
 ## Applications réelles
 
-| Application         | Technologie            | Rôle architectural                                   | État                                                                        |
-| ------------------- | ---------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
-| `frontend`          | Angular 22, NgRx       | Interface utilisateur unique                         | Squelette fonctionnel, store racine vide                                    |
-| `api-gateway`       | NestJS                 | Entrée HTTP, routage et préoccupations transversales | Squelette sans logique de gateway                                           |
-| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Schéma de démarrage                                                         |
-| `catalog-service`   | NestJS, Prisma         | Référentiel des cartes et prix                       | Schéma de démarrage                                                         |
-| `inventory-service` | NestJS, Prisma         | Achats, lots et stock                                | Schéma de démarrage                                                         |
-| `sales-service`     | NestJS, Prisma         | Ventes et rentabilité                                | Schéma de démarrage                                                         |
-| `analytics-service` | NestJS, Prisma         | Projections et indicateurs                           | Schéma de démarrage                                                         |
-| `media-service`     | NestJS, Prisma, SDK S3 | Métadonnées et accès aux médias                      | API CRUD (upload, confirmation, téléchargement, suppression) opérationnelle |
+| Application         | Technologie            | Rôle architectural                                   | État                                                                           |
+| ------------------- | ---------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `frontend`          | Angular 22, NgRx       | Interface utilisateur unique                         | Squelette fonctionnel, store racine vide                                       |
+| `api-gateway`       | NestJS                 | Entrée HTTP, routage et préoccupations transversales | Squelette sans logique de gateway                                              |
+| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Schéma de démarrage                                                            |
+| `catalog-service`   | NestJS, Prisma         | Référentiel des cartes et prix                       | Schéma de démarrage                                                            |
+| `inventory-service` | NestJS, Prisma         | Achats, lots et stock                                | Schéma de démarrage                                                            |
+| `sales-service`     | NestJS, Prisma         | Ventes et rentabilité                                | Schéma de démarrage                                                            |
+| `analytics-service` | NestJS, Prisma         | Projections et indicateurs                           | Schéma de démarrage                                                            |
+| `media-service`     | NestJS, Prisma, SDK S3 | Métadonnées et accès aux médias                      | API CRUD (upload, confirmation, téléchargement, suppression) opérationnelle    |
+| `mail-service`      | NestJS, nodemailer     | Envoi des e-mails transactionnels via SMTP           | API `POST /mail/send` et `GET /mail/templates` opérationnelles ; deux gabarits |
 
 Les six services métier et leurs clients Prisma sont indépendants. L'API
-Gateway ne possède ni Prisma ni base de données.
+Gateway et le Mail Service ne possèdent ni Prisma ni base de données.
 
 ## Principes directeurs
 

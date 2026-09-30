@@ -1,7 +1,7 @@
 # Environnement Docker de développement
 
 Ce guide décrit l'environnement de développement local de LagonaDeck. Il lance
-le monorepo Nx, PostgreSQL, RabbitMQ et MinIO avec Docker Compose. Les sources
+le monorepo Nx, PostgreSQL, RabbitMQ, MinIO et Mailpit avec Docker Compose. Les sources
 sont montées dans les conteneurs ; le frontend et les services NestJS se
 recompilent automatiquement après une modification.
 
@@ -12,8 +12,8 @@ recompilent automatiquement après une modification.
 - GNU Make pour les raccourcis `make` (les commandes Compose équivalentes sont
   indiquées ci-dessous).
 
-Node.js, npm, PostgreSQL, RabbitMQ et MinIO ne sont pas nécessaires sur la
-machine hôte. L'environnement a été validé avec Docker Desktop et Docker
+Node.js, npm, PostgreSQL, RabbitMQ, MinIO et serveur SMTP ne sont pas
+nécessaires sur la machine hôte. L'environnement a été validé avec Docker Desktop et Docker
 Compose v5.
 
 ## Premier démarrage
@@ -68,32 +68,64 @@ ordinaire ne demande donc que `make docker-up`.
 
 ## Services et accès local
 
-| Service     | URL ou port hôte                            | Usage                       |
-| ----------- | ------------------------------------------- | --------------------------- |
-| Frontend    | <http://localhost:4200>                     | Application Angular         |
-| API Gateway | <http://localhost:3000/api>                 | Point d'entrée HTTP         |
-| Identity    | <http://localhost:3001/api>                 | Service métier              |
-| Catalog     | <http://localhost:3002/api>                 | Service métier              |
-| Inventory   | <http://localhost:3003/api>                 | Service métier              |
-| Sales       | <http://localhost:3004/api>                 | Service métier              |
-| Analytics   | <http://localhost:3005/api>                 | Service métier              |
-| Media       | <http://localhost:3006/api>                 | Service métier              |
-| PostgreSQL  | `localhost:5432`                            | Base locale (configurable)  |
-| RabbitMQ    | `localhost:5672` / <http://localhost:15672> | AMQP / interface de gestion |
-| MinIO       | `localhost:9000` / <http://localhost:9001>  | API S3 / console            |
+| Service     | URL ou port hôte                            | Usage                            |
+| ----------- | ------------------------------------------- | -------------------------------- |
+| Frontend    | <http://localhost:4200>                     | Application Angular              |
+| API Gateway | <http://localhost:3000/api>                 | Point d'entrée HTTP              |
+| Identity    | <http://localhost:3001/api>                 | Service métier                   |
+| Catalog     | <http://localhost:3002/api>                 | Service métier                   |
+| Inventory   | <http://localhost:3003/api>                 | Service métier                   |
+| Sales       | <http://localhost:3004/api>                 | Service métier                   |
+| Analytics   | <http://localhost:3005/api>                 | Service métier                   |
+| Media       | <http://localhost:3006/api>                 | Service métier                   |
+| Mail        | <http://localhost:3007/api>                 | Service technique (e-mails)      |
+| PostgreSQL  | `localhost:5432`                            | Base locale (configurable)       |
+| RabbitMQ    | `localhost:5672` / <http://localhost:15672> | AMQP / interface de gestion      |
+| MinIO       | `localhost:9000` / <http://localhost:9001>  | API S3 / console                 |
+| Mailpit     | `localhost:1025` / <http://localhost:8025>  | SMTP de dev / boîte de réception |
 
 Chaque service NestJS expose sa documentation Swagger sur `/api/docs` (ex.
 <http://localhost:3002/api/docs> pour Catalog). L'API Gateway sert en plus une
-page unique agrégeant les 7 documentations via le sélecteur de spécifications
+page unique agrégeant les 8 documentations via le sélecteur de spécifications
 de Swagger UI : <http://localhost:3000/docs>. La documentation se régénère
 automatiquement à partir du code au redémarrage du service, sans étape de build
 séparée.
 
 Les applications communiquent entre elles et avec les dépendances via le réseau
-Compose et les noms de services (`postgres`, `rabbitmq`, `minio`), jamais via
-`localhost` dans les conteneurs. PostgreSQL initialise six bases isolées :
-`lagonadeck_identity`, `lagonadeck_catalog`, `lagonadeck_inventory`,
+Compose et les noms de services (`postgres`, `rabbitmq`, `minio`, `mailpit`),
+jamais via `localhost` dans les conteneurs. PostgreSQL initialise six bases
+isolées : `lagonadeck_identity`, `lagonadeck_catalog`, `lagonadeck_inventory`,
 `lagonadeck_sales`, `lagonadeck_analytics` et `lagonadeck_media`.
+
+## E-mails en développement (Mailpit)
+
+`mail-service` envoie ses e-mails au conteneur `mailpit`, qui joue le rôle de
+serveur SMTP local. Aucun message ne quitte le poste : tout ce qui est envoyé
+apparaît dans la boîte de réception de Mailpit, <http://localhost:8025>. Le
+stockage est en mémoire ; la boîte se vide à chaque redémarrage du conteneur.
+
+Pour envoyer un e-mail de test depuis un second terminal :
+
+```bash
+curl -X POST http://localhost:3007/api/mail/send \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "to": "ada@example.com",
+    "template": "account-confirmation",
+    "variables": {
+      "displayName": "Ada",
+      "confirmationUrl": "https://app.lagonadeck.local/confirm?token=demo"
+    }
+  }'
+```
+
+`GET http://localhost:3007/api/mail/templates` liste les gabarits et leurs
+variables ; la documentation complète est sur <http://localhost:3007/api/docs>.
+
+La connexion SMTP de `mail-service` est fixée par les variables `MAIL_SMTP_HOST`,
+`MAIL_SMTP_PORT`, `MAIL_SMTP_SECURE`, `MAIL_SMTP_USER`, `MAIL_SMTP_PASSWORD` et
+`MAIL_FROM` du Compose. Hors développement, elles pointent vers le fournisseur
+SMTP de l'environnement (voir [ADR 0007](../adr/0007-mail-service-smtp.md)).
 
 ## Variables de développement
 
@@ -137,6 +169,13 @@ Les fichiers de configuration (`package.json`, `package-lock.json`, Dockerfile,
 Compose, `.env`) ne sont pas rechargés à chaud. Après une modification, relancez
 la stack avec `make docker-down` puis `make docker-up`.
 
+Une dépendance npm ajoutée à un service doit aussi être déclarée dans le
+`package.json` **racine** : le job `install-dependencies` exécute
+`npm ci --workspaces=false`, qui n'installe pas dans le volume `node_modules`
+les paquets connus uniquement du `package.json` d'un workspace. Sans cela, le
+service compile sur le poste (où `npm install` lit les workspaces) mais échoue
+dans Docker avec `Module not found`.
+
 ## Exploitation locale
 
 ```bash
@@ -159,13 +198,14 @@ recrée les bases, le bucket MinIO et les dépendances.
 
 ## Dépannage
 
-| Symptôme                                           | Action                                                                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Le port 5432 est déjà pris                         | Créez `infrastructure/.env` avec `POSTGRES_PORT=15432`, puis relancez.                                                         |
-| Un port HTTP est déjà pris                         | Arrêtez le processus concerné ou adaptez le mapping dans le Compose.                                                           |
-| Aucun changement n'est détecté                     | Activez les deux variables de polling, puis relancez.                                                                          |
-| Prisma ou les dépendances npm semblent incohérents | Lancez `make docker-reset`, puis `make docker-up`.                                                                             |
-| Un service ne devient pas `healthy`                | Consultez `make docker-logs` ou les logs ciblés avec `docker compose -f infrastructure/docker-compose.dev.yml logs <service>`. |
+| Symptôme                                           | Action                                                                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Le port 5432 est déjà pris                         | Créez `infrastructure/.env` avec `POSTGRES_PORT=15432`, puis relancez.                                                                   |
+| Un port HTTP est déjà pris                         | Arrêtez le processus concerné ou adaptez le mapping dans le Compose.                                                                     |
+| Aucun changement n'est détecté                     | Activez les deux variables de polling, puis relancez.                                                                                    |
+| Prisma ou les dépendances npm semblent incohérents | Lancez `make docker-reset`, puis `make docker-up`.                                                                                       |
+| Un service ne devient pas `healthy`                | Consultez `make docker-logs` ou les logs ciblés avec `docker compose -f infrastructure/docker-compose.dev.yml logs <service>`.           |
+| Un e-mail n'apparaît pas dans Mailpit              | Vérifiez que `mailpit` est `healthy` et lisez les logs de `mail-service` ; la boîte Mailpit est vidée à chaque redémarrage du conteneur. |
 
 ## Vérifications effectuées
 

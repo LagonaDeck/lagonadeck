@@ -24,12 +24,15 @@ flowchart TB
   A --> ADB[(analytics-db)]
   M --> MDB[(media-db)]
   M --> O[(S3 compatible)]
+  I -->|REST interne| ML[Mail Service\nNestJS + SMTP]
+  ML --> SMTP[(SMTP\nMailpit en dev)]
   I <-. événements prévus .-> R[(RabbitMQ)]
   C <-. événements prévus .-> R
   V <-. événements prévus .-> R
   S <-. événements prévus .-> R
   A <-. événements prévus .-> R
   M <-. événements prévus .-> R
+  ML <-. événements prévus .-> R
 ```
 
 ## Flux synchrone
@@ -63,6 +66,15 @@ flowchart TD
   M -->|URL pré-signée| G
   G --> F
   F -->|upload direct| O[(S3 compatible : binaires)]
+```
+
+## Flux e-mail
+
+```mermaid
+flowchart TD
+  I[Identity Service] -->|POST /mail/send\ngabarit + variables| ML[Mail Service\nvalide puis rend le gabarit]
+  ML -->|SMTP| S[(Serveur SMTP\nMailpit en dev)]
+  S -.-> D[Boîte Mailpit\nlocalhost:8025]
 ```
 
 ## Isolation des bases

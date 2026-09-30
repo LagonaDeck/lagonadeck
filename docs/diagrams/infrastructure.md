@@ -19,6 +19,7 @@ est une préoccupation de production.
 flowchart TB
   DEV[Poste développeur] -->|localhost:4200| FE
   DEV -->|localhost:3000| GW
+  DEV -->|localhost:8025| MP
 
   subgraph COMPOSE["Docker Compose · projet lagonadeck-dev"]
     subgraph BOOT["Jobs one-shot · restart: no"]
@@ -29,6 +30,7 @@ flowchart TB
 
     FE[frontend\nAngular · 4200]
     GW[api-gateway\nNestJS · 3000]
+    MAIL[mail-service\nNestJS · 3007 · sans base]
 
     subgraph SVC["Services métier NestJS"]
       IDS[identity-service · 3001]
@@ -50,6 +52,7 @@ flowchart TB
     end
     RMQ[(rabbitmq:4\n5672 · 15672)]
     MINIO[(minio\n9000 · 9001\nbucket lagonadeck-media)]
+    MP[(mailpit\n1025 · 8025)]
   end
 
   FE --> GW
@@ -78,14 +81,20 @@ flowchart TB
 
   MED --> MINIO
 
+  IDS -->|REST interne| MAIL
+  MAIL -->|SMTP| MP
+  MAIL -.événements.-> RMQ
+
   INSTALL -.node_modules.-> FE
   INSTALL -.node_modules.-> GW
+  INSTALL -.node_modules.-> MAIL
   INSTALL -.node_modules.-> SVC
   PRISMA -.client Prisma.-> SVC
 ```
 
 Volumes Docker persistants : `node_modules`, `postgres_data`, `rabbitmq_data`,
-`minio_data`. Les ports listés sont exposés sur l'hôte.
+`minio_data`. Mailpit ne persiste rien (stockage en mémoire). Les ports listés
+sont exposés sur l'hôte.
 
 Un service peut aussi être répliqué localement pour tester le scaling :
 `docker compose up --scale <service>=N`. Les N réplicas partagent la même image
@@ -99,7 +108,8 @@ operator (1 primary + N réplicas en lecture — voir
 [ADR 0006](../adr/0006-replication-bases-service.md)). Le **mécanisme de réplication**
 exact (réplication streaming ou autre) reste à trancher lors de la mise en œuvre :
 l'ADR 0006 fixe la topologie primary + réplicas mais laisse ce point ouvert. Le
-stockage objet est un service S3 managé, externe au cluster.
+stockage objet est un service S3 managé, externe au cluster ; l'envoi d'e-mails
+passe par un fournisseur SMTP externe, dont les identifiants viennent des secrets.
 
 Côté calcul, **chaque micro-service est instancié en N pods et s'autoscale** : un
 Deployment répliqué derrière un Service Kubernetes, un HPA qui ajuste le nombre de
@@ -115,6 +125,7 @@ flowchart TB
   subgraph K8S["Cluster Kubernetes · namespace lagonadeck"]
     ING --> FE[frontend\nDeployment nginx + statique\nService]
     ING --> GW[api-gateway\nDeployment · N pods + HPA\nService]
+    MAIL[mail-service\nDeployment · N pods + HPA\nService]
 
     subgraph WL["Services métier · Deployments répliqués + HPA"]
       IDS[identity-service\nN pods]
@@ -139,6 +150,8 @@ flowchart TB
     SAL -.événements.-> RMQ
     ANA -.événements.-> RMQ
     MED -.événements.-> RMQ
+    IDS -->|REST interne| MAIL
+    MAIL -.événements.-> RMQ
 
     subgraph DBS["Bases par service · clusters PostgreSQL via operator"]
       IDB[(identity-db\n1 primary + N réplicas)]
@@ -157,9 +170,11 @@ flowchart TB
 
     SEC[[Secrets et ConfigMaps]] -.-> GW
     SEC -.-> WL
+    SEC -.-> MAIL
   end
 
   MED -->|SDK S3| S3[(Object storage S3 managé\nbucket médias)]
+  MAIL -->|SMTP| SMTP[(Fournisseur SMTP\nexterne)]
 ```
 
 ### Détail d'un cluster de base (read/write split)

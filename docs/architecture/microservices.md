@@ -11,6 +11,25 @@ Ces responsabilités sont définies par l'architecture et l'ADR 0003 ; elles son
 **à implémenter** dans le code actuel. Le Gateway ne contient pas de logique
 métier et ne doit jamais accéder à une base de données d'un service.
 
+## Mail Service
+
+`mail-service` est un NestJS sans Prisma ni base de données
+([ADR 0007](../adr/0007-mail-service-smtp.md)). C'est un service **technique**,
+pas un domaine métier : il envoie les e-mails transactionnels pour le compte des
+autres services, via le serveur SMTP configuré par l'environnement (Mailpit en
+développement).
+
+Son API est volontairement générique : `POST /mail/send` prend un **nom de
+gabarit** et des **variables**, `GET /mail/templates` expose les gabarits et les
+variables qu'ils attendent. Les gabarits (`account-confirmation`,
+`workspace-invitation`) vivent dans le service ; un appelant ne manipule ni HTML
+ni SMTP. Toute variable requise manquante, inconnue ou non textuelle est refusée
+avant l'envoi.
+
+État réel : service, API et gabarits implémentés ; l'appel depuis
+`identity-service` (confirmation de compte, invitations) reste **à implémenter**,
+de même que la consommation d'événements RabbitMQ à la place de l'appel REST.
+
 ## Services métier
 
 | Service   | Responsabilités architecturales                                                                                        | État réel                                                                                                                     |

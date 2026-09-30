@@ -32,9 +32,10 @@ Les données du marché peuvent être utilisées afin de comparer le coût d'acq
 
 LagonaDeck est un monorepo **Nx** en TypeScript : un frontend **Angular 22 +
 NgRx** appelle une **API Gateway NestJS**, qui constitue l'entrée prévue des six
-services métier NestJS. Chaque service possède son schéma Prisma et sa base
-PostgreSQL ; Media Service gère les métadonnées et l'accès au stockage compatible
-S3.
+services métier NestJS. Chaque service métier possède son schéma Prisma et sa
+base PostgreSQL ; Media Service gère les métadonnées et l'accès au stockage
+compatible S3. Un **Mail Service** sans base envoie les e-mails transactionnels
+(confirmation de compte, invitations) via SMTP pour le compte des autres services.
 
 La documentation décrit précisément l'état actuel et les éléments prévus :
 [architecture](docs/architecture/README.md),
@@ -54,6 +55,7 @@ apps/
   sales-service/       NestJS + Prisma
   analytics-service/   NestJS + Prisma
   media-service/       NestJS + Prisma + object storage
+  mail-service/        NestJS + SMTP (nodemailer), sans base
 libs/
   contracts/           contrats d'API et d'événements partagés
   shared/              types, validation, utils
@@ -71,6 +73,7 @@ docs/                  architecture, diagrammes, API, ADR
 - **Base de données** : PostgreSQL (une par service)
 - **Messagerie** : RabbitMQ (communication asynchrone)
 - **Stockage média** : object storage compatible S3 (client du Media Service)
+- **E-mails** : SMTP via nodemailer (Mail Service) ; Mailpit en développement
 - **Monorepo & outillage** : Nx, TypeScript, ESLint, Prettier
 - **Conteneurisation** : Docker / Docker Compose
 
@@ -79,8 +82,8 @@ docs/                  architecture, diagrammes, API, ADR
 ### Docker (recommandé)
 
 L'environnement de développement complet se lance avec Docker et Docker Compose ;
-Node.js, PostgreSQL, RabbitMQ et MinIO ne sont alors pas requis sur la machine
-hôte.
+Node.js, PostgreSQL, RabbitMQ, MinIO et serveur SMTP ne sont alors pas requis sur
+la machine hôte.
 
 ```bash
 make docker-up

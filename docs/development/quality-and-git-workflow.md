@@ -54,7 +54,7 @@ Chaque exécution installe les dépendances avec `npm ci` et publie trois checks
 | `Tests`    | `npm test`                                    | toutes les cibles de test Nx existantes                        |
 
 Le frontend Angular ne possède pas encore de cible de test ; à ce stade, le job
-`Tests` couvre les sept applications backend qui exposent une cible Nx `test`.
+`Tests` couvre les huit applications backend qui exposent une cible Nx `test`.
 
 ### Labels de pull request
 
