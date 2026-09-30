@@ -17,6 +17,7 @@ const AGGREGATED_SERVICES = [
   { name: 'Sales Service', port: 3004 },
   { name: 'Analytics Service', port: 3005 },
   { name: 'Media Service', port: 3006 },
+  { name: 'Mail Service', port: 3007 },
 ];
 
 async function bootstrap() {

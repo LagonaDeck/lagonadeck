@@ -88,6 +88,19 @@ services:
       && mc mb --ignore-existing local/lagonadeck-media"
     restart: 'no'
 
+  # Serveur SMTP de développement : capture tous les e-mails envoyés par
+  # mail-service et les affiche dans une interface web, rien ne sort du poste.
+  # Stockage en mémoire : la boîte est vidée à chaque redémarrage du conteneur.
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    ports: ['1025:1025', '8025:8025']
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   install-dependencies:
     <<: *application-base
     build:
@@ -279,6 +292,31 @@ services:
         [
           'CMD-SHELL',
           'node -e "fetch(''http://localhost:3006/api'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
+
+  mail-service:
+    <<: *application
+    build: { context: .., dockerfile: infrastructure/docker/mail/Dockerfile }
+    command: sh -c 'npx nx daemon --start && exec npx nx serve mail-service'
+    environment:
+      <<: *application-environment
+      PORT: '3007'
+      MAIL_SMTP_HOST: mailpit
+      MAIL_SMTP_PORT: '1025'
+      MAIL_SMTP_SECURE: 'false'
+      MAIL_FROM: 'LagonaDeck <no-reply@lagonadeck.local>'
+      RABBITMQ_URL: amqp://lagonadeck:lagonadeck@rabbitmq:5672
+    ports: ['3007:3007']
+    depends_on:
+      <<: *application-depends
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      <<: *api-health
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://localhost:3007/api'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"',
         ]
 
 volumes:

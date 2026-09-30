@@ -23,6 +23,9 @@
     },
     {
       "path": "./apps/media-service"
+    },
+    {
+      "path": "./apps/mail-service"
     }
   ],
   "compilerOptions": {}
