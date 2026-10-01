@@ -9,7 +9,7 @@ REST ou, pour la propagation de faits, par RabbitMQ.
 
 | Service             | Base logique visée | Modèles Prisma                                                                                |
 | ------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
-| `identity-service`  | `identity-db`      | `User` (modèle de démarrage)                                                                  |
+| `identity-service`  | `identity-db`      | `User`                                                                                        |
 | `catalog-service`   | `catalog-db`       | `Game`, `CardSet`, `Card`, `CardVariant`, `ExternalId`, `MarketPrice`                         |
 | `inventory-service` | `inventory-db`     | `Supplier`, `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
 | `sales-service`     | `sales-db`         | `Marketplace`, `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                    |
@@ -18,12 +18,11 @@ REST ou, pour la propagation de faits, par RabbitMQ.
 
 Les noms de base sont des noms logiques documentés : le dépôt configure chaque
 connexion via `DATABASE_URL` dans son `prisma.config.ts` et ne versionne pas de
-fichiers d'environnement. Catalog, Inventory, Sales, Analytics et Media
-versionnent une migration dans `prisma/migrations/` ; elle s'applique avec
+fichiers d'environnement. Chacun des six services versionne ses migrations dans
+`prisma/migrations/` ; elles s'appliquent avec
 `npm run db:deploy -w @lagonadeck/<service>`. Aucune étape de l'environnement
-Docker de développement ne l'applique automatiquement à ce jour : la commande,
-qui couvre les six services (sans effet pour un service sans migration), figure
-dans le
+Docker de développement ne les applique automatiquement à ce jour : la commande
+pour les six services figure dans le
 [guide Docker de développement](../development/docker-development.md#créer-les-tables-migrations-prisma).
 
 ## Mise en œuvre actuelle
@@ -42,13 +41,13 @@ Prisma 7 utilise le provider PostgreSQL et le driver adapter `@prisma/adapter-pg
 Les modèles de Catalog, Inventory, Sales et Analytics couvrent le cycle
 achat → stock → vente avec un jeu de champs volontairement minimal ; un champ
 facultatif s'ajoute par migration dans le seul service concerné. Media possède
-son modèle `MediaAsset` et ses endpoints ; seul Identity conserve son modèle de
-démarrage, développé sur une branche dédiée.
+son modèle `MediaAsset` et ses endpoints. Identity possède l'entité `User` et ses
+endpoints CRUD ; le login, les workspaces et les permissions restent à modéliser.
 
 ### Conventions des schémas
 
-Elles s'appliquent aux quatre services modélisés et ont vocation à être reprises
-par Identity et Media.
+Elles s'appliquent aux quatre services modélisés ainsi qu'à Identity, et ont
+vocation à être reprises par Media.
 
 - Identifiants `uuid` (`@db.Uuid`) sur toutes les tables.
 - Une donnée appartenant à un autre service est référencée par son UUID, **sans

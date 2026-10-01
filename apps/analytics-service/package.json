@@ -7,6 +7,9 @@
     "targets": {
       "build": {
         "executor": "nx:run-commands",
+        "dependsOn": [
+          "db:generate"
+        ],
         "options": {
           "command": "webpack-cli build",
           "env": {
@@ -77,6 +80,9 @@
         }
       },
       "test": {
+        "dependsOn": [
+          "db:generate"
+        ],
         "options": {
           "passWithNoTests": true
         }

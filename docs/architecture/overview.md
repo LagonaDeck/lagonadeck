@@ -18,11 +18,11 @@ unique.
 | ------------------- | ---------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
 | `frontend`          | Angular 22, NgRx       | Interface utilisateur unique                         | Squelette fonctionnel, store racine vide                                    |
 | `api-gateway`       | NestJS                 | Entrée HTTP, routage et préoccupations transversales | Squelette sans logique de gateway                                           |
-| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Schéma de démarrage                                                         |
-| `catalog-service`   | NestJS, Prisma         | Référentiel des cartes et prix                       | Schéma de démarrage                                                         |
-| `inventory-service` | NestJS, Prisma         | Achats, lots et stock                                | Schéma de démarrage                                                         |
-| `sales-service`     | NestJS, Prisma         | Ventes et rentabilité                                | Schéma de démarrage                                                         |
-| `analytics-service` | NestJS, Prisma         | Projections et indicateurs                           | Schéma de démarrage                                                         |
+| `identity-service`  | NestJS, Prisma         | Identité, accès et workspaces                        | Entité `User` CRUD opérationnelle ; login/JWT/workspaces à implémenter      |
+| `catalog-service`   | NestJS, Prisma         | Référentiel des cartes et prix                       | Schéma Prisma et migration initiale ; intégrations à implémenter            |
+| `inventory-service` | NestJS, Prisma         | Achats, lots et stock                                | Schéma Prisma et migration initiale ; cycle métier à implémenter            |
+| `sales-service`     | NestJS, Prisma         | Ventes et rentabilité                                | Schéma Prisma et migration initiale ; calculs à implémenter                 |
+| `analytics-service` | NestJS, Prisma         | Projections et indicateurs                           | Schéma (`Event` et projections) ; consommateurs à implémenter               |
 | `media-service`     | NestJS, Prisma, SDK S3 | Métadonnées et accès aux médias                      | API CRUD (upload, confirmation, téléchargement, suppression) opérationnelle |
 
 Les six services métier et leurs clients Prisma sont indépendants. L'API

@@ -3,15 +3,24 @@
  * This is only a minimal backend to get started.
  */
 
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Identity Service')
@@ -25,10 +34,13 @@ async function bootstrap() {
   // CORS limité à la doc Swagger : elle est consommée depuis la page agrégée
   // de l'api-gateway, sur un autre port. Le CORS applicatif reste porté par
   // le Gateway (cf. docs/architecture/microservices.md).
-  app.use([`/${docsPath}`, `/${docsPath}-json`], (_req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    next();
-  });
+  app.use(
+    [`/${docsPath}`, `/${docsPath}-json`],
+    (_req: Request, res: Response, next: NextFunction) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      next();
+    },
+  );
   SwaggerModule.setup(docsPath, app, swaggerDocument);
 
   const port = process.env.PORT || 3000;
