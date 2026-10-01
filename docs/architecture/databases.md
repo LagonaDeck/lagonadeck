@@ -9,7 +9,7 @@ REST ou, pour la propagation de faits, par RabbitMQ.
 
 | Service             | Base logique visée | Modèles Prisma                                                                                |
 | ------------------- | ------------------ | --------------------------------------------------------------------------------------------- |
-| `identity-service`  | `identity-db`      | `User`                                                                                        |
+| `identity-service`  | `identity-db`      | `User`, `Workspace`, `WorkspaceMember`, `WorkspaceInvitation`                                 |
 | `catalog-service`   | `catalog-db`       | `Game`, `CardSet`, `Card`, `CardVariant`, `ExternalId`, `MarketPrice`                         |
 | `inventory-service` | `inventory-db`     | `Supplier`, `Purchase`, `PurchaseFee`, `Lot`, `InventoryItem`, `StockMovement`, `Reservation` |
 | `sales-service`     | `sales-db`         | `Marketplace`, `Sale`, `SaleLine`, `SaleFee`, `SaleReturn`                                    |
@@ -42,7 +42,9 @@ Les modèles de Catalog, Inventory, Sales et Analytics couvrent le cycle
 achat → stock → vente avec un jeu de champs volontairement minimal ; un champ
 facultatif s'ajoute par migration dans le seul service concerné. Media possède
 son modèle `MediaAsset` et ses endpoints. Identity possède l'entité `User` et ses
-endpoints CRUD ; le login, les workspaces et les permissions restent à modéliser.
+endpoints CRUD, ainsi que les workspaces, leurs membres (rôles
+`OWNER`/`ADMIN`/`MEMBER`, un seul `OWNER` garanti par un index unique partiel)
+et les invitations ; le login reste à implémenter.
 
 ### Conventions des schémas
 

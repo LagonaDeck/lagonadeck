@@ -4,12 +4,21 @@
 // reçoit un driver adapter (@prisma/adapter-pg) au runtime.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  // Requis par l'index unique partiel de `WorkspaceMember` (un seul OWNER).
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// Ordre croissant des droits : un rôle hérite des droits des rôles inférieurs.
+enum WorkspaceRole {
+  MEMBER
+  ADMIN
+  OWNER
 }
 
 // Identité d'un utilisateur : email unique (stocké normalisé), pseudo unique
@@ -29,4 +38,58 @@ model User {
   salt             String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  memberships     WorkspaceMember[]
+  invitationsSent WorkspaceInvitation[]
+}
+
+// Espace de travail : les autres services y rattachent leurs données par
+// `workspaceId` (référence logique, sans clé étrangère).
+model Workspace {
+  id   String @id @default(uuid()) @db.Uuid
+  name String
+
+  members     WorkspaceMember[]
+  invitations WorkspaceInvitation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkspaceMember {
+  workspaceId String        @db.Uuid
+  userId      String        @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([workspaceId, userId])
+  // Un seul propriétaire par workspace, garanti par la base.
+  @@unique([workspaceId], where: { role: "OWNER" })
+  @@index([userId])
+}
+
+// Invitation en attente : supprimée à l'acceptation, au refus ou à la
+// révocation. Ré-inviter la même adresse met à jour l'invitation existante.
+model WorkspaceInvitation {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  // Normalisée comme `User.email` (cf. common/normalize.ts).
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  invitedById String        @db.Uuid
+  expiresAt   DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, email])
+  @@index([email])
 }
