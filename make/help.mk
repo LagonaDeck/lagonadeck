@@ -1,6 +1,6 @@
 ##@ Aide
 
 help: ## Affiche cette aide
-	@awk -f make/help.awk $(MAKEFILE_LIST)
+	@LC_ALL=C awk -f make/help.awk $(MAKEFILE_LIST)
 
 .PHONY: help

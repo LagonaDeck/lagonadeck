@@ -10,16 +10,16 @@ BEGIN { FS = ":.*## " }
   descriptions[n, k] = $2
 }
 
-# Les awk qui comptent en octets (macOS, mawk) comptent aussi les octets de
-# continuation UTF-8 : on les retire pour obtenir la largeur affichée.
+# Lancé en LC_ALL=C (cf. help.mk) : awk compte en octets, on retire les octets
+# de continuation UTF-8 pour obtenir la largeur affichée.
 function width(s) {
-  if (length("ç") > 1) gsub("[\200-\277]", "", s)
+  gsub(/[\200-\277]/, "", s)
   return length(s)
 }
 
-function pad(s, w) { return s sprintf("%*s", w - width(s), "") }
+function pad(s, w) { return s line(" ", w - width(s)) }
 
-function line(char, w) { s = ""; while (w-- > 0) s = s char; return s }
+function line(char, w,    out) { while (w-- > 0) out = out char; return out }
 
 function border(left, middle, right) {
   print color left line("─", w1 + 2) middle line("─", w2 + 2) right reset
