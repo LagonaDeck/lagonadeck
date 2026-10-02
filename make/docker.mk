@@ -4,7 +4,7 @@ docker-dev-up: ## Démarre les conteneurs de développement
 	@docker compose -f dev.compose.yaml up -d
 
 docker-dev-up-rebuild: ## Démarre les conteneurs de développement en reconstruisant les images
-	@docker compose -f dev.compose.yaml up -d --build
+	@docker compose -f dev.compose.yaml up -d --renew-anon-volumes
 
 docker-dev-down: ## Arrête les conteneurs de développement
 	@docker compose -f dev.compose.yaml down
