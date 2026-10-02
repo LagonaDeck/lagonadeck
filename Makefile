@@ -2,6 +2,7 @@ PROJECTS = frontend api-gateway identity-service media-service
 
 install:
 	@for p in $(PROJECTS); do echo "========= $$p ========="; (cd $$p && npm install) || exit 1; done
+	@echo "========= lefthook ========="
 	@npx --yes lefthook install
 
 build:
