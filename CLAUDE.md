@@ -24,7 +24,10 @@ Docker Compose.
 **Commandes** :
 
 ```bash
-make install                         # npm install dans chaque projet
+make install                         # npm install dans chaque projet + hooks lefthook
+make build                           # build des 4 projets
+make test                            # tests d'identity-service et media-service
+make format                          # Prettier sur tout le dépôt
 docker compose up --build            # tout le système (le compose racine fait un include: de ceux des projets)
 ```
 
@@ -40,7 +43,8 @@ npm run db:migrate                   # prisma migrate dev
 docker compose up                    # ce service seul, avec sa base
 ```
 
-À la racine : `npx prettier@3 --check .`. Il n'y a ni ESLint ni script de
+Lefthook (`lefthook.yml`) : Prettier sur les fichiers indexés au pre-commit,
+`make build test` au pre-push. Il n'y a ni ESLint ni script de
 type-check : le type-check passe par `npm run build`. La CI lance Prettier,
 puis `npm ci && npm run build && npm test --if-present` dans chaque projet.
 

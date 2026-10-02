@@ -1,0 +1,10 @@
+pre-commit:
+  commands:
+    prettier:
+      run: npx --yes prettier@3 --write --ignore-unknown {staged_files}
+      stage_fixed: true
+
+pre-push:
+  commands:
+    build-test:
+      run: make build test
