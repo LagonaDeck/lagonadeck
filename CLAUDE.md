@@ -29,6 +29,8 @@ make install                         # npm install dans chaque projet + hooks le
 make build                           # build des 4 projets
 make test                            # tests d'identity-service et media-service
 make format                          # Prettier sur tout le dépôt
+make lint                            # ESLint dans les 4 projets
+make quality                         # make format puis make lint
 make docker-dev-up-rebuild           # tout le système en arrière-plan (dev.compose.yaml fait un include: des composes des projets)
 make docker-dev-down                 # arrête la stack
 ```
@@ -39,6 +41,7 @@ Dans le dossier d'un projet :
 npm run start:dev                    # frontend : npm start
 npm run build                        # services : prisma generate && nest build → dist/main.js
 npm test                             # identity-service, media-service
+npm run lint                         # ESLint (services Prisma : prisma generate d'abord)
 npx jest src/user.service.spec.ts    # un fichier de test (après un premier npx prisma generate)
 npx jest -t "nom du test"            # un test par nom
 npm run db:migrate                   # prisma migrate dev
@@ -46,9 +49,12 @@ docker compose up                    # ce service seul, avec sa base
 ```
 
 Lefthook (`lefthook.yml`) : Prettier sur les fichiers indexés au pre-commit,
-`make build test` au pre-push. Il n'y a ni ESLint ni script de
-type-check : le type-check passe par `npm run build`. La CI lance Prettier,
-puis `npm ci && npm run build && npm test --if-present` dans chaque projet.
+`make lint build test` au pre-push. ESLint (un `eslint.config.mjs` par projet,
+typescript-eslint en `recommendedTypeChecked`, angular-eslint pour le
+frontend) ne porte aucune règle de style : c'est le rôle de Prettier. Il n'y a
+pas de script de type-check : le type-check passe par `npm run build`. La CI
+lance Prettier, ESLint (`npm ci && npm run lint`), puis
+`npm ci && npm run build && npm test --if-present` dans chaque projet.
 
 **Patterns** :
 
@@ -57,6 +63,8 @@ puis `npm ci && npm run build && npm test --if-present` dans chaque projet.
   forbidNonWhitelisted, Swagger sur `/api/docs`). Un fichier par rôle :
   `*.controller.ts`, `*.service.ts`, et tous les DTO dans `*.dto.ts`. Pas de
   modules Nest intermédiaires.
+- **tsconfig des services Prisma** : `tsconfig.json` inclut les specs (pour
+  ESLint et l'IDE), `tsconfig.build.json` les exclut du `nest build`.
 - **Prisma** :
   - le client est généré dans `src/generated/prisma` (gitignoré) ;
   - il est fourni par une factory `{ provide: PrismaClient }` dans `main.ts`
@@ -114,7 +122,7 @@ puis `npm ci && npm run build && npm test --if-present` dans chaque projet.
 8. Ne pas ajouter de dépendance si les outils existants suffisent.
 9. Tester les comportements, pas l'implémentation.
 10. Une correction de bug doit idéalement avoir un test de régression.
-11. Avant de terminer, vérifier les tests, le lint, le type-check et le build disponibles (ici : `npm test`, `npm run build` et Prettier).
+11. Avant de terminer, vérifier les tests, le lint, le type-check et le build disponibles (ici : `npm test`, `npm run lint`, `npm run build` et Prettier).
 12. Si une solution plus simple existe, la préférer.
 13. Ne jamais traduire les termes techniques établis. Conserver le vocabulaire de l'écosystème, de la documentation et du projet : `template`, `component`, `hook`, `middleware`, `handler`, `repository`, etc. Par exemple, ne pas remplacer `template` par « gabarit ».
 14. Toujours utiliser les commandes make quand elles sont disponibles.

@@ -61,7 +61,8 @@ dans son dossier le lance seul. Après
 un changement de dépendances : `docker compose -f dev.compose.yaml up --build --renew-anon-volumes`.
 
 Sans Docker, dans chaque dossier : `npm install`, `cp .env.example .env`, puis
-`npm run start:dev` (frontend : `npm start`), `npm run build` et `npm test`.
+`npm run start:dev` (frontend : `npm start`), `npm run build`, `npm test` et
+`npm run lint`.
 
 ## Objectif du projet
 

@@ -7,7 +7,8 @@
     "start:dev": "prisma generate && nest start --watch --exec \"node --env-file-if-exists=.env\"",
     "test": "prisma generate && jest",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "lint": "prisma generate && eslint ."
   },
   "jest": {
     "rootDir": "src",
@@ -36,10 +37,13 @@
     "@nestjs/testing": "^11.2.7",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.19.1",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
     "jest": "^30.5.2",
     "prisma": "^7.10.0",
     "ts-jest": "^29.4.14",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0"
   },
   "allowScripts": {
     "prisma@7.10.0": true,
