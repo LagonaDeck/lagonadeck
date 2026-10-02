@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node", "jest"],
+    "strict": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}

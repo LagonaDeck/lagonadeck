@@ -11,10 +11,12 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MediaService } from './media.service';
-import { RequestUploadDto } from './dto/request-upload.dto';
-import { RequestUploadResponseDto } from './dto/request-upload-response.dto';
-import { MediaAssetDto } from './dto/media-asset.dto';
-import { ListMediaDto } from './dto/list-media.dto';
+import {
+  ListMediaDto,
+  MediaAssetDto,
+  RequestUploadDto,
+  RequestUploadResponseDto,
+} from './media.dto';
 
 @ApiTags('media')
 @Controller('media')

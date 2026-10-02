@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { MediaController } from './media.controller';
 import { MediaService } from './media.service';
-import { MediaKind, MediaStatus } from '../../generated/prisma/enums';
+import { MediaKind, MediaStatus } from './generated/prisma/enums';
 
 describe('MediaController', () => {
   let controller: MediaController;

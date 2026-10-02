@@ -1,4 +1,4 @@
-import { MediaKind } from '../../generated/prisma/enums';
+import { MediaKind } from './generated/prisma/enums';
 
 /** Types MIME acceptés pour les images. */
 export const IMAGE_CONTENT_TYPES = [

@@ -1,3 +1,22 @@
+const sendMock = jest.fn();
+
+jest.mock('@aws-sdk/client-s3', () => ({
+  ...jest.requireActual('@aws-sdk/client-s3'),
+  S3Client: jest.fn().mockImplementation(() => ({ send: sendMock })),
+}));
+jest.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: jest.fn() }));
+jest.mock('@aws-sdk/s3-presigned-post', () => ({
+  createPresignedPost: jest.fn(),
+}));
+
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  NotFound,
+} from '@aws-sdk/client-s3';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Test } from '@nestjs/testing';
 import {
   BadRequestException,
@@ -5,9 +24,14 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { MediaService } from './media.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
-import { MediaKind, MediaStatus } from '../../generated/prisma/enums';
+import { PrismaClient } from './generated/prisma/client';
+import { MediaKind, MediaStatus } from './generated/prisma/enums';
+
+/** Route les commandes S3 vers `storage`, pour garder des tests lisibles. */
+const storage = {
+  headObject: jest.fn(),
+  deleteObject: jest.fn(),
+};
 
 describe('MediaService', () => {
   let service: MediaService;
@@ -19,12 +43,6 @@ describe('MediaService', () => {
       findMany: jest.Mock;
       delete: jest.Mock;
     };
-  };
-  let storage: {
-    presignUpload: jest.Mock;
-    presignDownload: jest.Mock;
-    statObject: jest.Mock;
-    deleteObject: jest.Mock;
   };
 
   const baseAsset = {
@@ -52,18 +70,23 @@ describe('MediaService', () => {
         delete: jest.fn(),
       },
     };
-    storage = {
-      presignUpload: jest.fn(),
-      presignDownload: jest.fn(),
-      statObject: jest.fn(),
-      deleteObject: jest.fn(),
-    };
+    jest.clearAllMocks();
+    storage.headObject.mockReset();
+    storage.deleteObject.mockReset();
+    sendMock.mockImplementation(async (command) => {
+      if (command instanceof HeadObjectCommand) {
+        return storage.headObject(command.input.Key);
+      }
+      if (command instanceof DeleteObjectCommand) {
+        return storage.deleteObject(command.input.Key);
+      }
+      throw new Error(`Commande S3 inattendue : ${command.constructor.name}`);
+    });
 
     const module = await Test.createTestingModule({
       providers: [
         MediaService,
-        { provide: PrismaService, useValue: prisma },
-        { provide: StorageService, useValue: storage },
+        { provide: PrismaClient, useValue: prisma },
       ],
     }).compile();
 
@@ -97,7 +120,7 @@ describe('MediaService', () => {
 
     it('crée la métadonnée PENDING et renvoie un POST pré-signé figeant le type et la taille', async () => {
       prisma.mediaAsset.create.mockResolvedValue(baseAsset);
-      storage.presignUpload.mockResolvedValue({
+      (createPresignedPost as jest.Mock).mockResolvedValue({
         url: 'https://minio.local/lagonadeck-media',
         fields: { key: 'image/owner-1/media-1', 'Content-Type': 'image/png' },
       });
@@ -119,11 +142,16 @@ describe('MediaService', () => {
           }),
         }),
       );
-      expect(storage.presignUpload).toHaveBeenCalledWith(
-        expect.any(String),
-        'image/png',
-        1024,
-        expect.any(Number),
+      expect(createPresignedPost).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          Bucket: 'lagonadeck-media',
+          Conditions: [
+            ['content-length-range', 1024, 1024],
+            ['eq', '$Content-Type', 'image/png'],
+          ],
+          Fields: { 'Content-Type': 'image/png' },
+        }),
       );
       expect(result.uploadUrl).toBe('https://minio.local/lagonadeck-media');
       expect(result.uploadFields).toEqual({
@@ -144,7 +172,7 @@ describe('MediaService', () => {
 
     it('passe le média en FAILED si le binaire est absent du storage', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue(null);
+      storage.headObject.mockRejectedValue(new NotFound({ $metadata: {} }));
 
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
         UnprocessableEntityException,
@@ -157,9 +185,9 @@ describe('MediaService', () => {
 
     it('passe le média en FAILED puis supprime le binaire si la taille ne correspond pas (FAILED avant la suppression)', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue({
-        contentType: 'image/png',
-        sizeBytes: 2048,
+      storage.headObject.mockResolvedValue({
+        ContentType: 'image/png',
+        ContentLength: 2048,
       });
       const callOrder: string[] = [];
       prisma.mediaAsset.update.mockImplementation(async () => {
@@ -183,9 +211,9 @@ describe('MediaService', () => {
 
     it('passe le média en FAILED et supprime le binaire si le type de contenu ne correspond pas', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue({
-        contentType: 'application/pdf',
-        sizeBytes: 1024,
+      storage.headObject.mockResolvedValue({
+        ContentType: 'application/pdf',
+        ContentLength: 1024,
       });
 
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
@@ -200,9 +228,9 @@ describe('MediaService', () => {
 
     it('passe le média en FAILED même si HeadObject ne renvoie aucun Content-Type', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue({
-        contentType: undefined,
-        sizeBytes: 1024,
+      storage.headObject.mockResolvedValue({
+        ContentType: undefined,
+        ContentLength: 1024,
       });
 
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
@@ -216,9 +244,9 @@ describe('MediaService', () => {
 
     it('renvoie tout de même le 422 si la suppression du binaire incohérent échoue', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue({
-        contentType: 'application/pdf',
-        sizeBytes: 1024,
+      storage.headObject.mockResolvedValue({
+        ContentType: 'application/pdf',
+        ContentLength: 1024,
       });
       storage.deleteObject.mockRejectedValue(new Error('storage indisponible'));
 
@@ -231,11 +259,19 @@ describe('MediaService', () => {
       });
     });
 
+    it('propage une erreur S3 autre que NotFound sans toucher au statut', async () => {
+      prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
+      storage.headObject.mockRejectedValue(new Error('boom'));
+
+      await expect(service.confirmUpload('media-1')).rejects.toThrow('boom');
+      expect(prisma.mediaAsset.update).not.toHaveBeenCalled();
+    });
+
     it('passe le média en READY quand le binaire correspond', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.statObject.mockResolvedValue({
-        contentType: 'image/png',
-        sizeBytes: 1024,
+      storage.headObject.mockResolvedValue({
+        ContentType: 'image/png',
+        ContentLength: 1024,
       });
       prisma.mediaAsset.update.mockResolvedValue({
         ...baseAsset,
@@ -246,7 +282,7 @@ describe('MediaService', () => {
 
       expect(prisma.mediaAsset.update).toHaveBeenCalledWith({
         where: { id: 'media-1' },
-        data: { status: MediaStatus.READY, sizeBytes: 1024 },
+        data: { status: MediaStatus.READY },
       });
       expect(result.status).toBe(MediaStatus.READY);
     });
@@ -266,7 +302,7 @@ describe('MediaService', () => {
       const result = await service.findOne('media-1');
 
       expect(result.downloadUrl).toBeUndefined();
-      expect(storage.presignDownload).not.toHaveBeenCalled();
+      expect(getSignedUrl).not.toHaveBeenCalled();
     });
 
     it('ajoute une URL de téléchargement pré-signée pour un média READY', async () => {
@@ -274,11 +310,19 @@ describe('MediaService', () => {
         ...baseAsset,
         status: MediaStatus.READY,
       });
-      storage.presignDownload.mockResolvedValue('https://minio.local/download');
+      (getSignedUrl as jest.Mock).mockResolvedValue(
+        'https://minio.local/download',
+      );
 
       const result = await service.findOne('media-1');
 
       expect(result.downloadUrl).toBe('https://minio.local/download');
+      const [, command] = (getSignedUrl as jest.Mock).mock.calls[0];
+      expect(command).toBeInstanceOf(GetObjectCommand);
+      expect(command.input).toEqual({
+        Bucket: 'lagonadeck-media',
+        Key: baseAsset.storageKey,
+      });
     });
   });
 

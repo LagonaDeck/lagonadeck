@@ -1,19 +1,30 @@
 import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  NotFound,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Interval } from '@nestjs/schedule';
 import { randomUUID } from 'node:crypto';
-import { PrismaService } from '../prisma/prisma.service';
-import { StorageService } from '../storage/storage.service';
-import { MediaStatus } from '../../generated/prisma/enums';
-import { RequestUploadDto } from './dto/request-upload.dto';
-import { RequestUploadResponseDto } from './dto/request-upload-response.dto';
-import { ListMediaDto } from './dto/list-media.dto';
-import { MediaAssetDto } from './dto/media-asset.dto';
+import { PrismaClient } from './generated/prisma/client';
+import { MediaStatus } from './generated/prisma/enums';
+import {
+  ListMediaDto,
+  MediaAssetDto,
+  RequestUploadDto,
+  RequestUploadResponseDto,
+} from './media.dto';
 import {
   DOWNLOAD_URL_EXPIRY_SECONDS,
   MAX_UPLOAD_SIZE_BYTES,
@@ -22,17 +33,33 @@ import {
   resolveMediaKind,
 } from './media.constants';
 
-/** Tolérance acceptée entre la taille annoncée et la taille réelle de l'objet uploadé. */
-const SIZE_MISMATCH_TOLERANCE_BYTES = 0;
-
+// Les octets ne transitent jamais par la base : Prisma ne stocke que la clé de
+// l'objet (MinIO en local, S3 en prod) et les clients passent par des URLs pré-signées.
 @Injectable()
-export class MediaService {
+export class MediaService implements OnModuleInit {
   private readonly logger = new Logger(MediaService.name);
+  private readonly bucket = process.env.MEDIA_S3_BUCKET ?? 'lagonadeck-media';
+  private readonly s3 = new S3Client({
+    endpoint: process.env.MEDIA_S3_ENDPOINT,
+    region: process.env.MEDIA_S3_REGION ?? 'us-east-1',
+    forcePathStyle: process.env.MEDIA_S3_FORCE_PATH_STYLE === 'true',
+    credentials: {
+      accessKeyId: process.env.MEDIA_S3_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.MEDIA_S3_SECRET_ACCESS_KEY ?? '',
+    },
+  });
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly storage: StorageService,
-  ) {}
+  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
+
+  onModuleInit() {
+    setInterval(
+      () =>
+        this.purgeStalePendingAssets().catch((error) =>
+          this.logger.error(`Échec de la purge des médias PENDING : ${error}`),
+        ),
+      PENDING_CLEANUP_INTERVAL_MS,
+    ).unref();
+  }
 
   async requestUpload(
     dto: RequestUploadDto,
@@ -65,12 +92,18 @@ export class MediaService {
       },
     });
 
-    const { url, fields } = await this.storage.presignUpload(
-      storageKey,
-      dto.contentType,
-      dto.sizeBytes,
-      UPLOAD_URL_EXPIRY_SECONDS,
-    );
+    // Un POST signé par policy fige le Content-Type et la taille exacte dans la
+    // signature ; un PUT pré-signé ne signe pas le Content-Type.
+    const { url, fields } = await createPresignedPost(this.s3, {
+      Bucket: this.bucket,
+      Key: storageKey,
+      Expires: UPLOAD_URL_EXPIRY_SECONDS,
+      Conditions: [
+        ['content-length-range', dto.sizeBytes, dto.sizeBytes],
+        ['eq', '$Content-Type', dto.contentType],
+      ],
+      Fields: { 'Content-Type': dto.contentType },
+    });
 
     return {
       id,
@@ -83,8 +116,8 @@ export class MediaService {
   async confirmUpload(id: string): Promise<MediaAssetDto> {
     const asset = await this.getAssetOrThrow(id);
 
-    const objectInfo = await this.storage.statObject(asset.storageKey);
-    if (!objectInfo) {
+    const object = await this.headObject(asset.storageKey);
+    if (!object) {
       await this.prisma.mediaAsset.update({
         where: { id },
         data: { status: MediaStatus.FAILED },
@@ -94,9 +127,8 @@ export class MediaService {
       );
     }
 
-    const sizeDelta = Math.abs(objectInfo.sizeBytes - asset.sizeBytes);
-    const sizeMismatch = sizeDelta > SIZE_MISMATCH_TOLERANCE_BYTES;
-    const contentTypeMismatch = objectInfo.contentType !== asset.contentType;
+    const sizeMismatch = object.ContentLength !== asset.sizeBytes;
+    const contentTypeMismatch = object.ContentType !== asset.contentType;
 
     if (sizeMismatch || contentTypeMismatch) {
       // On fige d'abord l'état métier (FAILED) : le nettoyage du binaire est
@@ -109,7 +141,7 @@ export class MediaService {
         data: { status: MediaStatus.FAILED },
       });
       try {
-        await this.storage.deleteObject(asset.storageKey);
+        await this.deleteObject(asset.storageKey);
       } catch (error) {
         this.logger.warn(
           `Échec de la suppression du binaire incohérent ${asset.storageKey} : ${error}`,
@@ -124,7 +156,7 @@ export class MediaService {
 
     const updated = await this.prisma.mediaAsset.update({
       where: { id },
-      data: { status: MediaStatus.READY, sizeBytes: objectInfo.sizeBytes },
+      data: { status: MediaStatus.READY },
     });
 
     return this.toDto(updated);
@@ -136,7 +168,6 @@ export class MediaService {
    * confirmer. Sans cette purge, ces enregistrements (et un éventuel binaire
    * partiel) restent orphelins indéfiniment.
    */
-  @Interval(PENDING_CLEANUP_INTERVAL_MS)
   async purgeStalePendingAssets(): Promise<void> {
     const staleBefore = new Date(Date.now() - UPLOAD_URL_EXPIRY_SECONDS * 1000);
     const staleAssets = await this.prisma.mediaAsset.findMany({
@@ -145,7 +176,7 @@ export class MediaService {
 
     for (const asset of staleAssets) {
       try {
-        await this.storage.deleteObject(asset.storageKey);
+        await this.deleteObject(asset.storageKey);
       } catch (error) {
         this.logger.warn(
           `Échec de la suppression du binaire orphelin ${asset.storageKey} : ${error}`,
@@ -166,9 +197,10 @@ export class MediaService {
     const dto = this.toDto(asset);
 
     if (asset.status === MediaStatus.READY) {
-      dto.downloadUrl = await this.storage.presignDownload(
-        asset.storageKey,
-        DOWNLOAD_URL_EXPIRY_SECONDS,
+      dto.downloadUrl = await getSignedUrl(
+        this.s3,
+        new GetObjectCommand({ Bucket: this.bucket, Key: asset.storageKey }),
+        { expiresIn: DOWNLOAD_URL_EXPIRY_SECONDS },
       );
     }
 
@@ -191,8 +223,24 @@ export class MediaService {
 
   async remove(id: string): Promise<void> {
     const asset = await this.getAssetOrThrow(id);
-    await this.storage.deleteObject(asset.storageKey);
+    await this.deleteObject(asset.storageKey);
     await this.prisma.mediaAsset.delete({ where: { id } });
+  }
+
+  /** Métadonnées réelles du binaire, ou `null` s'il n'a jamais été déposé. */
+  private async headObject(key: string) {
+    try {
+      return await this.s3.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+    } catch (error) {
+      if (error instanceof NotFound) return null;
+      throw error;
+    }
+  }
+
+  private async deleteObject(key: string) {
+    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   private async getAssetOrThrow(id: string) {
