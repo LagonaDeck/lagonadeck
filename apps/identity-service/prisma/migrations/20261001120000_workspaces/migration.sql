@@ -40,7 +40,7 @@ CREATE TABLE "WorkspaceInvitation" (
 CREATE INDEX "WorkspaceMember_userId_idx" ON "WorkspaceMember"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "WorkspaceMember_workspaceId_key" ON "WorkspaceMember"("workspaceId") WHERE ("role" = 'OWNER');
+CREATE UNIQUE INDEX "WorkspaceMember_single_owner_key" ON "WorkspaceMember"("workspaceId") WHERE ("role" = 'OWNER');
 
 -- CreateIndex
 CREATE INDEX "WorkspaceInvitation_email_idx" ON "WorkspaceInvitation"("email");

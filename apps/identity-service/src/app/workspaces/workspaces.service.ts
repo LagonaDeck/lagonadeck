@@ -5,10 +5,10 @@ import {
   GoneException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '../../generated/prisma/client';
+import { UserService } from '../user/user.service';
+import { writeOrConflict } from '../common/prisma-errors';
 import { WorkspaceRole } from '../../generated/prisma/enums';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import {
@@ -25,35 +25,29 @@ const ROLE_RANK: Record<WorkspaceRole, number> = {
   OWNER: 2,
 };
 
-type WorkspaceRow = {
-  id: string;
-  name: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type InvitationRow = {
-  id: string;
-  workspaceId: string;
-  email: string;
-  role: WorkspaceRole;
-  expiresAt: Date;
-  workspace: { name: string };
-};
+/** Un ADMIN ne peut ni rétrograder ni retirer un ADMIN : seul le OWNER en invite. */
+function inviterRoleFor(role: WorkspaceRole): WorkspaceRole {
+  return role === WorkspaceRole.ADMIN
+    ? WorkspaceRole.OWNER
+    : WorkspaceRole.ADMIN;
+}
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UserService,
+  ) {}
 
   async create(userId: string, name: string): Promise<WorkspaceDto> {
-    await this.getUserOrThrow(userId);
+    await this.users.findById(userId);
     const workspace = await this.prisma.workspace.create({
       data: {
         name,
         members: { create: { userId, role: WorkspaceRole.OWNER } },
       },
     });
-    return toWorkspaceDto(workspace, WorkspaceRole.OWNER);
+    return WorkspaceDto.fromEntity(workspace, WorkspaceRole.OWNER);
   }
 
   async findMine(userId: string): Promise<WorkspaceDto[]> {
@@ -62,7 +56,7 @@ export class WorkspacesService {
       include: { workspace: true },
       orderBy: { createdAt: 'asc' },
     });
-    return memberships.map((m) => toWorkspaceDto(m.workspace, m.role));
+    return memberships.map((m) => WorkspaceDto.fromEntity(m.workspace, m.role));
   }
 
   async findOne(userId: string, workspaceId: string): Promise<WorkspaceDto> {
@@ -71,7 +65,7 @@ export class WorkspacesService {
       workspaceId,
       WorkspaceRole.MEMBER,
     );
-    return toWorkspaceDto(membership.workspace, membership.role);
+    return WorkspaceDto.fromEntity(membership.workspace, membership.role);
   }
 
   async rename(
@@ -88,7 +82,7 @@ export class WorkspacesService {
       where: { id: workspaceId },
       data: { name },
     });
-    return toWorkspaceDto(workspace, role);
+    return WorkspaceDto.fromEntity(workspace, role);
   }
 
   async remove(userId: string, workspaceId: string): Promise<void> {
@@ -106,63 +100,73 @@ export class WorkspacesService {
       include: { user: true },
       orderBy: { createdAt: 'asc' },
     });
-    return members.map((m) => ({
-      userId: m.userId,
-      email: m.user.email,
-      role: m.role,
-      createdAt: m.createdAt,
-    }));
+    return members.map((m) => WorkspaceMemberDto.fromEntity(m));
   }
 
   /** Réservé au propriétaire ; `OWNER` transfère la propriété. */
   async updateMemberRole(
     userId: string,
     workspaceId: string,
-    targetUserId: string,
+    memberId: string,
     role: WorkspaceRole,
   ): Promise<void> {
     await this.requireRole(userId, workspaceId, WorkspaceRole.OWNER);
-    if (targetUserId === userId) {
+    if (memberId === userId) {
       throw new BadRequestException(
         'Le propriétaire change de rôle en transférant la propriété à un autre membre.',
       );
     }
-    await this.getMemberOrThrow(workspaceId, targetUserId);
+    await this.getMemberOrThrow(workspaceId, memberId);
+    const errors = {
+      conflict: 'La propriété de ce workspace vient de changer.',
+      notFound: `Membre introuvable : ${memberId}`,
+    };
 
     if (role === WorkspaceRole.OWNER) {
       // L'ancien propriétaire est rétrogradé avant la promotion : l'index
       // unique partiel interdit deux OWNER, même un instant.
-      await this.prisma.$transaction([
-        this.prisma.workspaceMember.update({
-          where: { workspaceId_userId: { workspaceId, userId } },
-          data: { role: WorkspaceRole.ADMIN },
-        }),
-        this.prisma.workspaceMember.update({
-          where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-          data: { role: WorkspaceRole.OWNER },
-        }),
-      ]);
+      await writeOrConflict(
+        () =>
+          this.prisma.$transaction([
+            this.prisma.workspaceMember.update({
+              where: { workspaceId_userId: { workspaceId, userId } },
+              data: { role: WorkspaceRole.ADMIN },
+            }),
+            this.prisma.workspaceMember.update({
+              where: { workspaceId_userId: { workspaceId, userId: memberId } },
+              data: { role: WorkspaceRole.OWNER },
+            }),
+            this.prisma.workspaceInvitation.deleteMany({
+              where: { workspaceId, invitedById: userId },
+            }),
+          ]),
+        errors,
+      );
       return;
     }
 
-    await this.prisma.workspaceMember.update({
-      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-      data: { role },
-    });
+    await writeOrConflict(
+      () =>
+        this.prisma.workspaceMember.update({
+          where: { workspaceId_userId: { workspaceId, userId: memberId } },
+          data: { role },
+        }),
+      errors,
+    );
   }
 
   /** Un membre peut quitter le workspace, ou retirer un membre de rôle inférieur au sien. */
   async removeMember(
     userId: string,
     workspaceId: string,
-    targetUserId: string,
+    memberId: string,
   ): Promise<void> {
     const actor = await this.requireRole(
       userId,
       workspaceId,
       WorkspaceRole.MEMBER,
     );
-    const target = await this.getMemberOrThrow(workspaceId, targetUserId);
+    const target = await this.getMemberOrThrow(workspaceId, memberId);
 
     if (target.role === WorkspaceRole.OWNER) {
       throw new ForbiddenException(
@@ -170,7 +174,7 @@ export class WorkspacesService {
       );
     }
     if (
-      targetUserId !== userId &&
+      memberId !== userId &&
       ROLE_RANK[actor.role] <= ROLE_RANK[target.role]
     ) {
       throw new ForbiddenException(
@@ -178,9 +182,13 @@ export class WorkspacesService {
       );
     }
 
-    await this.prisma.workspaceMember.delete({
-      where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
-    });
+    await writeOrConflict(
+      () =>
+        this.prisma.workspaceMember.delete({
+          where: { workspaceId_userId: { workspaceId, userId: memberId } },
+        }),
+      { notFound: `Membre introuvable : ${memberId}` },
+    );
   }
 
   /** Ré-inviter une adresse met à jour le rôle et repousse l'expiration. */
@@ -189,7 +197,7 @@ export class WorkspacesService {
     workspaceId: string,
     dto: CreateInvitationDto,
   ): Promise<WorkspaceInvitationDto> {
-    await this.requireRole(userId, workspaceId, WorkspaceRole.ADMIN);
+    await this.requireRole(userId, workspaceId, inviterRoleFor(dto.role));
 
     const alreadyMember = await this.prisma.workspaceMember.findFirst({
       where: {
@@ -216,20 +224,21 @@ export class WorkspacesService {
       update: { role: dto.role, invitedById: userId, expiresAt },
       include: { workspace: true },
     });
-    return toInvitationDto(invitation);
+    return WorkspaceInvitationDto.fromEntity(invitation);
   }
 
+  /** Invitations non expirées : celles que l'invité peut encore accepter. */
   async listInvitations(
     userId: string,
     workspaceId: string,
   ): Promise<WorkspaceInvitationDto[]> {
     await this.requireRole(userId, workspaceId, WorkspaceRole.ADMIN);
     const invitations = await this.prisma.workspaceInvitation.findMany({
-      where: { workspaceId },
+      where: { workspaceId, expiresAt: { gt: new Date() } },
       include: { workspace: true },
       orderBy: { createdAt: 'asc' },
     });
-    return invitations.map(toInvitationDto);
+    return invitations.map((i) => WorkspaceInvitationDto.fromEntity(i));
   }
 
   async revokeInvitation(
@@ -248,13 +257,13 @@ export class WorkspacesService {
 
   /** Invitations non expirées adressées à l'utilisateur appelant. */
   async findMyInvitations(userId: string): Promise<WorkspaceInvitationDto[]> {
-    const user = await this.getUserOrThrow(userId);
+    const user = await this.users.findById(userId);
     const invitations = await this.prisma.workspaceInvitation.findMany({
       where: { email: user.email, expiresAt: { gt: new Date() } },
       include: { workspace: true },
       orderBy: { createdAt: 'asc' },
     });
-    return invitations.map(toInvitationDto);
+    return invitations.map((i) => WorkspaceInvitationDto.fromEntity(i));
   }
 
   async acceptInvitation(
@@ -265,36 +274,53 @@ export class WorkspacesService {
     if (invitation.expiresAt <= new Date()) {
       throw new GoneException('Cette invitation a expiré.');
     }
-
-    try {
-      const [membership] = await this.prisma.$transaction([
-        this.prisma.workspaceMember.create({
-          data: {
-            workspaceId: invitation.workspaceId,
-            userId,
-            role: invitation.role,
-          },
-          include: { workspace: true },
-        }),
-        this.prisma.workspaceInvitation.delete({ where: { id: invitationId } }),
-      ]);
-      return toWorkspaceDto(membership.workspace, membership.role);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Vous êtes déjà membre de ce workspace.');
-      }
-      throw error;
+    const inviter = await this.prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: invitation.workspaceId,
+          userId: invitation.invitedById,
+        },
+      },
+    });
+    // L'auteur a pu être rétrogradé ou retiré depuis l'envoi.
+    if (
+      !inviter ||
+      ROLE_RANK[inviter.role] < ROLE_RANK[inviterRoleFor(invitation.role)]
+    ) {
+      throw new GoneException("Cette invitation n'est plus valide.");
     }
+
+    const [membership] = await writeOrConflict(
+      () =>
+        this.prisma.$transaction([
+          this.prisma.workspaceMember.create({
+            data: {
+              workspaceId: invitation.workspaceId,
+              userId,
+              role: invitation.role,
+            },
+            include: { workspace: true },
+          }),
+          this.prisma.workspaceInvitation.delete({
+            where: { id: invitationId },
+          }),
+        ]),
+      {
+        conflict: 'Vous êtes déjà membre de ce workspace.',
+        notFound: `Invitation introuvable : ${invitationId}`,
+      },
+    );
+    return WorkspaceDto.fromEntity(membership.workspace, membership.role);
   }
 
   async declineInvitation(userId: string, invitationId: string): Promise<void> {
-    await this.getInvitationForUser(userId, invitationId);
-    await this.prisma.workspaceInvitation.delete({
-      where: { id: invitationId },
+    const user = await this.users.findById(userId);
+    const { count } = await this.prisma.workspaceInvitation.deleteMany({
+      where: { id: invitationId, email: user.email },
     });
+    if (count === 0) {
+      throw new NotFoundException(`Invitation introuvable : ${invitationId}`);
+    }
   }
 
   /**
@@ -329,16 +355,8 @@ export class WorkspacesService {
     return member;
   }
 
-  private async getUserOrThrow(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new UnauthorizedException(`Utilisateur inconnu : ${userId}`);
-    }
-    return user;
-  }
-
   private async getInvitationForUser(userId: string, invitationId: string) {
-    const user = await this.getUserOrThrow(userId);
+    const user = await this.users.findById(userId);
     const invitation = await this.prisma.workspaceInvitation.findUnique({
       where: { id: invitationId },
     });
@@ -347,28 +365,4 @@ export class WorkspacesService {
     }
     return invitation;
   }
-}
-
-function toWorkspaceDto(
-  workspace: WorkspaceRow,
-  role: WorkspaceRole,
-): WorkspaceDto {
-  return {
-    id: workspace.id,
-    name: workspace.name,
-    role,
-    createdAt: workspace.createdAt,
-    updatedAt: workspace.updatedAt,
-  };
-}
-
-function toInvitationDto(invitation: InvitationRow): WorkspaceInvitationDto {
-  return {
-    id: invitation.id,
-    workspaceId: invitation.workspaceId,
-    workspaceName: invitation.workspace.name,
-    email: invitation.email,
-    role: invitation.role,
-    expiresAt: invitation.expiresAt,
-  };
 }

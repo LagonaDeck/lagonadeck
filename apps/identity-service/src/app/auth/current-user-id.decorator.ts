@@ -11,9 +11,7 @@ export const USER_ID_HEADER = 'x-user-id';
 /**
  * Identifiant de l'utilisateur appelant, transmis par l'API Gateway.
  *
- * ponytail: le header est cru sur parole, ce qui suppose que le service n'est
- * joignable que via le Gateway ; à remplacer par le contexte issu du JWT
- * quand l'authentification du Gateway sera implémentée.
+ * TODO(auth) #81: header non signé, falsifiable tant que le port est publié.
  */
 export const CurrentUserId = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string => {

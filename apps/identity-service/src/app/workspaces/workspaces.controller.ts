@@ -25,8 +25,6 @@ import {
   WorkspaceMemberDto,
 } from './dto/workspace.dto';
 
-const uuid = new ParseUUIDPipe();
-
 @ApiTags('workspaces')
 @ApiHeader({
   name: USER_ID_HEADER,
@@ -58,7 +56,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 200, type: WorkspaceDto })
   findOne(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ): Promise<WorkspaceDto> {
     return this.workspaces.findOne(userId, workspaceId);
   }
@@ -68,7 +66,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 200, type: WorkspaceDto })
   rename(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: WorkspaceNameDto,
   ): Promise<WorkspaceDto> {
     return this.workspaces.rename(userId, workspaceId, dto.name);
@@ -80,7 +78,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 204 })
   remove(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ): Promise<void> {
     return this.workspaces.remove(userId, workspaceId);
   }
@@ -90,12 +88,12 @@ export class WorkspacesController {
   @ApiResponse({ status: 200, type: [WorkspaceMemberDto] })
   listMembers(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ): Promise<WorkspaceMemberDto[]> {
     return this.workspaces.listMembers(userId, workspaceId);
   }
 
-  @Patch(':workspaceId/members/:userId')
+  @Patch(':workspaceId/members/:memberId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: "Change le rôle d'un membre (OWNER).",
@@ -105,19 +103,19 @@ export class WorkspacesController {
   @ApiResponse({ status: 204 })
   updateMemberRole(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
-    @Param('userId', uuid) targetUserId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
     @Body() dto: UpdateMemberRoleDto,
   ): Promise<void> {
     return this.workspaces.updateMemberRole(
       userId,
       workspaceId,
-      targetUserId,
+      memberId,
       dto.role,
     );
   }
 
-  @Delete(':workspaceId/members/:userId')
+  @Delete(':workspaceId/members/:memberId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Retire un membre, ou quitte le workspace.',
@@ -127,22 +125,22 @@ export class WorkspacesController {
   @ApiResponse({ status: 204 })
   removeMember(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
-    @Param('userId', uuid) targetUserId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
   ): Promise<void> {
-    return this.workspaces.removeMember(userId, workspaceId, targetUserId);
+    return this.workspaces.removeMember(userId, workspaceId, memberId);
   }
 
   @Post(':workspaceId/invitations')
   @ApiOperation({
-    summary: 'Invite une adresse e-mail (ADMIN).',
+    summary: 'Invite une adresse e-mail (ADMIN, OWNER pour inviter un ADMIN).',
     description:
       "Ré-inviter la même adresse met à jour le rôle et repousse l'expiration.",
   })
   @ApiResponse({ status: 201, type: WorkspaceInvitationDto })
   invite(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: CreateInvitationDto,
   ): Promise<WorkspaceInvitationDto> {
     return this.workspaces.invite(userId, workspaceId, dto);
@@ -153,7 +151,7 @@ export class WorkspacesController {
   @ApiResponse({ status: 200, type: [WorkspaceInvitationDto] })
   listInvitations(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
   ): Promise<WorkspaceInvitationDto[]> {
     return this.workspaces.listInvitations(userId, workspaceId);
   }
@@ -164,8 +162,8 @@ export class WorkspacesController {
   @ApiResponse({ status: 204 })
   revokeInvitation(
     @CurrentUserId() userId: string,
-    @Param('workspaceId', uuid) workspaceId: string,
-    @Param('invitationId', uuid) invitationId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('invitationId', ParseUUIDPipe) invitationId: string,
   ): Promise<void> {
     return this.workspaces.revokeInvitation(userId, workspaceId, invitationId);
   }

@@ -68,8 +68,7 @@ model WorkspaceMember {
   updatedAt DateTime @updatedAt
 
   @@id([workspaceId, userId])
-  // Un seul propriétaire par workspace, garanti par la base.
-  @@unique([workspaceId], where: { role: "OWNER" })
+  @@unique([workspaceId], where: { role: "OWNER" }, map: "WorkspaceMember_single_owner_key")
   @@index([userId])
 }
 

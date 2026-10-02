@@ -11,7 +11,7 @@ export class CreateInvitationDto {
   @ApiProperty({ example: 'associe@example.com' })
   @Transform(({ value }) => normalizeEmail(value))
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ enum: INVITABLE_ROLES, default: WorkspaceRole.MEMBER })
   @IsIn(INVITABLE_ROLES)

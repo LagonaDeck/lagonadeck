@@ -9,5 +9,5 @@ export class UpdateMemberRoleDto {
       "OWNER transfère la propriété : l'actuel propriétaire devient ADMIN.",
   })
   @IsEnum(WorkspaceRole)
-  role: WorkspaceRole;
+  role!: WorkspaceRole;
 }
