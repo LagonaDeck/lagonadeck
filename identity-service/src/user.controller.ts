@@ -9,17 +9,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UserPublicDto } from './dto/user-public.dto';
+import { CreateUserDto, UpdateUserDto, UserPublicDto } from './user.dto';
 
-/**
- * Aucun contrôle d'accès n'est appliqué ici : l'authentification et la
- * vérification que l'appelant est bien propriétaire de la ressource sont
- * prévues au niveau de l'API Gateway (cf. docs/architecture/microservices.md),
- * pas encore implémentée. Ce contrôleur ne doit pas être exposé directement
- * en dehors du réseau interne tant que ce contrôle n'existe pas.
- */
+// Aucun contrôle d'accès ici : l'authentification est prévue dans l'api-gateway,
+// pas encore implémentée. Ne pas exposer ce service hors du réseau interne d'ici là.
 @ApiTags('users')
 @Controller('users')
 export class UserController {

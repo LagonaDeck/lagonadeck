@@ -1,6 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CreateUserDto } from './create-user.dto';
+import { CreateUserDto, UpdateUserDto } from './user.dto';
 
 async function validateDto(payload: Record<string, unknown>) {
   const dto = plainToInstance(CreateUserDto, payload);
@@ -63,7 +63,7 @@ describe('CreateUserDto', () => {
     expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
   });
 
-  it('accepte un mot de passe de 72 octets, la limite de bcrypt', async () => {
+  it('accepte un mot de passe de 72 octets', async () => {
     const errors = await validateDto({
       ...validPayload,
       password: 'A1!' + 'a'.repeat(69),
@@ -80,7 +80,6 @@ describe('CreateUserDto', () => {
   });
 
   it('mesure la limite en octets : 40 caractères accentués dépassent 72 octets', async () => {
-    // 40 caractères mais 77 octets UTF-8 : bcrypt en ignorerait la fin.
     const password = 'Aa1' + 'é'.repeat(37);
     expect(password).toHaveLength(40);
     expect(Buffer.byteLength(password, 'utf8')).toBe(77);
@@ -160,4 +159,34 @@ describe('CreateUserDto', () => {
       expect(errors.some((e) => e.property === field)).toBe(true);
     },
   );
+});
+
+describe('UpdateUserDto', () => {
+  it('accepte un corps partiel', async () => {
+    const dto = plainToInstance(UpdateUserDto, { firstName: 'Janet' });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('hérite de la normalisation et de la validation de CreateUserDto', async () => {
+    const dto = plainToInstance(UpdateUserDto, {
+      email: '  Jane@Example.com  ',
+    });
+    expect(dto.email).toBe('jane@example.com');
+
+    const invalid = plainToInstance(UpdateUserDto, { email: 'pas-un-email' });
+    const errors = await validate(invalid);
+    expect(errors.some((e) => e.property === 'email')).toBe(true);
+  });
+
+  it('rejette un mot de passe : il se change par un endpoint dédié', async () => {
+    // Même configuration que le ValidationPipe global de main.ts.
+    const dto = plainToInstance(UpdateUserDto, {
+      password: 'Sup3rSecret!',
+    });
+    const errors = await validate(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
 });

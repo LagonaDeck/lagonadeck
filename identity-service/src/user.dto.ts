@@ -1,4 +1,10 @@
 import {
+  ApiProperty,
+  OmitType,
+  PartialType,
+} from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import {
   IsByteLength,
   IsEmail,
   IsString,
@@ -6,33 +12,34 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
-import { normalizeEmail, trimString } from '../../common/normalize';
+import type { User } from './generated/prisma/client';
 
-// bcrypt ignore silencieusement tout ce qui dépasse 72 octets (cf. ADR 0007).
-// La limite est vérifiée en octets UTF-8 et non en caractères : un caractère
-// accentué pèse 2 octets, un emoji 4, donc 64 caractères peuvent dépasser 72
-// octets.
+const trim = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim() : value;
+
+// Limite historique de bcrypt (ADR 0007), gardée pour ne pas changer le contrat
+// de l'API. Elle se mesure en octets UTF-8 : un accent pèse 2 octets, un emoji 4.
 const PASSWORD_MAX_BYTES = 72;
 
 const NAME_MAX_LENGTH = 100;
 
 export class CreateUserDto {
   @ApiProperty({ example: 'jane.doe@example.com' })
-  @Transform(({ value }) => normalizeEmail(value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   email!: string;
 
   @ApiProperty({ example: 'Jane', minLength: 2, maxLength: NAME_MAX_LENGTH })
-  @Transform(({ value }) => trimString(value))
+  @Transform(trim)
   @IsString()
   @MinLength(2)
   @MaxLength(NAME_MAX_LENGTH)
   firstName!: string;
 
   @ApiProperty({ example: 'Doe', minLength: 2, maxLength: NAME_MAX_LENGTH })
-  @Transform(({ value }) => trimString(value))
+  @Transform(trim)
   @IsString()
   @MinLength(2)
   @MaxLength(NAME_MAX_LENGTH)
@@ -45,7 +52,7 @@ export class CreateUserDto {
     description:
       'Lettres non accentuées, chiffres, « . », « _ » et « - ». La casse est conservée ; l’unicité, elle, ne tient pas compte de la casse.',
   })
-  @Transform(({ value }) => trimString(value))
+  @Transform(trim)
   @IsString()
   @MinLength(3)
   @MaxLength(30)
@@ -71,4 +78,41 @@ export class CreateUserDto {
     message: 'Mot de passe trop faible',
   })
   password!: string;
+}
+
+// Le mot de passe se changera par un endpoint dédié, pas par une mise à jour.
+export class UpdateUserDto extends PartialType(
+  OmitType(CreateUserDto, ['password'] as const),
+) {}
+
+/** Vue d'un utilisateur lisible par un tiers : ni email, ni hash, ni salt. */
+export class UserPublicDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty()
+  firstName!: string;
+
+  @ApiProperty()
+  lastName!: string;
+
+  @ApiProperty()
+  pseudo!: string;
+
+  @ApiProperty()
+  createdAt!: Date;
+
+  @ApiProperty()
+  updatedAt!: Date;
+
+  static fromEntity(user: User): UserPublicDto {
+    const dto = new UserPublicDto();
+    dto.id = user.id;
+    dto.firstName = user.firstName;
+    dto.lastName = user.lastName;
+    dto.pseudo = user.pseudo;
+    dto.createdAt = user.createdAt;
+    dto.updatedAt = user.updatedAt;
+    return dto;
+  }
 }

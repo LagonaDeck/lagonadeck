@@ -1,9 +1,8 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { scryptSync } from 'node:crypto';
 import { UserService } from './user.service';
-import { PrismaService } from '../prisma/prisma.service';
-import { PasswordService } from '../common/password.service';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, PrismaClient } from './generated/prisma/client';
 
 function prismaError(code: string) {
   return new Prisma.PrismaClientKnownRequestError(`Prisma error ${code}`, {
@@ -24,7 +23,6 @@ describe('UserService', () => {
       update: jest.Mock;
     };
   };
-  let passwordService: { hash: jest.Mock; verify: jest.Mock };
 
   const baseUser = {
     id: 'user-1',
@@ -47,16 +45,11 @@ describe('UserService', () => {
         update: jest.fn(),
       },
     };
-    passwordService = {
-      hash: jest.fn(),
-      verify: jest.fn(),
-    };
 
     const module = await Test.createTestingModule({
       providers: [
         UserService,
-        { provide: PrismaService, useValue: prisma },
-        { provide: PasswordService, useValue: passwordService },
+        { provide: PrismaClient, useValue: prisma },
       ],
     }).compile();
 
@@ -72,29 +65,40 @@ describe('UserService', () => {
       password: 'Sup3rSecret!',
     };
 
-    it("hache le mot de passe et crée l'utilisateur", async () => {
-      passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
+    it("hache le mot de passe (scrypt + salt aléatoire) et crée l'utilisateur", async () => {
       prisma.user.create.mockResolvedValue(baseUser);
 
       const result = await service.create(dto);
 
-      expect(passwordService.hash).toHaveBeenCalledWith(dto.password);
-      expect(prisma.user.create).toHaveBeenCalledWith({
-        data: {
-          email: dto.email,
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          pseudo: 'JaneDoe',
-          pseudoNormalized: 'janedoe',
-          passwordHash: 'hashed',
-          salt: 'salt',
-        },
+      const { data } = prisma.user.create.mock.calls[0][0];
+      expect(data).toMatchObject({
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        pseudo: 'JaneDoe',
+        pseudoNormalized: 'janedoe',
       });
+      expect(data.passwordHash).not.toContain(dto.password);
+      expect(data.passwordHash).toBe(
+        scryptSync(dto.password, data.salt, 64).toString('hex'),
+      );
       expect(result).toEqual(baseUser);
     });
 
+    it('génère un salt différent à chaque création', async () => {
+      prisma.user.create.mockResolvedValue(baseUser);
+
+      await service.create(dto);
+      await service.create(dto);
+
+      const [first, second] = prisma.user.create.mock.calls.map(
+        ([arg]) => arg.data,
+      );
+      expect(first.salt).not.toBe(second.salt);
+      expect(first.passwordHash).not.toBe(second.passwordHash);
+    });
+
     it('convertit une violation de contrainte unique (P2002) en 409', async () => {
-      passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
       prisma.user.create.mockRejectedValue(uniqueConstraintError());
 
       await expect(service.create(dto)).rejects.toBeInstanceOf(
@@ -103,7 +107,6 @@ describe('UserService', () => {
     });
 
     it('propage les autres erreurs sans les convertir', async () => {
-      passwordService.hash.mockResolvedValue({ hash: 'hashed', salt: 'salt' });
       const dbError = new Error('connexion perdue');
       prisma.user.create.mockRejectedValue(dbError);
 
@@ -124,35 +127,6 @@ describe('UserService', () => {
       await expect(service.findById('user-1')).resolves.toEqual(baseUser);
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-      });
-    });
-  });
-
-  describe('findByEmail', () => {
-    it('renvoie null si aucun utilisateur ne correspond (pas de 404)', async () => {
-      prisma.user.findUnique.mockResolvedValue(null);
-      await expect(
-        service.findByEmail('missing@example.com'),
-      ).resolves.toBeNull();
-    });
-
-    it("renvoie l'utilisateur trouvé", async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
-      await expect(service.findByEmail(baseUser.email)).resolves.toEqual(
-        baseUser,
-      );
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: baseUser.email },
-      });
-    });
-
-    it('normalise (trim + minuscules) avant de chercher', async () => {
-      prisma.user.findUnique.mockResolvedValue(baseUser);
-
-      await service.findByEmail('  Jane@Example.com  ');
-
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'jane@example.com' },
       });
     });
   });

@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
-import { UserPublicDto } from './dto/user-public.dto';
+import { UserPublicDto } from './user.dto';
 
 describe('UserController', () => {
   let controller: UserController;

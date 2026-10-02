@@ -1,0 +1,51 @@
+{
+  "name": "identity-service",
+  "private": true,
+  "scripts": {
+    "build": "prisma generate && nest build",
+    "start": "node --env-file-if-exists=.env dist/main.js",
+    "start:dev": "prisma generate && nest start --watch --exec \"node --env-file-if-exists=.env\"",
+    "test": "prisma generate && jest",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
+  },
+  "jest": {
+    "rootDir": "src",
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.2.7",
+    "@nestjs/core": "^11.2.7",
+    "@nestjs/platform-express": "^11.2.7",
+    "@nestjs/swagger": "^11.4.7",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/testing": "^11.2.7",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.19.1",
+    "jest": "^30.5.2",
+    "prisma": "^7.10.0",
+    "ts-jest": "^29.4.14",
+    "typescript": "~6.0.3"
+  },
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "@parcel/watcher": false,
+    "@scarf/scarf": false,
+    "unrs-resolver": false
+  }
+}
