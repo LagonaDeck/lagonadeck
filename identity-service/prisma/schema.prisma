@@ -13,9 +13,8 @@ datasource db {
 }
 
 // Identité d'un utilisateur : email unique (stocké normalisé), pseudo unique
-// sans tenir compte de la casse via `pseudoNormalized` (cf. common/normalize.ts),
-// mot de passe haché + salt (jamais en clair, cf. ADR 0007 pour l'algorithme et
-// la stratégie de salage).
+// sans tenir compte de la casse via `pseudoNormalized`, mot de passe haché avec
+// scrypt et un salt aléatoire (jamais en clair).
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   email            String   @unique

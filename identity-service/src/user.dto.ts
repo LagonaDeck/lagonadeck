@@ -13,7 +13,7 @@ import type { User } from './generated/prisma/client';
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-// Limite historique de bcrypt (ADR 0007), gardée pour ne pas changer le contrat
+// Limite historique de bcrypt, gardée pour ne pas changer le contrat
 // de l'API. Elle se mesure en octets UTF-8 : un accent pèse 2 octets, un emoji 4.
 const PASSWORD_MAX_BYTES = 72;
 

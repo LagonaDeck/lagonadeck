@@ -37,10 +37,10 @@ frontend/           Angular, appelle uniquement l'api-gateway
 api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
 identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
-docs/               ADR, design system
+docs/               design system
 ```
 
-Communication entre services (cf. [ADR 0008](docs/adr/0008-projets-autonomes.md)) :
+Communication entre services :
 
 - **Synchrone** (l'appelant a besoin de la réponse) : `fetch` natif avec
   `signal: AbortSignal.timeout(5000)`, URL en variable d'env (`SERVICE_X_URL`).
