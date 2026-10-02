@@ -30,89 +30,39 @@ Les données du marché peuvent être utilisées afin de comparer le coût d'acq
 
 ## Architecture
 
-LagonaDeck est un monorepo **Nx** en TypeScript : un frontend **Angular 22 +
-NgRx** appelle une **API Gateway NestJS**, qui constitue l'entrée prévue des six
-services métier NestJS. Chaque service possède son schéma Prisma et sa base
-PostgreSQL ; Media Service gère les métadonnées et l'accès au stockage compatible
-S3.
-
-La documentation décrit précisément l'état actuel et les éléments prévus :
-[architecture](docs/architecture/README.md),
-[diagrammes Mermaid](docs/diagrams/architecture.md) et [ADR](docs/adr/README.md).
-
-## Structure du monorepo
-
-Le dépôt est un **monorepo [Nx](https://nx.dev)**.
+Un projet indépendant par dossier, sans monorepo ni lib partagée :
 
 ```text
-apps/
-  frontend/            Angular + NgRx
-  api-gateway/         NestJS (passerelle, sans base)
-  identity-service/    NestJS + Prisma
-  catalog-service/     NestJS + Prisma
-  inventory-service/   NestJS + Prisma
-  sales-service/       NestJS + Prisma
-  analytics-service/   NestJS + Prisma
-  media-service/       NestJS + Prisma + object storage
-libs/
-  contracts/           contrats d'API et d'événements partagés
-  shared/              types, validation, utils
-  observability/
-  testing/
-infrastructure/        structure Docker et RabbitMQ (configuration à compléter)
-docs/                  architecture, diagrammes, API, ADR
+frontend/           Angular, appelle uniquement l'api-gateway
+api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
+identity-service/   NestJS + Prisma : utilisateurs
+media-service/      NestJS + Prisma + object storage S3 : médias
+docs/               ADR, design system
 ```
 
-## Stack technique
+Communication entre services (cf. [ADR 0008](docs/adr/0008-projets-autonomes.md)) :
 
-- **Frontend** : Angular, NgRx
-- **Backend** : NestJS (API Gateway + microservices)
-- **ORM** : Prisma 7 (database-per-service, driver adapter PostgreSQL)
-- **Base de données** : PostgreSQL (une par service)
-- **Messagerie** : RabbitMQ (communication asynchrone)
-- **Stockage média** : object storage compatible S3 (client du Media Service)
-- **Monorepo & outillage** : Nx, TypeScript, ESLint, Prettier
-- **Conteneurisation** : Docker / Docker Compose
+- **Synchrone** (l'appelant a besoin de la réponse) : `fetch` natif avec
+  `signal: AbortSignal.timeout(5000)`, URL en variable d'env (`SERVICE_X_URL`).
+- **Asynchrone** (événements, traitements longs) : RabbitMQ via
+  `@nestjs/microservices`, une file durable par consumer, ack manuel après
+  traitement, `eventId` (`crypto.randomUUID()`) pour ignorer un doublon.
 
 ## Démarrage
 
-### Docker (recommandé)
-
-L'environnement de développement complet se lance avec Docker et Docker Compose ;
-Node.js, PostgreSQL, RabbitMQ et MinIO ne sont alors pas requis sur la machine
-hôte.
+Dans chaque dossier :
 
 ```bash
-make docker-up
-```
-
-Pour le lancer en arrière-plan, utilisez `make docker-up-detached`. Les URL,
-variables, volumes, commandes d'arrêt, réinitialisation, hot reload et
-dépannage sont détaillés dans le [guide Docker de développement](docs/development/docker-development.md).
-
-### Sans Docker
-
-```bash
-# Installer les dépendances
 npm install
-
-# Générer le client Prisma d'un service
-npm run db:generate -w @lagonadeck/identity-service
-
-# Lancer un service en développement
-npx nx serve identity-service
-
-# Construire toutes les applications
-npx nx run-many -t build
+cp .env.example .env   # services avec base : DATABASE_URL, S3…
+npm run start:dev      # frontend : npm start
+npm run build
+npm test               # identity-service, media-service
 ```
 
-> Le client Prisma généré (`apps/*/src/generated/`) et les fichiers `.env` ne sont pas versionnés. Les URLs de connexion et l'infrastructure locale (PostgreSQL, RabbitMQ et stockage objet) restent à configurer.
-
-## Qualité et contribution
-
-Les contrôles locaux et CI, le hook Lefthook, les labels de pull request et le
-flux de branches sont documentés dans
-[docs/development/quality-and-git-workflow.md](docs/development/quality-and-git-workflow.md).
+PostgreSQL et MinIO sont à lancer à part. Le client Prisma (`src/generated/`)
+est régénéré par `build`, `start:dev` et `test` ; `npm run db:migrate` applique
+les migrations.
 
 ## Objectif du projet
 

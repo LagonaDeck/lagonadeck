@@ -1,6 +1,6 @@
 # 0001 — Monorepo géré avec Nx
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par [0008](0008-projets-autonomes.md)
 - **Date** : 2026-08-31
 - **Décideurs** : Daniel
 

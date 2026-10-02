@@ -1,6 +1,6 @@
 # 0007 — identity-service : bcrypt pour le hachage des mots de passe
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par [0008](0008-projets-autonomes.md)
 - **Date** : 2026-09-23
 - **Décideurs** : Équipe identity-service
 

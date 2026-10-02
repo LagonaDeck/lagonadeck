@@ -1,6 +1,6 @@
 # 0004 — Stratégie de build Docker et load balancing
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par [0008](0008-projets-autonomes.md)
 - **Date** : 2026-08-31
 - **Décideurs** : Daniel
 

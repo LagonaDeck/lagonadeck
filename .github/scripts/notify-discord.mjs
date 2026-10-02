@@ -145,38 +145,20 @@ const checks = [
     result: process.env.PRETTIER_RESULT,
     log: process.env.PRETTIER_LOG,
   },
-  { name: 'Lint', result: process.env.LINT_RESULT, log: process.env.LINT_LOG },
   {
-    name: 'Unit Tests',
+    name: 'Build et tests',
     result: process.env.TEST_RESULT,
     log: process.env.TEST_LOG,
   },
 ];
-const installChecks = [
-  {
-    name: 'Installation des dépendances (Prettier)',
-    result: process.env.PRETTIER_INSTALL_RESULT,
-    log: process.env.PRETTIER_INSTALL_LOG,
-  },
-  {
-    name: 'Installation des dépendances (Lint)',
-    result: process.env.LINT_INSTALL_RESULT,
-    log: process.env.LINT_INSTALL_LOG,
-  },
-  {
-    name: 'Installation des dépendances (Tests)',
-    result: process.env.TEST_INSTALL_RESULT,
-    log: process.env.TEST_INSTALL_LOG,
-  },
-];
 const normalise = (result) => (result || 'unknown').toLowerCase();
-const failedCheck =
-  installChecks.find((check) => normalise(check.result) === 'failure') ||
-  checks.find((check) => normalise(check.result) === 'failure');
-const cancelled = [...installChecks, ...checks].some(
+const failedCheck = checks.find(
+  (check) => normalise(check.result) === 'failure',
+);
+const cancelled = checks.some(
   (check) => normalise(check.result) === 'cancelled',
 );
-const succeeded = [...installChecks, ...checks].every(
+const succeeded = checks.every(
   (check) => normalise(check.result) === 'success',
 );
 const status = succeeded
