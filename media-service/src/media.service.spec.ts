@@ -84,10 +84,7 @@ describe('MediaService', () => {
     });
 
     const module = await Test.createTestingModule({
-      providers: [
-        MediaService,
-        { provide: PrismaClient, useValue: prisma },
-      ],
+      providers: [MediaService, { provide: PrismaClient, useValue: prisma }],
     }).compile();
 
     service = module.get(MediaService);

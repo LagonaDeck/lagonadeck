@@ -240,7 +240,9 @@ export class MediaService implements OnModuleInit {
   }
 
   private async deleteObject(key: string) {
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    await this.s3.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
   }
 
   private async getAssetOrThrow(id: string) {

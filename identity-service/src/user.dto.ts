@@ -1,8 +1,4 @@
-import {
-  ApiProperty,
-  OmitType,
-  PartialType,
-} from '@nestjs/swagger';
+import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsByteLength,

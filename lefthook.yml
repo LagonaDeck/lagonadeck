@@ -1,4 +1,0 @@
-pre-push:
-  commands:
-    code-quality:
-      run: make format-fix && make lint-fix

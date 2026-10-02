@@ -46,9 +46,10 @@ describe('MAX_UPLOAD_SIZE_BYTES', () => {
     } else {
       process.env[ENV_KEY] = value;
     }
-    const module = jest.requireActual<typeof import('./media.constants')>(
-      './media.constants',
-    );
+    const module =
+      jest.requireActual<typeof import('./media.constants')>(
+        './media.constants',
+      );
     return module.MAX_UPLOAD_SIZE_BYTES;
   }
 
@@ -101,9 +102,10 @@ describe('PENDING_CLEANUP_INTERVAL_MS', () => {
     } else {
       process.env[ENV_KEY] = value;
     }
-    const module = jest.requireActual<typeof import('./media.constants')>(
-      './media.constants',
-    );
+    const module =
+      jest.requireActual<typeof import('./media.constants')>(
+        './media.constants',
+      );
     return module.PENDING_CLEANUP_INTERVAL_MS;
   }
 
