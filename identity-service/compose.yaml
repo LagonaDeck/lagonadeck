@@ -1,0 +1,25 @@
+services:
+  identity-service:
+    build: { context: ., target: dev }
+    command: sh -c 'npx prisma migrate deploy && npm run start:dev'
+    environment:
+      DATABASE_URL: postgresql://lagonadeck:lagonadeck@identity-db:5432/app
+    ports: ['3001:3001']
+    volumes: ['.:/app', '/app/node_modules']
+    depends_on:
+      identity-db: { condition: service_healthy }
+
+  identity-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lagonadeck
+      POSTGRES_PASSWORD: lagonadeck
+      POSTGRES_DB: app
+    volumes: ['identity-db:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'lagonadeck', '-d', 'app']
+      interval: 2s
+      retries: 15
+
+volumes:
+  identity-db:

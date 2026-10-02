@@ -1,0 +1,5 @@
+services:
+  frontend:
+    build: { context: ., target: dev }
+    ports: ['4200:4200']
+    volumes: ['.:/app', '/app/node_modules']
