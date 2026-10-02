@@ -28,7 +28,7 @@ make install                         # npm install dans chaque projet + hooks le
 make build                           # build des 4 projets
 make test                            # tests d'identity-service et media-service
 make format                          # Prettier sur tout le dépôt
-docker compose up --build            # tout le système (le compose racine fait un include: de ceux des projets)
+docker compose -f dev.compose.yaml up --build   # tout le système (include: des composes des projets)
 ```
 
 Dans le dossier d'un projet :

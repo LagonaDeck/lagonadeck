@@ -50,7 +50,7 @@ Communication entre services :
 ## Démarrage
 
 ```bash
-docker compose up --build
+docker compose -f dev.compose.yaml up --build
 ```
 
 Lance le frontend (4200), l'api-gateway (3000), identity-service (3001) et
@@ -58,7 +58,7 @@ media-service (3006) en hot reload, avec un Postgres par service et MinIO
 (console sur 9001). Les migrations Prisma sont appliquées au démarrage. Chaque
 projet a son propre `compose.yaml` (service + sa base) : `docker compose up`
 dans son dossier le lance seul. Après
-un changement de dépendances : `docker compose up --build --renew-anon-volumes`.
+un changement de dépendances : `docker compose -f dev.compose.yaml up --build --renew-anon-volumes`.
 
 Sans Docker, dans chaque dossier : `npm install`, `cp .env.example .env`, puis
 `npm run start:dev` (frontend : `npm start`), `npm run build` et `npm test`.
