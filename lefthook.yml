@@ -6,5 +6,5 @@ pre-commit:
 
 pre-push:
   commands:
-    build-test:
-      run: make build test
+    lint-build-test:
+      run: make lint build test

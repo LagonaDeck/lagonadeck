@@ -21,7 +21,7 @@ const NAME_MAX_LENGTH = 100;
 
 export class CreateUserDto {
   @ApiProperty({ example: 'jane.doe@example.com' })
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsEmail()

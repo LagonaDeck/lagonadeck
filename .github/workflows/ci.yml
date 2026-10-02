@@ -42,6 +42,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.lint.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+      - name: ESLint de chaque projet
+        id: lint
+        run: |
+          set -o pipefail
+          for project in frontend api-gateway identity-service media-service; do
+            echo "::group::$project"
+            (cd "$project" && npm ci && npm run lint) 2>&1 | tee -a /tmp/lint.log
+            echo "::endgroup::"
+          done
+      - name: Upload ESLint log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-log-lint
+          path: /tmp/lint.log
+          if-no-files-found: ignore
+          retention-days: 1
+
   test:
     name: Build et tests
     runs-on: ubuntu-latest
@@ -74,6 +102,7 @@ jobs:
     name: Discord notification
     needs:
       - prettier
+      - lint
       - test
     if: always()
     runs-on: ubuntu-latest
@@ -91,8 +120,10 @@ jobs:
           DISCORD_CICD_WEBHOOK: ${{ secrets.DISCORD_CICD_WEBHOOK }}
           GITHUB_TOKEN: ${{ github.token }}
           PRETTIER_RESULT: ${{ needs.prettier.outputs.outcome || needs.prettier.result }}
+          LINT_RESULT: ${{ needs.lint.outputs.outcome || needs.lint.result }}
           TEST_RESULT: ${{ needs.test.outputs.outcome || needs.test.result }}
           PRETTIER_LOG: /tmp/ci-logs/prettier.log
+          LINT_LOG: /tmp/ci-logs/lint.log
           TEST_LOG: /tmp/ci-logs/tests.log
         run: node .github/scripts/notify-discord.mjs
         # Discord must never alter the CI result (missing secret, network, webhook error…).
@@ -102,6 +133,7 @@ jobs:
     name: PR labels
     needs:
       - prettier
+      - lint
       - test
     if: >-
       ${{
@@ -114,10 +146,13 @@ jobs:
         env:
           TEST_RESULT: ${{ needs.test.result }}
           PRETTIER_RESULT: ${{ needs.prettier.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
         with:
           script: |
             const testPassed = process.env.TEST_RESULT === 'success';
-            const qualityPassed = process.env.PRETTIER_RESULT === 'success';
+            const qualityPassed =
+              process.env.PRETTIER_RESULT === 'success' &&
+              process.env.LINT_RESULT === 'success';
 
             async function applyOutcome(successLabel, failureLabel, passed) {
               for (const label of [successLabel, failureLabel]) {

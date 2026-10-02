@@ -54,7 +54,7 @@ export class MediaService implements OnModuleInit {
   onModuleInit() {
     setInterval(
       () =>
-        this.purgeStalePendingAssets().catch((error) =>
+        void this.purgeStalePendingAssets().catch((error) =>
           this.logger.error(`Échec de la purge des médias PENDING : ${error}`),
         ),
       PENDING_CLEANUP_INTERVAL_MS,
@@ -144,7 +144,7 @@ export class MediaService implements OnModuleInit {
         await this.deleteObject(asset.storageKey);
       } catch (error) {
         this.logger.warn(
-          `Échec de la suppression du binaire incohérent ${asset.storageKey} : ${error}`,
+          `Échec de la suppression du binaire incohérent ${asset.storageKey} : ${String(error)}`,
         );
       }
       throw new UnprocessableEntityException(
@@ -179,7 +179,7 @@ export class MediaService implements OnModuleInit {
         await this.deleteObject(asset.storageKey);
       } catch (error) {
         this.logger.warn(
-          `Échec de la suppression du binaire orphelin ${asset.storageKey} : ${error}`,
+          `Échec de la suppression du binaire orphelin ${asset.storageKey} : ${String(error)}`,
         );
       }
       await this.prisma.mediaAsset.delete({ where: { id: asset.id } });

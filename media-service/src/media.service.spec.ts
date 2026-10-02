@@ -169,7 +169,9 @@ describe('MediaService', () => {
 
     it('passe le média en FAILED si le binaire est absent du storage', async () => {
       prisma.mediaAsset.findUnique.mockResolvedValue(baseAsset);
-      storage.headObject.mockRejectedValue(new NotFound({ $metadata: {} }));
+      storage.headObject.mockRejectedValue(
+        new NotFound({ $metadata: {}, message: 'NotFound' }),
+      );
 
       await expect(service.confirmUpload('media-1')).rejects.toBeInstanceOf(
         UnprocessableEntityException,

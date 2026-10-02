@@ -146,6 +146,11 @@ const checks = [
     log: process.env.PRETTIER_LOG,
   },
   {
+    name: 'ESLint',
+    result: process.env.LINT_RESULT,
+    log: process.env.LINT_LOG,
+  },
+  {
     name: 'Build et tests',
     result: process.env.TEST_RESULT,
     log: process.env.TEST_LOG,
