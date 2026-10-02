@@ -37,7 +37,7 @@ frontend/           Angular, appelle uniquement l'api-gateway
 api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
 identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
-docs/               design system
+docs/               logo
 ```
 
 Communication entre services :
