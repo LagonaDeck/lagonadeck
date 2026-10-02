@@ -1,0 +1,63 @@
+:root {
+  --ink: #0f1535;
+  --slate: #4a5275;
+  --bg: #f4f6fb;
+  --violet: #7b2ff7;
+  --blue: #1f6bff;
+  --teal: #17d4c4;
+  --gold: #f2c230;
+  --rule: #d9deeb;
+
+  --font-display: 'Saira', sans-serif;
+  --font-body: 'Atkinson Hyperlegible Next', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

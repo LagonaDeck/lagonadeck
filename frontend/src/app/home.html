@@ -1,0 +1,384 @@
+<header class="topbar">
+  <a href="#" class="brand">
+    <img src="logo-light.png" alt="LagonaDeck" width="1170" height="410" />
+  </a>
+  <nav aria-label="Sections de la page">
+    <a href="#qui-on-est">Qui on est</a>
+    <a href="#fonctionnalites">Fonctionnalités</a>
+    <a href="#avis">Avis</a>
+    <a href="#tarifs">Tarifs</a>
+  </nav>
+  <a routerLink="/login" class="link">Se connecter</a>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>L'ERP des revendeurs de cartes Pokémon.</h1>
+    <p class="lead">
+      Achats en lots, suivi des prix, alertes, plateformes de vente et
+      comptabilité, pour vos cartes et vos produits scellés. Vous savez ce que
+      chaque article vous a coûté et ce qu'il vous rapporte.
+    </p>
+    <div class="cta">
+      <a routerLink="/signup" class="button">Créer un compte</a>
+      <p class="note">Gratuit jusqu'à 50 articles.</p>
+    </div>
+  </section>
+
+  <section class="about" id="qui-on-est">
+    <h2>Qui on est</h2>
+    <p>
+      Nous sommes des revendeurs de cartes Pokémon, basés en Suisse. Pendant des
+      années, nous avons suivi nos achats et nos ventes dans des tableurs, sans
+      jamais connaître notre vraie marge. Nous construisons l'outil qui nous
+      manquait.
+    </p>
+    <h2>Notre mission</h2>
+    <p>
+      Donner à chaque revendeur, du collectionneur qui revend ses doubles à la
+      boutique, un outil qui dit ce que chaque carte ou produit a coûté, ce
+      qu'il vaut et ce qu'il rapporte.
+    </p>
+  </section>
+
+  <section class="features" id="fonctionnalites">
+    <h2>Fonctionnalités</h2>
+    <p class="features-lead">
+      Cartes à l'unité ou produits scellés (ETB, tins, displays, coffrets) :
+      LagonaDeck suit chaque article de l'achat à la revente.
+    </p>
+
+    <div class="feature-grid">
+      <article class="feature" style="--accent: var(--gold)">
+        <h3>Achats en lots <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div
+            class="thumb lot"
+            style="--art: linear-gradient(135deg, #5b8cff, #1d4ed8)"
+            aria-hidden="true"
+          ></div>
+          <div>
+            <p class="item-name">Lot du 14 septembre</p>
+            <p class="item-set">9 cartes, 2 ETB, 1 tin</p>
+          </div>
+        </div>
+        <p class="figure">600 CHF</p>
+        <dl class="details">
+          <div>
+            <dt>Dracaufeu ex</dt>
+            <dd>180 CHF (30 %)</dd>
+          </div>
+          <div>
+            <dt>ETB Évolutions Prismatiques</dt>
+            <dd>120 CHF (20 %)</dd>
+          </div>
+          <div>
+            <dt>10 autres articles</dt>
+            <dd>300 CHF (50 %)</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          Achetez une collection en une fois : LagonaDeck répartit le prix payé
+          sur chaque article au prorata de son prix du marché.
+        </p>
+      </article>
+
+      <article class="feature" style="--accent: var(--teal)">
+        <h3>Suivi du prix <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div
+            class="thumb"
+            style="--art: linear-gradient(135deg, #ff9a4d, #c2410c)"
+            aria-hidden="true"
+          ></div>
+          <div>
+            <p class="item-name">Dracaufeu ex</p>
+            <p class="item-set">199/165, Écarlate et Violet 151</p>
+          </div>
+        </div>
+        <p class="figure">240 CHF</p>
+        <svg
+          class="spark"
+          viewBox="0 0 120 36"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <polyline
+            points="0,30 12,28 24,31 36,24 48,26 60,20 72,22 84,15 96,17 108,9 120,6"
+          />
+        </svg>
+        <dl class="details">
+          <div>
+            <dt>Sur 30 jours</dt>
+            <dd>+12 %</dd>
+          </div>
+          <div>
+            <dt>Depuis l'achat</dt>
+            <dd>+60 CHF</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          Le prix du marché de chaque carte est suivi dans le temps. Vous voyez
+          son évolution et ce que vaut votre stock aujourd'hui.
+        </p>
+      </article>
+
+      <article class="feature" style="--accent: var(--violet)">
+        <h3>Alertes capital dormant <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div
+            class="thumb sealed"
+            style="--art: linear-gradient(135deg, #b06cff, #5b21b6)"
+            aria-hidden="true"
+          ></div>
+          <div>
+            <p class="item-name">ETB Évolutions Prismatiques</p>
+            <p class="item-set">Produit scellé</p>
+          </div>
+        </div>
+        <p class="figure">143 jours</p>
+        <dl class="details">
+          <div>
+            <dt>Capital immobilisé</dt>
+            <dd>120 CHF</dd>
+          </div>
+          <div>
+            <dt>Seuil d'alerte</dt>
+            <dd>90 jours</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          LagonaDeck vous prévient quand un article reste trop longtemps en
+          stock, pour que votre argent ne dorme pas dans une boîte.
+        </p>
+      </article>
+
+      <article class="feature" style="--accent: var(--blue)">
+        <h3>Alertes achat et vente <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div
+            class="thumb"
+            style="--art: linear-gradient(135deg, #ffe066, #e0a800)"
+            aria-hidden="true"
+          ></div>
+          <div>
+            <p class="item-name">Pikachu ex</p>
+            <p class="item-set">238/191, Étincelles Déferlantes</p>
+          </div>
+        </div>
+        <p class="figure">Acheter</p>
+        <dl class="details">
+          <div>
+            <dt>Votre prix d'achat cible</dt>
+            <dd>150 CHF</dd>
+          </div>
+          <div>
+            <dt>Cote actuelle</dt>
+            <dd>142 CHF</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          Fixez vos seuils : LagonaDeck vous alerte quand la cote d'une carte
+          passe sous votre prix d'achat cible, ou dépasse votre prix de vente.
+        </p>
+      </article>
+
+      <article class="feature" style="--accent: var(--gold)">
+        <h3>Plateformes de vente <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div
+            class="thumb"
+            style="--art: linear-gradient(135deg, #ff9ad5, #c2187a)"
+            aria-hidden="true"
+          ></div>
+          <div>
+            <p class="item-name">Mew ex</p>
+            <p class="item-set">232/091, Destinées de Paldea</p>
+          </div>
+        </div>
+        <p class="figure">Vendue</p>
+        <dl class="details">
+          <div>
+            <dt>Ricardo</dt>
+            <dd>Vendue 310 CHF</dd>
+          </div>
+          <div>
+            <dt>Cardmarket</dt>
+            <dd>Annonce à retirer</dd>
+          </div>
+          <div>
+            <dt>eBay</dt>
+            <dd>Annonce à retirer</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          Évitez de vendre votre carte deux fois : dès qu'un article est vendu
+          sur une plateforme, LagonaDeck vous alerte pour retirer ses annonces
+          des autres.
+        </p>
+      </article>
+
+      <article class="feature" style="--accent: var(--teal)">
+        <h3>Comptabilité <span class="soon">à venir</span></h3>
+        <div class="item">
+          <div>
+            <p class="item-name">Septembre 2026</p>
+            <p class="item-set">48 ventes</p>
+          </div>
+        </div>
+        <p class="figure">+1 840 CHF</p>
+        <dl class="details">
+          <div>
+            <dt>Chiffre d'affaires</dt>
+            <dd>6 420 CHF</dd>
+          </div>
+          <div>
+            <dt>Achats</dt>
+            <dd>3 980 CHF</dd>
+          </div>
+          <div>
+            <dt>Frais et port</dt>
+            <dd>600 CHF</dd>
+          </div>
+        </dl>
+        <p class="explain">
+          Chiffre d'affaires, achats, frais et marge nette, mois par mois, prêts
+          à transmettre à votre comptable.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section class="reviews" id="avis">
+    <div class="reviews-intro">
+      <h2>Ils le testent</h2>
+      <p>
+        Des revendeurs, des boutiques et des collectionneurs testent LagonaDeck
+        en avant-première.
+      </p>
+    </div>
+
+    <div class="carousel">
+      <button
+        type="button"
+        class="chevron prev"
+        aria-label="Avis précédent"
+        (click)="moveReview(-1)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M15 5l-7 7 7 7" />
+        </svg>
+      </button>
+
+      <ul
+        class="deck"
+        [class.dragging]="dragX() !== 0"
+        (pointerdown)="startSwipe($event)"
+        (pointermove)="dragSwipe($event)"
+        (pointerup)="endSwipe()"
+        (pointercancel)="cancelSwipe()"
+      >
+        @for (review of reviews; track review.name) {
+        <li
+          class="review"
+          [style.--pos]="stackPosition($index)"
+          [style.--drag]="stackPosition($index) === 0 ? dragX() : 0"
+          [style.--leave]="stackPosition($index) === 0 ? leaveDirection() : 0"
+          [style.--type]="review.color"
+        >
+          <article class="card">
+            <header class="card-top">
+              <h3>{{ review.name }}</h3>
+              <p class="rating" [attr.aria-label]="review.rating + ' sur 5'">
+                {{ '★'.repeat(review.rating) }}{{ '☆'.repeat(5 - review.rating)
+                }}
+              </p>
+            </header>
+            <div class="art" aria-hidden="true">
+              {{ initials(review.name) }}
+            </div>
+            <p class="role">{{ review.role }}</p>
+            <div class="attack">
+              <p class="attack-name">
+                <span>{{ review.attack }}</span><span>{{ review.damage }}</span>
+              </p>
+              <p class="quote">{{ review.text }}</p>
+            </div>
+          </article>
+        </li>
+        }
+      </ul>
+
+      <button
+        type="button"
+        class="chevron next"
+        aria-label="Avis suivant"
+        (click)="moveReview(1)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <p class="count" aria-live="polite">
+        Avis {{ topReview() + 1 }} sur {{ reviews.length }}
+      </p>
+    </div>
+  </section>
+
+  <section class="pricing" id="tarifs">
+    <h2>Tarifs</h2>
+    <ul class="plans">
+      @for (plan of plans; track plan.name) {
+      <li class="plan" [class.featured]="plan.featured">
+        @if (plan.featured) {
+        <p class="badge">La plus choisie</p>
+        }
+        <h3>{{ plan.name }}</h3>
+        <p class="price">{{ plan.price }}<span>{{ plan.period }}</span></p>
+        <ul class="perks">
+          @for (perk of plan.perks; track perk) {
+          <li>{{ perk }}</li>
+          }
+        </ul>
+        <a routerLink="/signup" class="button">Créer un compte</a>
+      </li>
+      }
+    </ul>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer-brand">
+    <img src="logo-light.png" alt="LagonaDeck" width="1170" height="410" />
+    <p>L'ERP des revendeurs de cartes Pokémon.</p>
+  </div>
+
+  <nav class="footer-links" aria-label="Plan du site">
+    <div>
+      <h2>La page</h2>
+      <a href="#qui-on-est">Qui on est</a>
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#avis">Avis</a>
+      <a href="#tarifs">Tarifs</a>
+    </div>
+    <div>
+      <h2>Compte</h2>
+      <a routerLink="/signup">Créer un compte</a>
+      <a routerLink="/login">Se connecter</a>
+    </div>
+    <div>
+      <h2>Contact</h2>
+      <!-- TODO: remplacer par l'adresse de contact réelle. -->
+      <a href="mailto:contact@lagonadeck.ch">contact&#64;lagonadeck.ch</a>
+    </div>
+  </nav>
+
+  <div class="footer-legal">
+    <p>© {{ year }} LagonaDeck</p>
+    <p>
+      Pokémon est une marque de Nintendo, Creatures et Game Freak. LagonaDeck
+      n'est pas affilié à ces sociétés.
+    </p>
+  </div>
+</footer>
