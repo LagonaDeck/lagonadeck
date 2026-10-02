@@ -24,6 +24,7 @@ Docker Compose.
 **Commandes** :
 
 ```bash
+make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
 make build                           # build des 4 projets
 make test                            # tests d'identity-service et media-service
@@ -116,6 +117,6 @@ puis `npm ci && npm run build && npm test --if-present` dans chaque projet.
 12. Si une solution plus simple existe, la préférer.
 13. Ne jamais traduire les termes techniques établis. Conserver le vocabulaire de l'écosystème, de la documentation et du projet : `template`, `component`, `hook`, `middleware`, `handler`, `repository`, etc. Par exemple, ne pas remplacer `template` par « gabarit ».
 14. Toujours utiliser les commandes make quand elles sont disponibles.
-15. Une commande exécutée souvent doit devenir une cible du `Makefile`.
+15. Une commande exécutée souvent doit devenir une cible make, dans le fichier de sa catégorie `make/<catégorie>.mk` (`##@ Catégorie` en tête, `cible: ## description` pour qu'elle apparaisse dans `make help`). Une nouvelle catégorie s'ajoute à l'`include` du `Makefile`.
 
 Priorité : correction, cohérence, simplicité, lisibilité, extensibilité.
