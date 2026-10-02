@@ -50,7 +50,7 @@ Communication entre services :
 ## Démarrage
 
 ```bash
-docker compose -f dev.compose.yaml up --build
+make docker-dev-up-rebuild   # arrêt : make docker-dev-down
 ```
 
 Lance le frontend (4200), l'api-gateway (3000), identity-service (3001) et
