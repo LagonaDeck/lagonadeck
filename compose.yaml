@@ -1,0 +1,82 @@
+x-postgres: &postgres
+  image: postgres:17-alpine
+  environment:
+    POSTGRES_USER: lagonadeck
+    POSTGRES_PASSWORD: lagonadeck
+    POSTGRES_DB: app
+  healthcheck:
+    test: ['CMD', 'pg_isready', '-U', 'lagonadeck', '-d', 'app']
+    interval: 2s
+    retries: 15
+
+services:
+  frontend:
+    build: { context: ./frontend, target: dev }
+    ports: ['4200:4200']
+    volumes: ['./frontend:/app', '/app/node_modules']
+
+  api-gateway:
+    build: { context: ./api-gateway, target: dev }
+    ports: ['3000:3000']
+    volumes: ['./api-gateway:/app', '/app/node_modules']
+
+  identity-service:
+    build: { context: ./identity-service, target: dev }
+    command: sh -c 'npx prisma migrate deploy && npm run start:dev'
+    environment:
+      DATABASE_URL: postgresql://lagonadeck:lagonadeck@identity-db:5432/app
+    ports: ['3001:3001']
+    volumes: ['./identity-service:/app', '/app/node_modules']
+    depends_on:
+      identity-db: { condition: service_healthy }
+
+  identity-db:
+    <<: *postgres
+    volumes: ['identity-db:/var/lib/postgresql/data']
+
+  media-service:
+    build: { context: ./media-service, target: dev }
+    command: sh -c 'npx prisma migrate deploy && npm run start:dev'
+    environment:
+      DATABASE_URL: postgresql://lagonadeck:lagonadeck@media-db:5432/app
+      MEDIA_S3_ENDPOINT: http://minio:9000
+      MEDIA_S3_BUCKET: lagonadeck-media
+      MEDIA_S3_ACCESS_KEY_ID: lagonadeck
+      MEDIA_S3_SECRET_ACCESS_KEY: lagonadeck-dev-password
+      MEDIA_S3_FORCE_PATH_STYLE: 'true'
+    ports: ['3006:3006']
+    volumes: ['./media-service:/app', '/app/node_modules']
+    depends_on:
+      media-db: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+
+  media-db:
+    <<: *postgres
+    volumes: ['media-db:/var/lib/postgresql/data']
+
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: lagonadeck
+      MINIO_ROOT_PASSWORD: lagonadeck-dev-password
+    ports: ['9000:9000', '9001:9001']
+    volumes: ['minio:/data']
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 2s
+      retries: 15
+
+  # MinIO ne crée pas de bucket au démarrage : ce conteneur le fait une fois.
+  minio-init:
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >-
+      sh -c "mc alias set local http://minio:9000 lagonadeck lagonadeck-dev-password
+      && mc mb --ignore-existing local/lagonadeck-media"
+
+volumes:
+  identity-db:
+  media-db:
+  minio:

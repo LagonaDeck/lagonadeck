@@ -49,19 +49,17 @@ Communication entre services :
 
 ## Démarrage
 
-Dans chaque dossier :
-
 ```bash
-npm install
-cp .env.example .env   # services avec base : DATABASE_URL, S3…
-npm run start:dev      # frontend : npm start
-npm run build
-npm test               # identity-service, media-service
+docker compose up --build
 ```
 
-PostgreSQL et MinIO sont à lancer à part. Le client Prisma (`src/generated/`)
-est régénéré par `build`, `start:dev` et `test` ; `npm run db:migrate` applique
-les migrations.
+Lance le frontend (4200), l'api-gateway (3000), identity-service (3001) et
+media-service (3006) en hot reload, avec un Postgres par service et MinIO
+(console sur 9001). Les migrations Prisma sont appliquées au démarrage. Après
+un changement de dépendances : `docker compose up --build --renew-anon-volumes`.
+
+Sans Docker, dans chaque dossier : `npm install`, `cp .env.example .env`, puis
+`npm run start:dev` (frontend : `npm start`), `npm run build` et `npm test`.
 
 ## Objectif du projet
 
