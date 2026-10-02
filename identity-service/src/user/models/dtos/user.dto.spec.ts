@@ -1,6 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CreateUserDto, UpdateUserDto } from './user.dto';
+import { CreateUserDto } from './user.dto';
 
 async function validateDto(payload: Record<string, unknown>) {
   const dto = plainToInstance(CreateUserDto, payload);
@@ -9,9 +9,7 @@ async function validateDto(payload: Record<string, unknown>) {
 
 const validPayload = {
   email: 'jane@example.com',
-  firstName: 'Jane',
-  lastName: 'Doe',
-  pseudo: 'JaneDoe',
+  username: 'JaneDoe',
   password: 'Sup3rSecret!',
 };
 
@@ -58,9 +56,9 @@ describe('CreateUserDto', () => {
     expect(errors.some((e) => e.property === 'password')).toBe(false);
   });
 
-  it('rejette un pseudo trop court', async () => {
-    const errors = await validateDto({ ...validPayload, pseudo: 'ab' });
-    expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
+  it('rejette un nom d’utilisateur trop court', async () => {
+    const errors = await validateDto({ ...validPayload, username: 'ab' });
+    expect(errors.some((e) => e.property === 'username')).toBe(true);
   });
 
   it('accepte un mot de passe de 72 octets', async () => {
@@ -104,30 +102,11 @@ describe('CreateUserDto', () => {
     expect(errors.some((e) => e.property === 'password')).toBe(false);
   });
 
-  it('rejette un pseudo contenant des espaces ou des emojis', async () => {
-    for (const pseudo of ['jane doe', 'jane😀']) {
-      const errors = await validateDto({ ...validPayload, pseudo });
-      expect(errors.some((e) => e.property === 'pseudo')).toBe(true);
+  it('rejette un nom d’utilisateur contenant des espaces ou des emojis', async () => {
+    for (const username of ['jane doe', 'jane😀']) {
+      const errors = await validateDto({ ...validPayload, username });
+      expect(errors.some((e) => e.property === 'username')).toBe(true);
     }
-  });
-
-  it('retire les espaces autour des noms et rejette un nom vide une fois nettoyé', async () => {
-    const dto = plainToInstance(CreateUserDto, {
-      ...validPayload,
-      firstName: '  Jane  ',
-    });
-    expect(dto.firstName).toBe('Jane');
-
-    const errors = await validateDto({ ...validPayload, lastName: '    ' });
-    expect(errors.some((e) => e.property === 'lastName')).toBe(true);
-  });
-
-  it('rejette un nom de plus de 100 caractères', async () => {
-    const errors = await validateDto({
-      ...validPayload,
-      firstName: 'a'.repeat(101),
-    });
-    expect(errors.some((e) => e.property === 'firstName')).toBe(true);
   });
 
   it("normalise l'email (espaces retirés, minuscules) avant validation", async () => {
@@ -139,16 +118,16 @@ describe('CreateUserDto', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it('retire les espaces autour du pseudo en conservant sa casse', async () => {
+  it('retire les espaces autour du nom d’utilisateur en conservant sa casse', async () => {
     const dto = plainToInstance(CreateUserDto, {
       ...validPayload,
-      pseudo: '  JaneDoe  ',
+      username: '  JaneDoe  ',
     });
-    expect(dto.pseudo).toBe('JaneDoe');
+    expect(dto.username).toBe('JaneDoe');
     expect(await validate(dto)).toHaveLength(0);
   });
 
-  it.each(['email', 'firstName', 'lastName', 'pseudo', 'password'] as const)(
+  it.each(['email', 'username', 'password'] as const)(
     'rejette un payload sans %s',
     async (field) => {
       const payload = { ...validPayload };
@@ -159,34 +138,4 @@ describe('CreateUserDto', () => {
       expect(errors.some((e) => e.property === field)).toBe(true);
     },
   );
-});
-
-describe('UpdateUserDto', () => {
-  it('accepte un corps partiel', async () => {
-    const dto = plainToInstance(UpdateUserDto, { firstName: 'Janet' });
-    expect(await validate(dto)).toHaveLength(0);
-  });
-
-  it('hérite de la normalisation et de la validation de CreateUserDto', async () => {
-    const dto = plainToInstance(UpdateUserDto, {
-      email: '  Jane@Example.com  ',
-    });
-    expect(dto.email).toBe('jane@example.com');
-
-    const invalid = plainToInstance(UpdateUserDto, { email: 'pas-un-email' });
-    const errors = await validate(invalid);
-    expect(errors.some((e) => e.property === 'email')).toBe(true);
-  });
-
-  it('rejette un mot de passe : il se change par un endpoint dédié', async () => {
-    // Même configuration que le ValidationPipe global de main.ts.
-    const dto = plainToInstance(UpdateUserDto, {
-      password: 'Sup3rSecret!',
-    });
-    const errors = await validate(dto, {
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    });
-    expect(errors.some((e) => e.property === 'password')).toBe(true);
-  });
 });

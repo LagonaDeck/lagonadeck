@@ -12,20 +12,30 @@ datasource db {
   provider = "postgresql"
 }
 
-// Identité d'un utilisateur : email unique (stocké normalisé), pseudo unique
-// sans tenir compte de la casse via `pseudoNormalized`, mot de passe haché avec
-// scrypt et un salt aléatoire (jamais en clair).
+// Identité d'un utilisateur : email unique (stocké normalisé), nom d'utilisateur
+// unique sans tenir compte de la casse via `usernameNormalized`, mot de passe
+// haché avec scrypt et un salt aléatoire (jamais en clair).
 model User {
-  id               String   @id @default(uuid()) @db.Uuid
-  email            String   @unique
-  firstName        String
-  lastName         String
+  id                 String   @id @default(uuid()) @db.Uuid
+  email              String   @unique
   // Tel que saisi, casse comprise : c'est la valeur affichée.
-  pseudo           String
+  username           String
   // Minuscules : porte l'unicité, pour que `JaneDoe` et `janedoe` entrent en conflit.
-  pseudoNormalized String   @unique
-  passwordHash     String
-  salt             String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  usernameNormalized String   @unique
+  passwordHash       String
+  salt               String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions Session[]
+}
+
+// Session de connexion. Seul le hash du token est stocké : une fuite de la base
+// ne permet pas de reprendre les sessions.
+model Session {
+  id        String   @id // sha256 du token
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
