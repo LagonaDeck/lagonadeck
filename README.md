@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="LagonaDeck — Buy · Manage · Resell" width="380" />
+  <img src="frontend/public/logo.png" alt="LagonaDeck — Buy · Manage · Resell" width="380" />
 </p>
 
 # LagonaDeck
@@ -37,7 +37,6 @@ frontend/           Angular, appelle uniquement l'api-gateway
 api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
 identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
-docs/               logo
 ```
 
 Communication entre services :
