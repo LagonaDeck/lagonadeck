@@ -1,7 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  PartialType,
+  PickType,
+} from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsByteLength,
+  IsOptional,
+  IsUUID,
+  IsNotEmpty,
   IsEmail,
   IsString,
   Matches,
@@ -59,6 +67,30 @@ export class CreateUserDto {
     message: 'Mot de passe trop faible',
   })
   password!: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Organisation dont on accepte l’invitation en s’inscrivant : le compte la rejoint au lieu de recevoir une organisation personnelle.',
+  })
+  @IsOptional()
+  @IsUUID()
+  invitationOrganizationId?: string;
+}
+
+// Le mot de passe n'en fait pas partie : il se change avec l'ancien, côté sécurité.
+export class UpdateProfileDto extends PartialType(
+  PickType(CreateUserDto, ['email', 'username'] as const),
+) {}
+
+// `password` est le nouveau mot de passe : mêmes règles qu'à la création du compte.
+export class ChangePasswordDto extends PickType(CreateUserDto, [
+  'password',
+] as const) {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currentPassword!: string;
 }
 
 /** Vue d'un utilisateur lisible par un tiers : ni email, ni hash, ni salt. */
@@ -82,5 +114,17 @@ export class UserPublicDto {
     dto.createdAt = user.createdAt;
     dto.updatedAt = user.updatedAt;
     return dto;
+  }
+}
+
+/** Vue de l'utilisateur connecté sur son propre compte : avec son email. */
+export class CurrentUserDto extends UserPublicDto {
+  @ApiProperty()
+  email!: string;
+
+  static override fromEntity(user: User): CurrentUserDto {
+    return Object.assign(new CurrentUserDto(), UserPublicDto.fromEntity(user), {
+      email: user.email,
+    });
   }
 }

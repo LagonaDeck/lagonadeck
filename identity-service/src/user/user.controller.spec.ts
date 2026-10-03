@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
+import { SessionService } from '../session/session.service';
 import { UserPublicDto } from './models/dtos/user.dto';
 
 describe('UserController', () => {
@@ -27,7 +28,10 @@ describe('UserController', () => {
 
     const module = await Test.createTestingModule({
       controllers: [UserController],
-      providers: [{ provide: UserService, useValue: service }],
+      providers: [
+        { provide: UserService, useValue: service },
+        { provide: SessionService, useValue: {} },
+      ],
     }).compile();
 
     controller = module.get(UserController);

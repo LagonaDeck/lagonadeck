@@ -265,9 +265,12 @@
         aria-label="Avis précédent"
         (click)="moveReview(-1)"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15 5l-7 7 7 7" />
-        </svg>
+        <svg
+          lucideChevronLeft
+          [size]="20"
+          [strokeWidth]="2.5"
+          aria-hidden="true"
+        ></svg>
       </button>
 
       <ul
@@ -315,9 +318,12 @@
         aria-label="Avis suivant"
         (click)="moveReview(1)"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 5l7 7-7 7" />
-        </svg>
+        <svg
+          lucideChevronRight
+          [size]="20"
+          [strokeWidth]="2.5"
+          aria-hidden="true"
+        ></svg>
       </button>
 
       <p class="count" aria-live="polite">

@@ -1,6 +1,11 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CreateUserDto } from './user.dto';
+import {
+  ChangePasswordDto,
+  CreateUserDto,
+  CurrentUserDto,
+  UpdateProfileDto,
+} from './user.dto';
 
 async function validateDto(payload: Record<string, unknown>) {
   const dto = plainToInstance(CreateUserDto, payload);
@@ -138,4 +143,73 @@ describe('CreateUserDto', () => {
       expect(errors.some((e) => e.property === field)).toBe(true);
     },
   );
+});
+
+describe('CurrentUserDto', () => {
+  it("expose l'email à l'utilisateur lui-même, jamais le hash ni le salt", () => {
+    const dto = CurrentUserDto.fromEntity({
+      id: 'user-1',
+      email: 'jane@example.com',
+      username: 'JaneDoe',
+      usernameNormalized: 'janedoe',
+      passwordHash: 'hashed',
+      salt: 'salt',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+
+    expect(dto).toBeInstanceOf(CurrentUserDto);
+    expect(dto).toEqual({
+      id: 'user-1',
+      email: 'jane@example.com',
+      username: 'JaneDoe',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    });
+  });
+});
+
+describe('UpdateProfileDto', () => {
+  const validateProfile = (payload: Record<string, unknown>) =>
+    validate(plainToInstance(UpdateProfileDto, payload), {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+
+  it('accepte un corps partiel', async () => {
+    expect(await validateProfile({ username: 'Janet42' })).toHaveLength(0);
+  });
+
+  it('applique la normalisation et les règles du signup', async () => {
+    const dto = plainToInstance(UpdateProfileDto, {
+      email: '  Janet@Example.com ',
+    });
+    expect(dto.email).toBe('janet@example.com');
+
+    const errors = await validateProfile({ username: 'jane doe' });
+    expect(errors.some((e) => e.property === 'username')).toBe(true);
+  });
+
+  it('refuse le mot de passe, qui se change ailleurs', async () => {
+    const errors = await validateProfile({ password: 'Sup3rSecret!' });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
+});
+
+describe('ChangePasswordDto', () => {
+  const validatePasswords = (payload: Record<string, unknown>) =>
+    validate(plainToInstance(ChangePasswordDto, payload));
+
+  it('exige le mot de passe actuel', async () => {
+    const errors = await validatePasswords({ password: 'N3wSecret!' });
+    expect(errors.some((e) => e.property === 'currentPassword')).toBe(true);
+  });
+
+  it('applique au nouveau mot de passe les règles du signup', async () => {
+    const errors = await validatePasswords({
+      currentPassword: 'Sup3rSecret!',
+      password: 'faible',
+    });
+    expect(errors.some((e) => e.property === 'password')).toBe(true);
+  });
 });

@@ -1,4 +1,5 @@
 import { Component, signal } from '@angular/core';
+import { LucideChevronLeft, LucideChevronRight } from '@lucide/angular';
 import { RouterLink } from '@angular/router';
 
 const SWIPE_THRESHOLD_PX = 40;
@@ -96,7 +97,7 @@ const PLANS = [
 
 @Component({
   selector: 'app-home',
-  imports: [RouterLink],
+  imports: [RouterLink, LucideChevronLeft, LucideChevronRight],
   templateUrl: './home.html',
   styleUrl: './home.css',
 })

@@ -1,15 +1,32 @@
 :root {
-  --ink: #0f1535;
-  --slate: #4a5275;
-  --bg: #f4f6fb;
+  /* Sans data-theme, light-dark() suit le thème du système (choix Automatique). */
+  color-scheme: light dark;
+
+  --ink: light-dark(#0f1535, #e4e8f5);
+  --slate: light-dark(#4a5275, #9aa3c4);
+  --bg: light-dark(#f4f6fb, #0b1020);
+  --surface: light-dark(#ffffff, #161c34);
+  --rule: light-dark(#d9deeb, #2b3355);
+  --sidebar: light-dark(#0f1535, #060914);
+  --hover: light-dark(rgb(15 21 53 / 0.07), rgb(255 255 255 / 0.08));
+  --shadow: light-dark(rgb(15 21 53 / 0.35), rgb(0 0 0 / 0.6));
   --violet: #7b2ff7;
   --blue: #1f6bff;
   --teal: #17d4c4;
   --gold: #f2c230;
-  --rule: #d9deeb;
+  --danger: light-dark(#d12a52, #f87191);
+  --success: light-dark(#15803d, #4ade80);
 
   --font-display: 'Saira', sans-serif;
   --font-body: 'Atkinson Hyperlegible Next', sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 *,
@@ -54,6 +71,202 @@ img {
 :focus-visible {
   outline: 3px solid var(--blue);
   outline-offset: 3px;
+}
+
+input {
+  padding: 0.75rem 0.9rem;
+  border: 2px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+
+input:hover {
+  border-color: color-mix(in srgb, var(--ink) 30%, var(--rule));
+}
+
+input:focus-visible {
+  border-color: var(--blue);
+  outline-offset: 1px;
+}
+
+.hint {
+  color: var(--slate);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.error {
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: color-mix(in srgb, var(--danger) 75%, var(--ink));
+}
+
+.success {
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--success);
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+
+/* Titre de section avec son action à droite (« Inviter un membre »…). */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.small-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--blue);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.small-button:hover {
+  background: var(--violet);
+}
+
+/* Photo centrée au-dessus des réglages, avec son lien « Modifier ». */
+.photo-header {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Un <button> pour une action, présenté comme un lien. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--violet);
+}
+
+.link-button:disabled {
+  color: var(--slate);
+  cursor: not-allowed;
+}
+
+/* Pages de réglages : une ligne par information, libellé à gauche,
+   valeur et actions à droite. */
+.settings {
+  max-width: 40rem;
+  margin: 0;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 3.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.settings-row > :first-child {
+  flex: none;
+  color: var(--slate);
+}
+
+.settings-row > dd,
+.settings-row > dd > form {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.settings-row > dd > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Même largeur en lecture (crayon) et en édition (coche et croix) :
+   la valeur et le champ s'arrêtent au même endroit. */
+.row-actions {
+  display: flex;
+  flex: none;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  width: 4.25rem;
+}
+
+.icon-button {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2rem;
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: var(--slate);
+  cursor: pointer;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.icon-button.confirm,
+.icon-button.confirm:hover {
+  color: var(--success);
+}
+
+.icon-button.confirm:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.icon-button.confirm:disabled {
+  cursor: progress;
+}
+
+.icon-button.discard,
+.icon-button.discard:hover {
+  color: var(--danger);
+}
+
+.icon-button.discard:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
