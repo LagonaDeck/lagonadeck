@@ -4,28 +4,155 @@
 // reçoit un driver adapter (@prisma/adapter-pg) au runtime.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  // Requis par l'index unique partiel de `Group` (un seul groupe Owner).
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// Identité d'un utilisateur : email unique (stocké normalisé), pseudo unique
-// sans tenir compte de la casse via `pseudoNormalized`, mot de passe haché avec
-// scrypt et un salt aléatoire (jamais en clair).
+// Identité d'un utilisateur : email unique (stocké normalisé), nom d'utilisateur
+// unique sans tenir compte de la casse via `usernameNormalized`, mot de passe
+// haché avec scrypt et un salt aléatoire (jamais en clair).
 model User {
-  id               String   @id @default(uuid()) @db.Uuid
-  email            String   @unique
-  firstName        String
-  lastName         String
+  id                 String   @id @default(uuid()) @db.Uuid
+  email              String   @unique
   // Tel que saisi, casse comprise : c'est la valeur affichée.
-  pseudo           String
+  username           String
   // Minuscules : porte l'unicité, pour que `JaneDoe` et `janedoe` entrent en conflit.
-  pseudoNormalized String   @unique
-  passwordHash     String
-  salt             String
+  usernameNormalized String   @unique
+  passwordHash       String
+  salt               String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions            Session[]
+  memberships         OrganizationMember[]
+  invitationsReceived Invitation[]         @relation("InvitationsReceived")
+  invitationsSent     Invitation[]         @relation("InvitationsSent")
+  emailInvitations    EmailInvitation[]
+}
+
+// Session de connexion. Seul le hash du token est stocké : une fuite de la base
+// ne permet pas de reprendre les sessions.
+model Session {
+  id               String   @id // sha256 du token
+  refreshTokenHash String   @unique
+  userId           String   @db.Uuid
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt        DateTime
+  refreshExpiresAt DateTime
   createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+}
+
+enum Plan {
+  DISCOVERY
+}
+
+// Le groupe Owner les a toutes sans les stocker : une permission ajoutée ici
+// lui revient automatiquement.
+enum Permission {
+  ORGANIZATION_MANAGE
+  GROUP_CREATE
+  GROUP_UPDATE
+  GROUP_DELETE
+  GROUP_MANAGE_PERMISSIONS
+  MEMBER_INVITE
+  MEMBER_REMOVE
+  MEMBER_MANAGE_GROUPS
+  BILLING_VIEW
+  BILLING_MANAGE
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  plan      Plan     @default(DISCOVERY)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members          OrganizationMember[]
+  groups           Group[]
+  invitations      Invitation[]
+  emailInvitations EmailInvitation[]
+}
+
+model OrganizationMember {
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups       GroupMember[]
+
+  @@id([organizationId, userId])
+  @@index([userId])
+}
+
+model Group {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @db.Uuid
+  name           String
+  isOwner        Boolean      @default(false)
+  permissions    Permission[] @default([])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members      GroupMember[]
+
+  @@unique([organizationId, name])
+  // Cible des clés étrangères composites de `GroupMember`.
+  @@unique([id, organizationId])
+  @@unique([organizationId], where: { isOwner: true }, map: "Group_single_owner_key")
+}
+
+// `organizationId` figure dans les deux clés étrangères : la base refuse un
+// groupe et un membre qui n'appartiennent pas à la même organisation.
+model GroupMember {
+  groupId        String   @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  group  Group              @relation(fields: [groupId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  member OrganizationMember @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([organizationId, userId])
+}
+
+// Invitation en attente : supprimée à l'acceptation, au refus ou à la
+// révocation. L'invité ne devient membre qu'en l'acceptant.
+model Invitation {
+  organizationId String   @db.Uuid
+  userId         String   @db.Uuid
+  invitedById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("InvitationsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, userId])
+  @@index([userId])
+}
+
+// Invitation d'une adresse sans compte : elle devient une Invitation quand un
+// compte est créé avec cet email (normalisé comme `User.email`).
+model EmailInvitation {
+  organizationId String   @db.Uuid
+  email          String
+  invitedById    String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, email])
+  @@index([email])
 }

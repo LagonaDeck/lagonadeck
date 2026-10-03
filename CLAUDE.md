@@ -14,10 +14,19 @@ Docker Compose.
 
 **Structure** :
 
-- `frontend/` : Angular CLI, application standalone.
-- `api-gateway/` : NestJS, seul point d'entrée HTTP, sans base. Aucune route
-  pour l'instant (ni proxy, ni auth).
-- `identity-service/` : NestJS + Prisma, utilisateurs (`/api/users`).
+- `frontend/` : Angular CLI, application standalone. Icônes : `@lucide/angular`
+  (`<svg lucideNomIcone>`), pas de SVG d'icône écrit à la main. Couleurs :
+  tokens de `styles.css` en `light-dark()` (thème clair, sombre ou système via
+  `data-theme` sur `<html>`), pas de couleur en dur hors des surfaces toujours
+  sombres comme le menu de gauche.
+- `api-gateway/` : NestJS, seul point d'entrée HTTP, sans base. Routes
+  `/api/auth` (signup, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
+  gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
+  est relayé tel quel à identity avec le cookie `session` en `Bearer` ; les
+  permissions restent dans identity.
+- `identity-service/` : NestJS + Prisma, utilisateurs (`/api/users`), sessions
+  (`/api/sessions`), organisations, groupes et invitations
+  (`/api/organizations`).
 - `media-service/` : NestJS + Prisma + S3, upload par POST pré-signé
   (`/api/media`).
 
@@ -58,11 +67,13 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
 
 **Patterns** :
 
-- **Organisation de `src/`** : les fichiers sont à plat. `main.ts` déclare
-  l'`AppModule` et le bootstrap (prefix `api`, `ValidationPipe` en whitelist +
-  forbidNonWhitelisted, Swagger sur `/api/docs`). Un fichier par rôle :
-  `*.controller.ts`, `*.service.ts`, et tous les DTO dans `*.dto.ts`. Pas de
-  modules Nest intermédiaires.
+- **Organisation de `src/`** : `main.ts` déclare l'`AppModule` et le bootstrap
+  (prefix `api`, `ValidationPipe` en whitelist + forbidNonWhitelisted, Swagger
+  sur `/api/docs`). Un fichier par rôle : `*.controller.ts`, `*.service.ts`,
+  et tous les DTO dans `*.dto.ts`. Pas de modules Nest intermédiaires.
+  media-service est à plat ; identity-service range chaque domaine dans un
+  dossier (`user/`, `session/`, `organization/`), avec `models/dtos/` et
+  `utils/`.
 - **tsconfig des services Prisma** : `tsconfig.json` inclut les specs (pour
   ESLint et l'IDE), `tsconfig.build.json` les exclut du `nest build`.
 - **Prisma** :
@@ -78,8 +89,28 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
 - **Variables d'env** :
   - au runtime, `.env` est chargé par `node --env-file-if-exists=.env` ;
   - `prisma.config.ts` utilise `process.loadEnvFile()`.
-- **identity** : mots de passe hachés avec `crypto.scrypt` et un salt
-  aléatoire stocké dans `User.salt`.
+- **identity** :
+  - mots de passe hachés avec `crypto.scrypt` et un salt aléatoire stocké dans
+    `User.salt` ;
+  - routes authentifiées par `SessionGuard` (token de session en `Bearer`) et
+    `@CurrentUserId()` ;
+  - tout accès à une organisation passe par `OrganizationAccessService`
+    (`getPermissions`, `requirePermission`) au début de la méthode de service :
+    404 pour un non-membre, 403 sans la permission ;
+  - permissions = enum Prisma `Permission`, union des groupes du membre ; le
+    groupe Owner les a toutes sans les stocker et n'est modifiable par aucune
+    route (un seul propriétaire par organisation) ;
+  - on n'accorde à un groupe que des permissions qu'on possède ;
+  - un utilisateur fait partie de 3 organisations au plus (verrou sur sa ligne
+    `User` à la création et à l'acceptation d'une invitation) ;
+  - on rejoint une organisation par une invitation acceptée ; une adresse
+    sans compte reçoit une `EmailInvitation`, qui devient une invitation au
+    signup (le signup peut en accepter une, sans organisation personnelle).
+  - supprimer l'organisation ou en transférer la propriété (à un membre) est
+    réservé au propriétaire (`requireOwner`), pas à une permission ;
+  - login bloqué 15 min après 5 échecs pour un même email
+    (`LoginThrottleService`, en mémoire) ; sessions expirées purgées toutes les
+    heures par un `setInterval`, comme les médias PENDING.
 - **media** :
   - le client S3 vit dans `MediaService` ;
   - type et taille sont figés dans la policy du POST pré-signé, puis
