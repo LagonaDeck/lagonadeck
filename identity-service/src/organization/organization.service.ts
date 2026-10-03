@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -57,6 +58,60 @@ export class OrganizationService {
       where: { id: organizationId },
       select: ORGANIZATION_FIELDS,
     });
+  }
+
+  // La place dans le groupe Owner change de main : l'ancien propriétaire reste
+  // membre, sans groupe, et peut alors quitter l'organisation.
+  // TODO: faire accepter ou refuser le transfert par le destinataire (notification).
+  async transferOwnership(
+    userId: string,
+    organizationId: string,
+    newOwnerId: string,
+  ): Promise<void> {
+    await this.access.getPermissions(userId, organizationId);
+    if (newOwnerId === userId) {
+      throw new BadRequestException('Vous êtes déjà le propriétaire');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      // Le verrou sérialise deux transferts simultanés : un seul propriétaire.
+      await tx.$queryRaw`SELECT 1 FROM "Organization" WHERE "id" = ${organizationId}::uuid FOR UPDATE`;
+      const ownership = await tx.groupMember.findFirst({
+        where: { organizationId, userId, group: { isOwner: true } },
+        select: { groupId: true },
+      });
+      if (!ownership) {
+        throw new ForbiddenException(
+          'Réservé au propriétaire de l’organisation',
+        );
+      }
+      await tx.groupMember.delete({
+        where: { groupId_userId: { groupId: ownership.groupId, userId } },
+      });
+      await tx.groupMember
+        .create({
+          data: {
+            groupId: ownership.groupId,
+            organizationId,
+            userId: newOwnerId,
+          },
+        })
+        .catch((error: unknown) => {
+          // La clé étrangère vers OrganizationMember refuse un non-membre.
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2003'
+          ) {
+            throw new NotFoundException('Membre introuvable');
+          }
+          throw error;
+        });
+    });
+  }
+
+  // Membres, groupes et invitations suivent par les suppressions en cascade.
+  async delete(userId: string, organizationId: string): Promise<void> {
+    await this.access.requireOwner(userId, organizationId);
+    await this.prisma.organization.delete({ where: { id: organizationId } });
   }
 
   async rename(

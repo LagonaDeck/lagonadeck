@@ -1,11 +1,19 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Prisma, PrismaClient } from '../generated/prisma/client';
 import { verifyPassword } from '../user/utils/password.util';
+import { LoginThrottleService } from './login-throttle.service';
 import { LoginDto, SessionDto } from './models/dtos/session.dto';
 import { generateToken, hashToken } from './utils/token.util';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PURGE_INTERVAL_MS = 60 * 60 * 1000;
 
 const notFoundAsNull = (error: unknown) => {
   if (
@@ -18,10 +26,26 @@ const notFoundAsNull = (error: unknown) => {
 };
 
 @Injectable()
-export class SessionService {
-  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
+export class SessionService implements OnModuleInit {
+  private readonly logger = new Logger(SessionService.name);
+
+  constructor(
+    @Inject(PrismaClient) private readonly prisma: PrismaClient,
+    private readonly throttle: LoginThrottleService,
+  ) {}
+
+  onModuleInit() {
+    setInterval(
+      () =>
+        void this.purgeExpired().catch((error) =>
+          this.logger.error(`Échec de la purge des sessions : ${error}`),
+        ),
+      PURGE_INTERVAL_MS,
+    ).unref();
+  }
 
   async login(dto: LoginDto): Promise<SessionDto> {
+    this.throttle.assertAllowed(dto.email);
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -29,9 +53,18 @@ export class SessionService {
       !user ||
       !(await verifyPassword(dto.password, user.passwordHash, user.salt))
     ) {
+      this.throttle.recordFailure(dto.email);
       throw new UnauthorizedException('Identifiants invalides');
     }
+    this.throttle.reset(dto.email);
     return this.create(user.id);
+  }
+
+  // Une session dont le refresh token a expiré ne peut plus servir.
+  async purgeExpired(): Promise<void> {
+    await this.prisma.session.deleteMany({
+      where: { refreshExpiresAt: { lt: new Date() } },
+    });
   }
 
   // Supprimer la session rend le refresh token à usage unique : rejoué, il échoue.

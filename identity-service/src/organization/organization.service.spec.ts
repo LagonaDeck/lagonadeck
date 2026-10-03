@@ -1,28 +1,41 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client';
 import { OrganizationService } from './organization.service';
 
 describe('OrganizationService', () => {
   let prisma: {
     $transaction: jest.Mock;
-    organization: { findMany: jest.Mock; update: jest.Mock };
+    organization: { findMany: jest.Mock; update: jest.Mock; delete: jest.Mock };
     organizationMember: { findUnique: jest.Mock; delete: jest.Mock };
   };
-  let access: { getPermissions: jest.Mock; requirePermission: jest.Mock };
+  let access: {
+    getPermissions: jest.Mock;
+    requirePermission: jest.Mock;
+    requireOwner: jest.Mock;
+  };
   let service: OrganizationService;
   let tx: {
     $queryRaw: jest.Mock;
     organization: { create: jest.Mock };
     organizationMember: { count: jest.Mock };
-    groupMember: { create: jest.Mock };
+    groupMember: { create: jest.Mock; findFirst: jest.Mock; delete: jest.Mock };
   };
 
   beforeEach(() => {
     prisma = {
       $transaction: jest.fn((write: (tx: unknown) => unknown) => write(tx)),
-      organization: { findMany: jest.fn(), update: jest.fn() },
+      organization: {
+        findMany: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
       organizationMember: { findUnique: jest.fn(), delete: jest.fn() },
     };
-    access = { getPermissions: jest.fn(), requirePermission: jest.fn() };
+    access = {
+      getPermissions: jest.fn(),
+      requirePermission: jest.fn(),
+      requireOwner: jest.fn(),
+    };
     service = new OrganizationService(prisma as never, access as never);
     tx = {
       $queryRaw: jest.fn(),
@@ -36,7 +49,11 @@ describe('OrganizationService', () => {
           ],
         }),
       },
-      groupMember: { create: jest.fn() },
+      groupMember: {
+        create: jest.fn().mockResolvedValue({}),
+        findFirst: jest.fn().mockResolvedValue({ groupId: 'group-owner' }),
+        delete: jest.fn(),
+      },
     };
   });
 
@@ -210,6 +227,72 @@ describe('OrganizationService', () => {
         service.removeMember('user-1', 'org-1', 'user-1'),
       ).rejects.toThrow("Le propriétaire ne peut pas quitter l'organisation");
       expect(prisma.organizationMember.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('delete', () => {
+    it("supprime l'organisation quand le propriétaire le demande", async () => {
+      await service.delete('user-1', 'org-1');
+
+      expect(access.requireOwner).toHaveBeenCalledWith('user-1', 'org-1');
+      expect(prisma.organization.delete).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+      });
+    });
+
+    it('ne supprime rien si ce n’est pas le propriétaire', async () => {
+      access.requireOwner.mockRejectedValue(new ForbiddenException());
+
+      await expect(service.delete('user-2', 'org-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.organization.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('transferOwnership', () => {
+    it('passe la place du groupe Owner au nouveau propriétaire', async () => {
+      await service.transferOwnership('user-1', 'org-1', 'user-2');
+
+      expect(tx.groupMember.delete).toHaveBeenCalledWith({
+        where: { groupId_userId: { groupId: 'group-owner', userId: 'user-1' } },
+      });
+      expect(tx.groupMember.create).toHaveBeenCalledWith({
+        data: {
+          groupId: 'group-owner',
+          organizationId: 'org-1',
+          userId: 'user-2',
+        },
+      });
+    });
+
+    it('refuse un membre qui n’est pas propriétaire (403)', async () => {
+      tx.groupMember.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.transferOwnership('user-3', 'org-1', 'user-2'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(tx.groupMember.delete).not.toHaveBeenCalled();
+    });
+
+    it("refuse un destinataire qui n'est pas membre de l'organisation (404)", async () => {
+      tx.groupMember.create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('P2003', {
+          code: 'P2003',
+          clientVersion: '7.10.0',
+        }),
+      );
+
+      await expect(
+        service.transferOwnership('user-1', 'org-1', 'stranger'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('refuse un transfert à soi-même (400)', async () => {
+      await expect(
+        service.transferOwnership('user-1', 'org-1', 'user-1'),
+      ).rejects.toThrow('Vous êtes déjà le propriétaire');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });

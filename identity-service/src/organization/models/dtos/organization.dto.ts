@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import { Permission, Plan } from '../../../generated/prisma/client';
 
 export class NameDto {
@@ -12,6 +12,12 @@ export class NameDto {
   @MinLength(1)
   @MaxLength(100)
   name!: string;
+}
+
+export class TransferOwnershipDto {
+  @ApiProperty({ format: 'uuid', description: 'Un membre de l’organisation.' })
+  @IsUUID()
+  userId!: string;
 }
 
 export class OrganizationDto {

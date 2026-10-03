@@ -10,11 +10,13 @@ import {
   effect,
   inject,
   input,
+  output,
   signal,
   viewChild,
 } from '@angular/core';
 import {
   LucideCrown,
+  LucideKeyRound,
   LucideLogOut,
   LucidePlus,
   LucideSearch,
@@ -57,6 +59,7 @@ const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   selector: 'app-organization-members',
   imports: [
     LucideCrown,
+    LucideKeyRound,
     LucideLogOut,
     LucidePlus,
     LucideSearch,
@@ -189,16 +192,31 @@ const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
               >
                 <svg lucideLogOut [size]="16" aria-hidden="true"></svg>
               </button>
-            } @else if (canRemove()) {
-              <button
-                type="button"
-                class="icon-button discard"
-                [title]="'Retirer ' + member.username"
-                [attr.aria-label]="'Retirer ' + member.username"
-                (click)="remove(member)"
-              >
-                <svg lucideUserMinus [size]="16" aria-hidden="true"></svg>
-              </button>
+            } @else {
+              @if (isOwner()) {
+                <button
+                  type="button"
+                  class="icon-button"
+                  [title]="'Transférer la propriété à ' + member.username"
+                  [attr.aria-label]="
+                    'Transférer la propriété à ' + member.username
+                  "
+                  (click)="transfer(member)"
+                >
+                  <svg lucideKeyRound [size]="16" aria-hidden="true"></svg>
+                </button>
+              }
+              @if (canRemove()) {
+                <button
+                  type="button"
+                  class="icon-button discard"
+                  [title]="'Retirer ' + member.username"
+                  [attr.aria-label]="'Retirer ' + member.username"
+                  (click)="remove(member)"
+                >
+                  <svg lucideUserMinus [size]="16" aria-hidden="true"></svg>
+                </button>
+              }
             }
           </span>
         </li>
@@ -393,6 +411,8 @@ export class OrganizationMembers {
   private readonly organizations = inject(Organizations);
   readonly organizationId = input.required<string>();
   readonly permissions = input.required<string[]>();
+  readonly isOwner = input.required<boolean>();
+  readonly ownershipTransferred = output();
   readonly initials = initials;
   readonly isEmail = isEmail;
   readonly searching = signal(false);
@@ -496,6 +516,23 @@ export class OrganizationMembers {
 
   isMe(member: Member): boolean {
     return member.userId === this.auth.user()?.id;
+  }
+
+  // TODO: le destinataire acceptera ou refusera par notification ; d'ici là,
+  // le transfert s'applique tout de suite.
+  transfer(member: Member): void {
+    const question = `Transférer la propriété de l’organisation à ${member.username} ? Vous resterez membre, sans permission.`;
+    if (!confirm(question)) return;
+    this.run(
+      this.http.post(`${this.base()}/transfer-ownership`, {
+        userId: member.userId,
+      }),
+      () => {
+        this.members.reload();
+        this.organizations.load().subscribe();
+        this.ownershipTransferred.emit();
+      },
+    );
   }
 
   remove(member: Member): void {

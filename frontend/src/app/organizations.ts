@@ -54,6 +54,18 @@ export class Organizations {
       );
   }
 
+  delete(id: string) {
+    return this.http
+      .delete<void>(`/api/organizations/${id}`)
+      .pipe(
+        tap(() =>
+          this.list.update((organizations) =>
+            organizations.filter((organization) => organization.id !== id),
+          ),
+        ),
+      );
+  }
+
   select(id: string): void {
     this.currentId.set(id);
     try {

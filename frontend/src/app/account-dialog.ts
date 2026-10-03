@@ -237,16 +237,15 @@ export class AccountDialog {
   );
 
   constructor() {
-    // Une organisation quittée disparaît de la liste : on passe à la courante.
+    // Une organisation quittée ou supprimée disparaît de la liste : on passe à
+    // la courante, ou à la création s'il n'en reste aucune.
     effect(() => {
-      const current = this.organizations.current();
       if (
         this.section() === 'organizations' &&
         this.page() !== 'new' &&
-        !this.selectedOrganization() &&
-        current
+        !this.selectedOrganization()
       ) {
-        this.page.set(current.id);
+        this.page.set(this.organizations.current()?.id ?? 'new');
       }
     });
   }

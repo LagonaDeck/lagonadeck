@@ -44,4 +44,17 @@ export class OrganizationAccessService {
       throw new ForbiddenException('Permission insuffisante');
     }
   }
+
+  // Réservé au propriétaire, pas à une permission : un groupe peut tout avoir
+  // sans être le groupe Owner.
+  async requireOwner(userId: string, organizationId: string): Promise<void> {
+    await this.getPermissions(userId, organizationId);
+    const ownership = await this.prisma.groupMember.findFirst({
+      where: { organizationId, userId, group: { isOwner: true } },
+      select: { groupId: true },
+    });
+    if (!ownership) {
+      throw new ForbiddenException('Réservé au propriétaire de l’organisation');
+    }
+  }
 }

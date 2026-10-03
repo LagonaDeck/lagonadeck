@@ -11,6 +11,7 @@ import { OrganizationAccessService } from './organization/organization-access.se
 import { OrganizationController } from './organization/organization.controller';
 import { OrganizationService } from './organization/organization.service';
 import { SessionController } from './session/session.controller';
+import { LoginThrottleService } from './session/login-throttle.service';
 import { SessionService } from './session/session.service';
 import { UserController } from './user/user.controller';
 import { UserService } from './user/user.service';
@@ -26,6 +27,7 @@ import { UserService } from './user/user.service';
   providers: [
     UserService,
     SessionService,
+    LoginThrottleService,
     OrganizationService,
     OrganizationAccessService,
     GroupService,

@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../generated/prisma/client';
 import { hashPassword } from '../user/utils/password.util';
+import { LoginThrottleService } from './login-throttle.service';
 import { SessionService } from './session.service';
 import { hashToken } from './utils/token.util';
 
@@ -34,7 +35,11 @@ describe('SessionService', () => {
       },
     };
     const module = await Test.createTestingModule({
-      providers: [SessionService, { provide: PrismaClient, useValue: prisma }],
+      providers: [
+        SessionService,
+        LoginThrottleService,
+        { provide: PrismaClient, useValue: prisma },
+      ],
     }).compile();
     service = module.get(SessionService);
   });
@@ -159,5 +164,30 @@ describe('SessionService', () => {
     expect(prisma.session.deleteMany).toHaveBeenCalledWith({
       where: { refreshTokenHash: hashToken('refresh') },
     });
+  });
+
+  it('bloque le login après 5 échecs, même avec le bon mot de passe', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      salt: 'salt',
+      passwordHash: await hashPassword('Sup3rSecret!', 'salt'),
+    });
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        service.login({ email: 'jane@example.com', password: 'Wr0ng!pass' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    }
+
+    await expect(
+      service.login({ email: 'jane@example.com', password: 'Sup3rSecret!' }),
+    ).rejects.toThrow('Trop de tentatives de connexion');
+    expect(prisma.session.create).not.toHaveBeenCalled();
+  });
+
+  it('purge les sessions dont le refresh token a expiré', async () => {
+    await service.purgeExpired();
+
+    const { where } = prisma.session.deleteMany.mock.calls[0][0];
+    expect(where.refreshExpiresAt.lt).toBeInstanceOf(Date);
   });
 });

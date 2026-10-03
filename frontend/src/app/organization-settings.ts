@@ -23,6 +23,9 @@ import {
 
 type Tab = 'general' | 'members' | 'groups';
 
+const DELETE_CONFIRMATION =
+  'Je confirme que je veux supprimer mon organisation';
+
 const TABS: { id: Tab; label: string }[] = [
   { id: 'general', label: 'Général' },
   { id: 'members', label: 'Membres' },
@@ -137,10 +140,98 @@ const TABS: { id: Tab; label: string }[] = [
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
+
+      @if (isOwner()) {
+        <section class="danger" aria-labelledby="delete-title">
+          <h2 id="delete-title">Supprimer l’organisation</h2>
+          <p>
+            Les membres, les groupes et les invitations sont supprimés avec
+            elle. Cette action est définitive.
+          </p>
+
+          @switch (deleteStep()) {
+            @case ('idle') {
+              <button
+                type="button"
+                class="danger-button"
+                (click)="deleteStep.set('name')"
+              >
+                Supprimer l’organisation
+              </button>
+            }
+            @case ('name') {
+              <label class="confirm-field">
+                <span>
+                  Pour continuer, saisissez le nom de l’organisation :
+                  <strong>{{ organization().name }}</strong>
+                </span>
+                <input
+                  #confirmField
+                  autocomplete="off"
+                  (input)="typed.set($any($event.target).value)"
+                  (keydown.escape)="cancelDelete($event)"
+                />
+              </label>
+              <div class="danger-actions">
+                <button
+                  type="button"
+                  class="danger-button"
+                  [disabled]="typed().trim() !== organization().name"
+                  (click)="nextDeleteStep()"
+                >
+                  Continuer
+                </button>
+                <button
+                  type="button"
+                  class="link-button"
+                  (click)="cancelDelete()"
+                >
+                  Annuler
+                </button>
+              </div>
+            }
+            @case ('phrase') {
+              <label class="confirm-field">
+                <span>
+                  Saisissez :
+                  <strong>{{ confirmationPhrase }}</strong>
+                </span>
+                <input
+                  #confirmField
+                  autocomplete="off"
+                  (input)="typed.set($any($event.target).value)"
+                  (keydown.escape)="cancelDelete($event)"
+                />
+              </label>
+              <div class="danger-actions">
+                <button
+                  type="button"
+                  class="danger-button"
+                  [disabled]="
+                    typed().trim() !== confirmationPhrase || pending()
+                  "
+                  (click)="deleteOrganization()"
+                >
+                  Supprimer définitivement
+                </button>
+                <button
+                  type="button"
+                  class="link-button"
+                  (click)="cancelDelete()"
+                >
+                  Annuler
+                </button>
+              </div>
+            }
+          }
+        </section>
+      }
     } @else if (tab() === 'members') {
       <app-organization-members
         [organizationId]="organization().id"
         [permissions]="permissions()"
+        [isOwner]="isOwner()"
+        (ownershipTransferred)="access.reload()"
       />
     } @else {
       <app-organization-groups
@@ -205,6 +296,62 @@ const TABS: { id: Tab; label: string }[] = [
       max-width: 40rem;
       margin-top: 1rem;
     }
+
+    .danger {
+      max-width: 40rem;
+      margin-top: 2.5rem;
+      padding: 1.25rem;
+      border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--rule));
+      border-radius: 0.75rem;
+    }
+
+    .danger h2 {
+      margin-bottom: 0.5rem;
+      color: var(--danger);
+      font-size: 1.15rem;
+    }
+
+    .danger p {
+      margin-bottom: 1rem;
+      color: var(--slate);
+      font-size: 0.9rem;
+    }
+
+    .confirm-field {
+      display: grid;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .confirm-field input {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      margin-right: 0;
+    }
+
+    .danger-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    .danger-button {
+      padding: 0.5rem 0.9rem;
+      border: 0;
+      border-radius: 0.5rem;
+      background: var(--danger);
+      color: #fff;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .danger-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
   `,
 })
 export class OrganizationSettings {
@@ -215,10 +362,15 @@ export class OrganizationSettings {
   readonly editing = signal(false);
   readonly pending = signal(false);
   readonly error = signal('');
+  readonly confirmationPhrase = DELETE_CONFIRMATION;
+  readonly deleteStep = signal<'idle' | 'name' | 'phrase'>('idle');
+  readonly typed = signal('');
+  private readonly confirmField =
+    viewChild<ElementRef<HTMLInputElement>>('confirmField');
   private readonly field = viewChild<ElementRef<HTMLInputElement>>('field');
 
   // Ne sert qu'à afficher ou masquer les actions : le serveur contrôle chaque appel.
-  private readonly access = httpResource<{ permissions: string[] }>(
+  readonly access = httpResource<{ permissions: string[] }>(
     () => `/api/organizations/${this.organization().id}/me`,
   );
   readonly permissions = computed(() => this.access.value()?.permissions ?? []);
@@ -230,14 +382,21 @@ export class OrganizationSettings {
     organizationInitials(this.organization().name),
   );
   readonly role = computed(() => roleLabel(this.organization()));
+  // Le groupe Owner ne se renomme pas : son nom identifie le propriétaire.
+  readonly isOwner = computed(() =>
+    this.organization().groups.includes('Owner'),
+  );
 
   constructor() {
     effect(() => this.field()?.nativeElement.select());
+    effect(() => this.confirmField()?.nativeElement.focus());
     // Changer d'organisation repart de l'onglet Général, sans saisie en cours.
     effect(() => {
       this.organization();
       this.tab.set('general');
       this.editing.set(false);
+      this.deleteStep.set('idle');
+      this.typed.set('');
       this.error.set('');
     });
   }
@@ -252,6 +411,30 @@ export class OrganizationSettings {
     event?.preventDefault();
     this.error.set('');
     this.editing.set(false);
+  }
+
+  nextDeleteStep(): void {
+    this.typed.set('');
+    this.deleteStep.set('phrase');
+  }
+
+  // Échap annule la suppression sans fermer la modale qui contient la page.
+  cancelDelete(event?: Event): void {
+    event?.preventDefault();
+    this.typed.set('');
+    this.deleteStep.set('idle');
+  }
+
+  deleteOrganization(): void {
+    this.pending.set(true);
+    this.error.set('');
+    this.organizations.delete(this.organization().id).subscribe({
+      next: () => this.pending.set(false),
+      error: (error: HttpErrorResponse) => {
+        this.pending.set(false);
+        this.error.set(errorMessage(error));
+      },
+    });
   }
 
   rename(event: SubmitEvent): void {

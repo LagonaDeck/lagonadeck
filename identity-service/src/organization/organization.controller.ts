@@ -23,6 +23,7 @@ import {
   NameDto,
   OrganizationDto,
   PermissionsDto,
+  TransferOwnershipDto,
 } from './models/dtos/organization.dto';
 import { OrganizationAccessService } from './organization-access.service';
 import { OrganizationService } from './organization.service';
@@ -66,6 +67,43 @@ export class OrganizationController {
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
   ): Promise<OrganizationDto> {
     return this.organizationService.get(userId, organizationId);
+  }
+
+  @Post(':organizationId/transfer-ownership')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Transfère la propriété à un membre ; l’ancien propriétaire reste membre (propriétaire uniquement).',
+  })
+  @ApiResponse({ status: 403, description: 'Réservé au propriétaire.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Le destinataire n’est pas membre.',
+  })
+  transferOwnership(
+    @CurrentUserId() userId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() dto: TransferOwnershipDto,
+  ): Promise<void> {
+    return this.organizationService.transferOwnership(
+      userId,
+      organizationId,
+      dto.userId,
+    );
+  }
+
+  @Delete(':organizationId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Supprime une organisation, avec ses membres, groupes et invitations (propriétaire uniquement).',
+  })
+  @ApiResponse({ status: 403, description: 'Réservé au propriétaire.' })
+  delete(
+    @CurrentUserId() userId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+  ): Promise<void> {
+    return this.organizationService.delete(userId, organizationId);
   }
 
   @Patch(':organizationId')

@@ -3,7 +3,10 @@ import { Permission } from '../generated/prisma/client';
 import { OrganizationAccessService } from './organization-access.service';
 
 describe('OrganizationAccessService', () => {
-  let prisma: { organizationMember: { findUnique: jest.Mock } };
+  let prisma: {
+    organizationMember: { findUnique: jest.Mock };
+    groupMember: { findFirst: jest.Mock };
+  };
   let access: OrganizationAccessService;
 
   const memberOf = (
@@ -15,7 +18,10 @@ describe('OrganizationAccessService', () => {
   });
 
   beforeEach(() => {
-    prisma = { organizationMember: { findUnique: jest.fn() } };
+    prisma = {
+      organizationMember: { findUnique: jest.fn() },
+      groupMember: { findFirst: jest.fn() },
+    };
     access = new OrganizationAccessService(prisma as never);
   });
 
@@ -125,6 +131,41 @@ describe('OrganizationAccessService', () => {
       await expect(
         access.requirePermission('user-1', 'org-2', 'GROUP_CREATE'),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('requireOwner', () => {
+    it('laisse passer le propriétaire, membre du groupe Owner', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue(
+        memberOf({ isOwner: true }),
+      );
+      prisma.groupMember.findFirst.mockResolvedValue({
+        groupId: 'group-owner',
+      });
+
+      await expect(
+        access.requireOwner('user-1', 'org-1'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('refuse un membre qui a toutes les permissions sans être propriétaire (403)', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue(
+        memberOf({ permissions: Object.values(Permission) }),
+      );
+      prisma.groupMember.findFirst.mockResolvedValue(null);
+
+      await expect(
+        access.requireOwner('user-2', 'org-1'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('lève une 404 pour un non-membre', async () => {
+      prisma.organizationMember.findUnique.mockResolvedValue(null);
+
+      await expect(
+        access.requireOwner('user-3', 'org-1'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.groupMember.findFirst).not.toHaveBeenCalled();
     });
   });
 });

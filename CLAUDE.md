@@ -106,6 +106,11 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   - on rejoint une organisation par une invitation acceptée ; une adresse
     sans compte reçoit une `EmailInvitation`, qui devient une invitation au
     signup (le signup peut en accepter une, sans organisation personnelle).
+  - supprimer l'organisation ou en transférer la propriété (à un membre) est
+    réservé au propriétaire (`requireOwner`), pas à une permission ;
+  - login bloqué 15 min après 5 échecs pour un même email
+    (`LoginThrottleService`, en mémoire) ; sessions expirées purgées toutes les
+    heures par un `setInterval`, comme les médias PENDING.
 - **media** :
   - le client S3 vit dans `MediaService` ;
   - type et taille sont figés dans la policy du POST pré-signé, puis
