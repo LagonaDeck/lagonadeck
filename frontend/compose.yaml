@@ -1,5 +1,7 @@
 services:
   frontend:
     build: { context: ., target: dev }
+    environment:
+      API_GATEWAY_URL: http://api-gateway:3000
     ports: ['4200:4200']
     volumes: ['.:/app', '/app/node_modules']

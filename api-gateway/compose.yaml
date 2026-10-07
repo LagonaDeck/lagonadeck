@@ -1,5 +1,7 @@
 services:
   api-gateway:
     build: { context: ., target: dev }
+    environment:
+      IDENTITY_SERVICE_URL: http://identity-service:3001
     ports: ['3000:3000']
     volumes: ['.:/app', '/app/node_modules']
