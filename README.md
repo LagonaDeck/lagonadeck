@@ -37,6 +37,7 @@ frontend/           Angular, appelle uniquement l'api-gateway
 api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
 identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
+inventory-service/  NestJS + Prisma : catalogue Pokémon (TCGdex, prix Cardmarket), stock des organisations
 ```
 
 Communication entre services :
@@ -53,8 +54,8 @@ Communication entre services :
 make docker-dev-up-rebuild   # arrêt : make docker-dev-down
 ```
 
-Lance le frontend (4200), l'api-gateway (3000), identity-service (3001) et
-media-service (3006) en hot reload, avec un Postgres par service et MinIO
+Lance le frontend (4200), l'api-gateway (3000), identity-service (3001),
+inventory-service (3002) et media-service (3006) en hot reload, avec un Postgres par service et MinIO
 (console sur 9001). Les migrations Prisma sont appliquées au démarrage. Chaque
 projet a son propre `compose.yaml` (service + sa base) : `docker compose up`
 dans son dossier le lance seul. Après

@@ -11,7 +11,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ServerResponse } from 'node:http';
-import { callIdentity, readCookie } from './identity';
+import { callIdentity } from './identity';
+import { readCookie } from './relay';
 
 interface Session {
   token: string;

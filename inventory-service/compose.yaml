@@ -1,0 +1,26 @@
+services:
+  inventory-service:
+    build: { context: ., target: dev }
+    command: sh -c 'npx prisma migrate deploy && npm run start:dev'
+    environment:
+      DATABASE_URL: postgresql://lagonadeck:lagonadeck@inventory-db:5432/app
+      IDENTITY_SERVICE_URL: http://identity-service:3001
+    ports: ['3002:3002']
+    volumes: ['.:/app', '/app/node_modules']
+    depends_on:
+      inventory-db: { condition: service_healthy }
+
+  inventory-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: lagonadeck
+      POSTGRES_PASSWORD: lagonadeck
+      POSTGRES_DB: app
+    volumes: ['inventory-db:/var/lib/postgresql/data']
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'lagonadeck', '-d', 'app']
+      interval: 2s
+      retries: 15
+
+volumes:
+  inventory-db:

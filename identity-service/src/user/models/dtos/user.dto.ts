@@ -17,6 +17,7 @@ import {
   MinLength,
 } from 'class-validator';
 import type { User } from '../../../generated/prisma/client';
+import { StaffPermission } from '../../../generated/prisma/enums';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -122,9 +123,18 @@ export class CurrentUserDto extends UserPublicDto {
   @ApiProperty()
   email!: string;
 
+  @ApiProperty({
+    enum: StaffPermission,
+    isArray: true,
+    description:
+      'Permissions de l’équipe LagonaDeck ; vide pour un utilisateur.',
+  })
+  staffPermissions!: StaffPermission[];
+
   static override fromEntity(user: User): CurrentUserDto {
     return Object.assign(new CurrentUserDto(), UserPublicDto.fromEntity(user), {
       email: user.email,
+      staffPermissions: user.staffPermissions,
     });
   }
 }

@@ -9,12 +9,21 @@ import {
   LucideBuilding,
   LucideCheck,
   LucideChevronsUpDown,
+  LucideLayoutDashboard,
   LucideLogOut,
+  LucidePackage,
   LucidePanelLeftClose,
   LucidePanelLeftOpen,
+  LucideFlag,
+  LucideShieldCheck,
   LucideUserCog,
 } from '@lucide/angular';
-import { Router } from '@angular/router';
+import {
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { AccountDialog, AccountSection } from './account-dialog';
 import { Auth } from './auth';
 import {
@@ -40,10 +49,17 @@ function readCollapsed(): boolean {
     LucideBuilding,
     LucideCheck,
     LucideChevronsUpDown,
+    LucideLayoutDashboard,
     LucideLogOut,
+    LucidePackage,
     LucidePanelLeftClose,
     LucidePanelLeftOpen,
+    LucideFlag,
+    LucideShieldCheck,
     LucideUserCog,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
   ],
   template: `
     <aside class="sidebar">
@@ -110,7 +126,44 @@ function readCollapsed(): boolean {
           </div>
         </details>
       }
-      <nav aria-label="Navigation principale"></nav>
+      <nav aria-label="Navigation principale">
+        <a
+          routerLink="/app"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          [routerLinkActiveOptions]="{ exact: true }"
+          title="Tableau de bord"
+        >
+          <svg lucideLayoutDashboard [size]="20" aria-hidden="true"></svg>
+          <span>Tableau de bord</span>
+        </a>
+        <a
+          routerLink="/app/inventory"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          title="Inventaire"
+        >
+          <svg lucidePackage [size]="20" aria-hidden="true"></svg>
+          <span>Inventaire</span>
+        </a>
+      </nav>
+      @if (auth.catalogStaff()) {
+        <nav class="management" aria-labelledby="management-title">
+          <p id="management-title" class="nav-title">
+            <svg lucideShieldCheck [size]="16" aria-hidden="true"></svg>
+            <span>Gestion LagonaDeck</span>
+          </p>
+          <a
+            routerLink="/app/management/reports"
+            routerLinkActive="active"
+            ariaCurrentWhenActive="page"
+            title="Signalements cartes incomplètes"
+          >
+            <svg lucideFlag [size]="20" aria-hidden="true"></svg>
+            <span>Signalements cartes incomplètes</span>
+          </a>
+        </nav>
+      }
       <button
         type="button"
         class="collapse"
@@ -157,8 +210,7 @@ function readCollapsed(): boolean {
     </header>
 
     <main class="content">
-      <h1>Tableau de bord</h1>
-      <p class="empty">Vos lots, votre stock et vos ventes apparaîtront ici.</p>
+      <router-outlet />
     </main>
 
     <app-account-dialog />

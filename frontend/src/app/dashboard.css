@@ -1,11 +1,13 @@
+/* Hauteur de la fenêtre : la page ne défile pas, chaque écran gère son
+   propre défilement dans la zone de contenu. */
 :host {
   display: grid;
   grid-template-areas:
     'sidebar topbar'
     'sidebar content';
   grid-template-columns: 16rem minmax(0, 1fr);
-  grid-template-rows: 4rem 1fr;
-  min-height: 100vh;
+  grid-template-rows: 4rem minmax(0, 1fr);
+  height: 100dvh;
   transition: grid-template-columns 200ms ease;
 }
 
@@ -156,14 +158,78 @@
     display: none;
   }
 
+  :host(.collapsed) nav a {
+    justify-content: center;
+  }
+
+  :host(.collapsed) nav a span,
+  :host(.collapsed) .nav-title span {
+    display: none;
+  }
+
+  :host(.collapsed) .nav-title {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
   :host(.collapsed) .org-menu {
     top: 0.35rem;
     left: calc(100% + 0.5rem);
   }
 }
 
+/* La dernière navigation prend la place restante : le bouton de repli reste en bas. */
 nav {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+}
+
+nav:last-of-type {
   flex: 1;
+}
+
+/* Section de l'équipe LagonaDeck, sous la navigation principale. */
+nav.management {
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.nav-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.35rem;
+  color: #c9cef0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #c9cef0;
+  text-decoration: none;
+}
+
+nav a svg {
+  flex: none;
+}
+
+nav a:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
+nav a.active {
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  font-weight: 700;
 }
 
 .collapse {
@@ -305,16 +371,8 @@ nav {
 
 .content {
   grid-area: content;
+  overflow: auto;
   padding: 2rem clamp(1.25rem, 4vw, 3rem);
-}
-
-h1 {
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-}
-
-.empty {
-  margin-top: 0.75rem;
-  color: var(--slate);
 }
 
 @media (max-width: 48rem) {
@@ -326,6 +384,12 @@ h1 {
       'content';
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 4rem 1fr;
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .content {
+    overflow: visible;
   }
 
   .sidebar {
@@ -337,6 +401,20 @@ h1 {
 
   .switcher {
     border-bottom: 0;
+  }
+
+  nav {
+    display: flex;
+    padding-bottom: 0.75rem;
+  }
+
+  nav.management {
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+  }
+
+  .nav-title {
+    width: 100%;
   }
 
   .collapse {
