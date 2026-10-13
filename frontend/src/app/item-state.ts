@@ -45,7 +45,10 @@ import {
   `,
 })
 export class ItemState {
-  readonly item = input.required<InventoryItem>();
+  readonly item =
+    input.required<
+      Pick<InventoryItem, 'condition' | 'gradingCompany' | 'grade' | 'reverse'>
+    >();
   readonly conditions = CONDITIONS;
   readonly codes = CONDITION_CODES;
   readonly gradingCompanies = GRADING_COMPANIES;

@@ -23,8 +23,9 @@ Docker Compose.
   `/api/auth` (signup, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
   est relayé tel quel à identity, sauf `/api/organizations/:id/inventory/**`
-  et `/api/products/**` relayés à inventory, avec le cookie `session` en
-  `Bearer` (`relay.ts`) ; les permissions restent dans les services.
+  et `/api/products/**` relayés à inventory, et
+  `/api/organizations/:id/purchases/**` relayé à purchase, avec le cookie
+  `session` en `Bearer` (`relay.ts`) ; les permissions restent dans les services.
 - `identity-service/` : NestJS + Prisma, utilisateurs (`/api/users`), sessions
   (`/api/sessions`), organisations, groupes et invitations
   (`/api/organizations`).
@@ -33,16 +34,18 @@ Docker Compose.
 - `inventory-service/` : NestJS + Prisma, catalogue Pokémon global
   (`/api/products`, TCGdex et Cardmarket) et stock de chaque organisation
   (`/api/organizations/:organizationId/inventory`).
+- `purchase-service/` : NestJS + Prisma, achats de chaque organisation
+  (`/api/organizations/:organizationId/purchases`).
 
 **Commandes** :
 
 ```bash
 make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
-make build                           # build des 5 projets
-make test                            # tests d'identity-service, media-service et inventory-service
+make build                           # build des 6 projets
+make test                            # tests d'identity-service, media-service, inventory-service et purchase-service
 make format                          # Prettier sur tout le dépôt
-make lint                            # ESLint dans les 5 projets
+make lint                            # ESLint dans les 6 projets
 make quality                         # make format puis make lint
 make docker-dev-up-rebuild           # tout le système en arrière-plan (dev.compose.yaml fait un include: des composes des projets)
 make docker-dev-down                 # arrête la stack
@@ -53,7 +56,7 @@ Dans le dossier d'un projet :
 ```bash
 npm run start:dev                    # frontend : npm start
 npm run build                        # services : prisma generate && nest build → dist/main.js
-npm test                             # identity-service, media-service, inventory-service
+npm test                             # identity-service, media-service, inventory-service, purchase-service
 npm run lint                         # ESLint (services Prisma : prisma generate d'abord)
 npx jest src/user.service.spec.ts    # un fichier de test (après un premier npx prisma generate)
 npx jest -t "nom du test"            # un test par nom
@@ -75,7 +78,7 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   (prefix `api`, `ValidationPipe` en whitelist + forbidNonWhitelisted, Swagger
   sur `/api/docs`). Un fichier par rôle : `*.controller.ts`, `*.service.ts`,
   et tous les DTO dans `*.dto.ts`. Pas de modules Nest intermédiaires.
-  media-service et inventory-service sont à plat ; identity-service range chaque domaine dans un
+  media-service, inventory-service et purchase-service sont à plat ; identity-service range chaque domaine dans un
   dossier (`user/`, `session/`, `organization/`), avec `models/dtos/` et
   `utils/`.
 - **tsconfig des services Prisma** : `tsconfig.json` inclut les specs (pour
@@ -163,8 +166,25 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
     SQL dans `summary`) ;
   - le frontend affiche « Pingoléon FB (SV 27) » puis « Vainqueurs Suprêmes -
     Empoleon FB - Cartes ».
-- **Communication inter-services** (inventory → identity en synchrone ; le reste
-  est cible) :
+- **purchase** :
+  - un achat (souvent un lot) a un fournisseur, une date, un prix et des frais ;
+    lecture pour un membre, écriture avec `PURCHASE_MANAGE` (et
+    `INVENTORY_MANAGE`, vérifiée par inventory) ;
+  - l'enregistrer crée ses exemplaires dans inventory (`InventoryService`,
+    token transmis tel quel), un par unité, puis l'achat ; si une étape échoue,
+    les exemplaires déjà créés sont retirés du stock ;
+  - chaque `PurchaseLine` copie le produit et l'état de son exemplaire :
+    l'achat reste lisible quand l'exemplaire quitte le stock ;
+  - coût (`allocateCosts`, en centimes) : un coût unitaire saisi est gardé, le
+    reste du prix et des frais est réparti au prorata du Price Trend du jour ;
+    un exemplaire sans prix compte pour la moyenne des autres, et sans aucun
+    prix, la part est égale ; les centimes d'arrondi vont aux plus grands
+    restes ;
+  - supprimer un achat retire ses exemplaires du stock (correction de saisie) ;
+  - la fiche d'un exemplaire affiche son coût d'achat
+    (`GET purchases/items/:inventoryItemId`, 404 hors achat).
+- **Communication inter-services** (inventory et purchase → identity, purchase
+  → inventory, en synchrone ; le reste est cible) :
   - synchrone : `fetch` avec `signal: AbortSignal.timeout(5000)` et une URL en
     variable d'env `SERVICE_X_URL` ;
   - asynchrone : RabbitMQ via `@nestjs/microservices`, une file durable par
