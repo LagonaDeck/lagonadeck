@@ -1,0 +1,157 @@
+/* Pages des achats : mêmes en-têtes, totaux et tableaux que l'inventaire. */
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: start;
+  color: var(--slate);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--blue);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.summary div {
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.summary dt {
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+.summary dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.table {
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  white-space: nowrap;
+}
+
+tbody tr:last-child td,
+tfoot td {
+  border-bottom: 0;
+}
+
+tfoot td {
+  border-top: 1px solid var(--rule);
+  font-weight: 700;
+}
+
+th {
+  color: var(--slate);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-link {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.row-link:hover {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+.product {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.identity {
+  display: grid;
+  min-width: 14rem;
+  white-space: normal;
+}
+
+a.product:hover strong {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+.identity span {
+  color: var(--slate);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.empty {
+  color: var(--slate);
+  text-align: center;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

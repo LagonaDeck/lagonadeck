@@ -7,6 +7,7 @@ import {
   Component,
   ElementRef,
   afterNextRender,
+  computed,
   inject,
   input,
   output,
@@ -36,7 +37,21 @@ import {
 const SEARCH_DELAY_MS = 250;
 const MIN_QUERY_LENGTH = 2;
 
-/** Modale d'ajout : chaque ajout crée un exemplaire du stock. */
+/** Exemplaire choisi pour un achat : il n'entre au stock qu'avec l'achat. */
+export interface PickedItem {
+  product: Product;
+  condition?: string;
+  language?: string;
+  gradingCompany?: string;
+  grade?: number;
+  reverse?: boolean;
+}
+
+/**
+ * Modale d'ajout : chaque ajout crée un exemplaire du stock. Pour un achat
+ * (`forPurchase`), l'exemplaire est seulement émis par `picked`, et la modale
+ * reste ouverte pour les suivants.
+ */
 @Component({
   selector: 'app-inventory-add',
   host: { '(click)': 'closeOnBackdrop($event.target)' },
@@ -48,7 +63,7 @@ const MIN_QUERY_LENGTH = 2;
       (close)="closed.emit()"
     >
       <header>
-        <h2 id="inventory-add-title">Ajouter au stock</h2>
+        <h2 id="inventory-add-title">{{ submitLabel() }}</h2>
         <button
           type="button"
           class="icon-button"
@@ -64,6 +79,11 @@ const MIN_QUERY_LENGTH = 2;
         <section class="finder" aria-label="Catalogue">
           @if (error() && !selected()) {
             <p class="error" role="alert">{{ error() }}</p>
+          }
+          @if (lastPicked()) {
+            <p class="success" role="status">
+              {{ lastPicked() }} est dans l’achat.
+            </p>
           }
           @if (reporting()) {
             @if (reported()) {
@@ -365,7 +385,7 @@ const MIN_QUERY_LENGTH = 2;
               }
 
               <footer>
-                <button class="small-button submit">Ajouter au stock</button>
+                <button class="small-button submit">{{ submitLabel() }}</button>
                 @if (error()) {
                   <p class="error" role="alert">{{ error() }}</p>
                 }
@@ -789,7 +809,13 @@ const MIN_QUERY_LENGTH = 2;
 export class InventoryAdd {
   private readonly http = inject(HttpClient);
   readonly organizationId = input.required<string>();
+  readonly forPurchase = input(false);
   readonly added = output();
+  readonly picked = output<PickedItem>();
+  readonly lastPicked = signal('');
+  readonly submitLabel = computed(() =>
+    this.forPurchase() ? 'Ajouter à l’achat' : 'Ajouter au stock',
+  );
   readonly closed = output();
   readonly productTypes = options(PRODUCT_TYPES);
   readonly conditions = options(CONDITIONS);
@@ -841,6 +867,7 @@ export class InventoryAdd {
 
   // Attend une courte pause dans la saisie avant d'interroger le serveur.
   search(value: string): void {
+    this.lastPicked.set('');
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(
       () => this.query.set(value.trim()),
@@ -889,14 +916,23 @@ export class InventoryAdd {
     const { condition, language, gradingCompany, grade, reverse } = formValues(
       event,
     ) as Record<string, string | undefined>;
+    const item = {
+      ...(condition && { condition }),
+      ...(language && { language }),
+      ...(gradingCompany && { gradingCompany, grade: Number(grade) }),
+      ...(reverse && { reverse: true }),
+    };
+    if (this.forPurchase()) {
+      this.picked.emit({ product, ...item });
+      this.select(null);
+      this.lastPicked.set(cardName(product));
+      return;
+    }
     this.error.set('');
     this.http
       .post(`/api/organizations/${this.organizationId()}/inventory`, {
         productId: product.id,
-        ...(condition && { condition }),
-        ...(language && { language }),
-        ...(gradingCompany && { gradingCompany, grade: Number(grade) }),
-        ...(reverse && { reverse: true }),
+        ...item,
       })
       .subscribe({
         next: () => {

@@ -16,6 +16,9 @@ async function bootstrap() {
   if (!process.env.INVENTORY_SERVICE_URL) {
     throw new Error('INVENTORY_SERVICE_URL is not set');
   }
+  if (!process.env.PURCHASE_SERVICE_URL) {
+    throw new Error('PURCHASE_SERVICE_URL is not set');
+  }
 
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
