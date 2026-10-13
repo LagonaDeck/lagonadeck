@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "Permission" ADD VALUE 'INVENTORY_MANAGE';

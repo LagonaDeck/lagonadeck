@@ -146,7 +146,7 @@ describe('CreateUserDto', () => {
 });
 
 describe('CurrentUserDto', () => {
-  it("expose l'email à l'utilisateur lui-même, jamais le hash ni le salt", () => {
+  it("expose l'email et les permissions d'équipe à l'utilisateur lui-même, jamais le hash ni le salt", () => {
     const dto = CurrentUserDto.fromEntity({
       id: 'user-1',
       email: 'jane@example.com',
@@ -154,6 +154,7 @@ describe('CurrentUserDto', () => {
       usernameNormalized: 'janedoe',
       passwordHash: 'hashed',
       salt: 'salt',
+      staffPermissions: ['CATALOG_MANAGE'],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });
@@ -163,6 +164,7 @@ describe('CurrentUserDto', () => {
       id: 'user-1',
       email: 'jane@example.com',
       username: 'JaneDoe',
+      staffPermissions: ['CATALOG_MANAGE'],
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     });

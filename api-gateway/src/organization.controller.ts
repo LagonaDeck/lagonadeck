@@ -1,54 +1,22 @@
-import {
-  All,
-  Controller,
-  Headers,
-  NotFoundException,
-  Req,
-  Res,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { All, Controller, Headers, Req, Res } from '@nestjs/common';
 import type { ServerResponse } from 'node:http';
-import { fetchIdentity, readCookie } from './identity';
+import { relay, type ProxiedRequest } from './relay';
 
-const IDENTITY_PREFIX = '/api/organizations';
-const METHODS_WITH_BODY = new Set(['POST', 'PUT', 'PATCH']);
+const INVENTORY_PATH = /^\/api\/organizations\/[^/]+\/inventory(\/|$)/;
 
-interface ProxiedRequest {
-  method: string;
-  url: string;
-  body: unknown;
-}
-
-// Relais sans logique : identity authentifie le token et applique les
-// permissions, la gateway n'ajoute aucune règle.
+// Le stock d'une organisation vit dans inventory, le reste dans identity.
 @Controller('organizations')
 export class OrganizationController {
   @All(['', '*path'])
-  async forward(
+  forward(
     @Req() req: ProxiedRequest,
     @Headers('cookie') cookies: string | undefined,
     @Res() res: ServerResponse,
   ): Promise<void> {
-    const token = readCookie(cookies, 'session');
-    if (!token) throw new UnauthorizedException('Session invalide');
-
-    // Normalisée comme le ferait `fetch` : un `..` ne doit pas sortir du préfixe.
-    const { pathname, search } = new URL(req.url, 'http://gateway');
-    if (
-      pathname !== IDENTITY_PREFIX &&
-      !pathname.startsWith(`${IDENTITY_PREFIX}/`)
-    ) {
-      throw new NotFoundException();
-    }
-
-    const response = await fetchIdentity(pathname + search, {
-      method: req.method,
-      body: METHODS_WITH_BODY.has(req.method) ? req.body : undefined,
-      token,
-    });
-    res.statusCode = response.status;
-    const contentType = response.headers.get('content-type');
-    if (contentType) res.setHeader('content-type', contentType);
-    res.end(await response.text());
+    return relay(req, cookies, res, '/api/organizations', (pathname) =>
+      INVENTORY_PATH.test(pathname)
+        ? process.env.INVENTORY_SERVICE_URL
+        : process.env.IDENTITY_SERVICE_URL,
+    );
   }
 }

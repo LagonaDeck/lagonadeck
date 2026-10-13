@@ -16,6 +16,14 @@
   --gold: #f2c230;
   --danger: light-dark(#d12a52, #f87191);
   --success: light-dark(#15803d, #4ade80);
+  /* États des cartes, aux couleurs de Cardmarket que les vendeurs connaissent. */
+  --condition-mint: #0f7c8c;
+  --condition-near-mint: #2e7d32;
+  --condition-excellent: #9bb726;
+  --condition-good: #f2c230;
+  --condition-light-played: #f39a2b;
+  --condition-played: #c4501d;
+  --condition-poor: #c62828;
 
   --font-display: 'Saira', sans-serif;
   --font-body: 'Atkinson Hyperlegible Next', sans-serif;
@@ -267,6 +275,22 @@ input:focus-visible {
 
 .icon-button.discard:hover {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+/* Vignette de carte, au format d'une carte (63 × 88 mm) ; vide sans image. */
+.card-thumb {
+  flex: none;
+  width: 2.5rem;
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  background: var(--hover);
+}
+
+.card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 @media (prefers-reduced-motion: no-preference) {

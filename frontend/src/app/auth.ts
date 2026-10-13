@@ -3,7 +3,7 @@ import {
   HttpErrorResponse,
   HttpInterceptorFn,
 } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { catchError, map, of, switchMap, tap, throwError } from 'rxjs';
 
@@ -11,12 +11,17 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  staffPermissions: string[];
 }
 
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly http = inject(HttpClient);
   readonly user = signal<User | null>(null);
+  // Équipe LagonaDeck : corrige le catalogue partagé par toutes les organisations.
+  readonly catalogStaff = computed(
+    () => this.user()?.staffPermissions.includes('CATALOG_MANAGE') ?? false,
+  );
 
   signup(form: object) {
     return this.http.post('/api/auth/signup', form);

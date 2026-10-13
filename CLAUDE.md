@@ -22,23 +22,27 @@ Docker Compose.
 - `api-gateway/` : NestJS, seul point d'entrée HTTP, sans base. Routes
   `/api/auth` (signup, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
-  est relayé tel quel à identity avec le cookie `session` en `Bearer` ; les
-  permissions restent dans identity.
+  est relayé tel quel à identity, sauf `/api/organizations/:id/inventory/**`
+  et `/api/products/**` relayés à inventory, avec le cookie `session` en
+  `Bearer` (`relay.ts`) ; les permissions restent dans les services.
 - `identity-service/` : NestJS + Prisma, utilisateurs (`/api/users`), sessions
   (`/api/sessions`), organisations, groupes et invitations
   (`/api/organizations`).
 - `media-service/` : NestJS + Prisma + S3, upload par POST pré-signé
   (`/api/media`).
+- `inventory-service/` : NestJS + Prisma, catalogue Pokémon global
+  (`/api/products`, TCGdex et Cardmarket) et stock de chaque organisation
+  (`/api/organizations/:organizationId/inventory`).
 
 **Commandes** :
 
 ```bash
 make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
-make build                           # build des 4 projets
-make test                            # tests d'identity-service et media-service
+make build                           # build des 5 projets
+make test                            # tests d'identity-service, media-service et inventory-service
 make format                          # Prettier sur tout le dépôt
-make lint                            # ESLint dans les 4 projets
+make lint                            # ESLint dans les 5 projets
 make quality                         # make format puis make lint
 make docker-dev-up-rebuild           # tout le système en arrière-plan (dev.compose.yaml fait un include: des composes des projets)
 make docker-dev-down                 # arrête la stack
@@ -49,7 +53,7 @@ Dans le dossier d'un projet :
 ```bash
 npm run start:dev                    # frontend : npm start
 npm run build                        # services : prisma generate && nest build → dist/main.js
-npm test                             # identity-service, media-service
+npm test                             # identity-service, media-service, inventory-service
 npm run lint                         # ESLint (services Prisma : prisma generate d'abord)
 npx jest src/user.service.spec.ts    # un fichier de test (après un premier npx prisma generate)
 npx jest -t "nom du test"            # un test par nom
@@ -71,7 +75,7 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   (prefix `api`, `ValidationPipe` en whitelist + forbidNonWhitelisted, Swagger
   sur `/api/docs`). Un fichier par rôle : `*.controller.ts`, `*.service.ts`,
   et tous les DTO dans `*.dto.ts`. Pas de modules Nest intermédiaires.
-  media-service est à plat ; identity-service range chaque domaine dans un
+  media-service et inventory-service sont à plat ; identity-service range chaque domaine dans un
   dossier (`user/`, `session/`, `organization/`), avec `models/dtos/` et
   `utils/`.
 - **tsconfig des services Prisma** : `tsconfig.json` inclut les specs (pour
@@ -108,6 +112,10 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
     signup (le signup peut en accepter une, sans organisation personnelle).
   - supprimer l'organisation ou en transférer la propriété (à un membre) est
     réservé au propriétaire (`requireOwner`), pas à une permission ;
+  - équipe LagonaDeck : `User.staffPermissions` (enum `StaffPermission`,
+    `CATALOG_MANAGE`), sur toute la plateforme et hors organisation, renvoyées
+    par `/api/sessions/current` ; aucune route ne les accorde (la future section
+    « Gestion LagonaDeck » le fera) ;
   - login bloqué 15 min après 5 échecs pour un même email
     (`LoginThrottleService`, en mémoire) ; sessions expirées purgées toutes les
     heures par un `setInterval`, comme les médias PENDING.
@@ -116,7 +124,47 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   - type et taille sont figés dans la policy du POST pré-signé, puis
     revérifiés par `HeadObject` à `confirm` ;
   - un `setInterval` purge les médias `PENDING` expirés.
-- **Communication inter-services** (règles cibles, rien n'est encore câblé) :
+- **inventory** (Pokémon uniquement) :
+  - catalogue `Product` : une carte est identifiée par son set et son numéro,
+    depuis TCGdex (archive `cards-database`, `tcgdexId` = `<langue>/<set>-<numéro>`,
+    nom français, rareté, image, attaques) ; les produits scellés viennent de
+    Cardmarket ; un utilisateur peut ajouter un produit absent (`MANUAL`) ;
+  - `CardmarketProduct` copie les fichiers Cardmarket (`products_singles_6`,
+    `products_nonsingles_6`, `price_guide_6`) : trend, low, moyennes 1/7/30
+    jours ; le prix d'un produit vient du produit Cardmarket auquel il est lié ;
+    chaque import du price guide ajoute un relevé du jour (`PriceSnapshot`),
+    servi par `GET /api/products/:id/price-history` (365 jours) ;
+  - lien carte → Cardmarket (`cardmarketLinks`) : seulement s'il est sûr, à
+    partir des identifiants annoncés par TCGdex (parfois faux) : attaques
+    identiques au nom Cardmarket, variante de base, une seule carte par produit.
+    Sinon la carte reste sans prix, jamais avec un prix faux. Un lien saisi à la
+    main (`PUT /api/products/:id/cardmarket`) n'est plus touché par la synchro ;
+  - le catalogue est partagé : le modifier (lien Cardmarket, produit ajouté à la
+    main) est réservé à l'équipe (`CATALOG_MANAGE`, `requireStaff`) ; un
+    utilisateur le signale (`CatalogReport`, `POST /api/products/reports`, avec
+    ou sans produit) et l'équipe traite les signalements dans la section
+    « Gestion LagonaDeck » du frontend ;
+  - `CatalogSyncService` : vérification toutes les heures, un fichier n'est
+    retéléchargé qu'après 24 h et s'il a changé (ETag) ; un fichier en échec
+    n'écrit rien, les produits gardent leurs dernières données ;
+  - recherche (`searchCondition`) : chaque mot commence un mot du nom (français
+    ou anglais), du set ou du numéro (`searchText` normalisé, index trigram) ;
+    dès 4 lettres, tolérance aux fautes (`pg_trgm`, seuil 0,45) ; classement par
+    distance d'édition (`fuzzystrmatch`) ;
+  - l'accès passe par identity (`IdentityService`, token transmis tel quel) :
+    lecture pour un membre, écriture avec `INVENTORY_MANAGE` ;
+  - le stock est fait d'exemplaires uniques, sans quantité : chaque ajout crée
+    un `InventoryItem` (il aura son emplacement et ses photos) ;
+  - une carte à l'unité est brute (état obligatoire) ou gradée (société et note
+    à la place de l'état) ; une carte gradée n'est pas valorisée au Price Trend ;
+  - une carte à l'unité peut être une reverse (`InventoryItem.reverse`), refusée
+    si TCGdex dit qu'elle n'existe pas en reverse (`Product.hasReverse`) ; elle
+    vaut le `trendHolo` de son produit Cardmarket (`unitPrice`, même règle en
+    SQL dans `summary`) ;
+  - le frontend affiche « Pingoléon FB (SV 27) » puis « Vainqueurs Suprêmes -
+    Empoleon FB - Cartes ».
+- **Communication inter-services** (inventory → identity en synchrone ; le reste
+  est cible) :
   - synchrone : `fetch` avec `signal: AbortSignal.timeout(5000)` et une URL en
     variable d'env `SERVICE_X_URL` ;
   - asynchrone : RabbitMQ via `@nestjs/microservices`, une file durable par

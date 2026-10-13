@@ -18,16 +18,18 @@ datasource db {
 // unique sans tenir compte de la casse via `usernameNormalized`, mot de passe
 // haché avec scrypt et un salt aléatoire (jamais en clair).
 model User {
-  id                 String   @id @default(uuid()) @db.Uuid
-  email              String   @unique
+  id                 String            @id @default(uuid()) @db.Uuid
+  email              String            @unique
   // Tel que saisi, casse comprise : c'est la valeur affichée.
   username           String
   // Minuscules : porte l'unicité, pour que `JaneDoe` et `janedoe` entrent en conflit.
-  usernameNormalized String   @unique
+  usernameNormalized String            @unique
   passwordHash       String
   salt               String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  // Équipe LagonaDeck : permissions sur toute la plateforme, hors organisation.
+  staffPermissions   StaffPermission[] @default([])
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   sessions            Session[]
   memberships         OrganizationMember[]
@@ -48,6 +50,12 @@ model Session {
   createdAt        DateTime @default(now())
 }
 
+// Aucune route ne les accorde.
+// TODO(gestion LagonaDeck) : la section de l'équipe les accordera.
+enum StaffPermission {
+  CATALOG_MANAGE
+}
+
 enum Plan {
   DISCOVERY
 }
@@ -65,6 +73,7 @@ enum Permission {
   MEMBER_MANAGE_GROUPS
   BILLING_VIEW
   BILLING_MANAGE
+  INVENTORY_MANAGE
 }
 
 model Organization {
