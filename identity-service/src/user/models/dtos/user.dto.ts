@@ -94,6 +94,17 @@ export class ChangePasswordDto extends PickType(CreateUserDto, [
   currentPassword!: string;
 }
 
+export class ConfirmEmailDto {
+  @ApiProperty({ description: 'Token du lien reçu par e-mail.' })
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+}
+
+export class ResendConfirmationDto extends PickType(CreateUserDto, [
+  'email',
+] as const) {}
+
 /** Vue d'un utilisateur lisible par un tiers : ni email, ni hash, ni salt. */
 export class UserPublicDto {
   @ApiProperty({ format: 'uuid' })

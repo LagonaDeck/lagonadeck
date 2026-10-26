@@ -193,6 +193,21 @@ button:disabled {
   cursor: progress;
 }
 
+button.secondary {
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+}
+
+button.secondary:hover {
+  background: var(--hover);
+}
+
+button.secondary:disabled {
+  color: var(--slate);
+  cursor: default;
+}
+
 .switch {
   margin-top: 1.75rem;
   color: var(--slate);

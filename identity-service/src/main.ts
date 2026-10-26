@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/prisma/client';
+import { MailService } from './mail/mail.service';
 import { GroupController } from './organization/group.controller';
 import { InvitationController } from './organization/invitation.controller';
 import { InvitationService } from './organization/invitation.service';
@@ -32,6 +33,7 @@ import { UserService } from './user/user.service';
     OrganizationAccessService,
     GroupService,
     InvitationService,
+    MailService,
     {
       provide: PrismaClient,
       useFactory: () =>
@@ -47,6 +49,7 @@ class AppModule {}
 
 async function bootstrap() {
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+  if (!process.env.RABBITMQ_URL) throw new Error('RABBITMQ_URL is not set');
 
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');

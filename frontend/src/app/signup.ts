@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Component, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Auth, errorMessage, formValues } from './auth';
 
 @Component({
@@ -40,63 +40,80 @@ import { Auth, errorMessage, formValues } from './auth';
     </aside>
 
     <main class="form-side">
-      <h1>Créer un compte</h1>
-      <p class="intro">Gratuit jusqu'à 50 articles.</p>
-      <form (submit)="submit($event)">
-        <label>
-          Email
-          <input name="email" type="email" autocomplete="email" required />
-        </label>
-        <label>
-          Nom d'utilisateur
-          <input
-            #usernameInput
-            name="username"
-            autocomplete="username"
-            required
-            minlength="3"
-            maxlength="30"
-            pattern="[A-Za-z0-9._\\-]+"
-            aria-describedby="username-hint"
-            (input)="username.set(usernameInput.value)"
-          />
-          <span id="username-hint" class="hint">
-            3 à 30 caractères : lettres sans accent, chiffres, point, tiret et
-            tiret bas.
-          </span>
-        </label>
-        <label>
-          Mot de passe
-          <input
-            name="password"
-            type="password"
-            autocomplete="new-password"
-            required
-            minlength="8"
-            aria-describedby="password-hint"
-          />
-          <span id="password-hint" class="hint">
-            8 caractères minimum, avec une majuscule, une minuscule et un
-            chiffre ou un symbole.
-          </span>
-        </label>
-        @if (error()) {
-          <p class="error" role="alert">{{ error() }}</p>
-        }
-        <button [disabled]="pending()">
-          {{ pending() ? 'Création du compte…' : 'Créer un compte' }}
-        </button>
-      </form>
-      <p class="switch">
-        Déjà un compte ? <a routerLink="/login">Se connecter</a>
-      </p>
+      @if (sentTo(); as sentTo) {
+        <h1>Vérifiez vos e-mails</h1>
+        <p class="intro" role="status">
+          Un lien de confirmation a été envoyé à <strong>{{ sentTo }}</strong
+          >. Ouvrez-le pour activer votre compte, puis connectez-vous.
+        </p>
+        <p class="switch"><a routerLink="/login">Se connecter</a></p>
+      } @else {
+        <h1>Créer un compte</h1>
+        <p class="intro">Gratuit jusqu'à 50 articles.</p>
+        <form (submit)="submit($event)">
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              [value]="email()"
+            />
+          </label>
+          <label>
+            Nom d'utilisateur
+            <input
+              #usernameInput
+              name="username"
+              autocomplete="username"
+              required
+              minlength="3"
+              maxlength="30"
+              pattern="[A-Za-z0-9._\\-]+"
+              aria-describedby="username-hint"
+              (input)="username.set(usernameInput.value)"
+            />
+            <span id="username-hint" class="hint">
+              3 à 30 caractères : lettres sans accent, chiffres, point, tiret et
+              tiret bas.
+            </span>
+          </label>
+          <label>
+            Mot de passe
+            <input
+              name="password"
+              type="password"
+              autocomplete="new-password"
+              required
+              minlength="8"
+              aria-describedby="password-hint"
+            />
+            <span id="password-hint" class="hint">
+              8 caractères minimum, avec une majuscule, une minuscule et un
+              chiffre ou un symbole.
+            </span>
+          </label>
+          @if (error()) {
+            <p class="error" role="alert">{{ error() }}</p>
+          }
+          <button [disabled]="pending()">
+            {{ pending() ? 'Création du compte…' : 'Créer un compte' }}
+          </button>
+        </form>
+        <p class="switch">
+          Déjà un compte ? <a routerLink="/login">Se connecter</a>
+        </p>
+      }
     </main>
   `,
   styleUrl: './auth.css',
 })
 export class Signup {
   private readonly auth = inject(Auth);
-  private readonly router = inject(Router);
+  // Pré-remplie par le lien d'un e-mail d'invitation.
+  readonly email = input('');
+  readonly sentTo = signal('');
   readonly error = signal('');
   readonly pending = signal(false);
   readonly username = signal('');
@@ -107,8 +124,9 @@ export class Signup {
 
   submit(event: SubmitEvent): void {
     this.pending.set(true);
-    this.auth.signup(formValues(event)).subscribe({
-      next: () => void this.router.navigate(['/app']),
+    const form = formValues(event) as { email: string };
+    this.auth.signup(form).subscribe({
+      next: () => this.sentTo.set(form.email),
       error: (error: HttpErrorResponse) => {
         this.pending.set(false);
         this.error.set(errorMessage(error));

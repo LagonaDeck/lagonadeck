@@ -1,0 +1,9 @@
+Bonjour,
+
+$inviter vous invite à rejoindre l'organisation « $organization » sur LagonaDeck.
+
+Pour répondre à l'invitation, ouvrez ce lien :
+
+$link
+
+Si vous ne connaissez pas cette personne, ignorez cet e-mail.

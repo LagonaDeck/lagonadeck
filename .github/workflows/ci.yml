@@ -52,7 +52,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
-      - name: ESLint de chaque projet
+      - uses: astral-sh/setup-uv@v10
+      - name: ESLint de chaque projet, ruff pour mail-service
         id: lint
         run: |
           set -o pipefail
@@ -61,6 +62,9 @@ jobs:
             (cd "$project" && npm ci && npm run lint) 2>&1 | tee -a /tmp/lint.log
             echo "::endgroup::"
           done
+          echo "::group::mail-service"
+          (cd mail-service && uv run --locked ruff check . && uv run --locked ruff format --check .) 2>&1 | tee -a /tmp/lint.log
+          echo "::endgroup::"
       - name: Upload ESLint log
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,6 +84,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 26
+      - uses: astral-sh/setup-uv@v10
       - name: Build et tests de chaque projet
         id: tests
         run: |
@@ -89,6 +94,9 @@ jobs:
             (cd "$project" && npm ci && npm run build && npm test --if-present) 2>&1 | tee -a /tmp/tests.log
             echo "::endgroup::"
           done
+          echo "::group::mail-service"
+          (cd mail-service && uv run --locked pytest) 2>&1 | tee -a /tmp/tests.log
+          echo "::endgroup::"
       - name: Upload test log
         if: always()
         uses: actions/upload-artifact@v4

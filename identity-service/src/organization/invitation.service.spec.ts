@@ -35,7 +35,13 @@ describe('InvitationService', () => {
     };
   };
   let access: { getPermissions: jest.Mock; requirePermission: jest.Mock };
+  let mailService: { send: jest.Mock };
   let service: InvitationService;
+
+  const invitationMail = {
+    organization: { name: 'Boutique de Misty' },
+    invitedBy: { username: 'Ondine' },
+  };
 
   beforeEach(() => {
     prisma = {
@@ -46,7 +52,7 @@ describe('InvitationService', () => {
         findUnique: jest.fn(),
       },
       emailInvitation: {
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue(invitationMail),
         findMany: jest.fn().mockResolvedValue([]),
         deleteMany: jest.fn(),
       },
@@ -56,14 +62,22 @@ describe('InvitationService', () => {
         count: jest.fn().mockResolvedValue(1),
       },
       invitation: {
-        create: jest.fn(),
+        create: jest.fn().mockResolvedValue({
+          ...invitationMail,
+          user: { email: 'misty@example.com' },
+        }),
         createMany: jest.fn(),
         delete: jest.fn(),
         deleteMany: jest.fn(),
       },
     };
     access = { getPermissions: jest.fn(), requirePermission: jest.fn() };
-    service = new InvitationService(prisma as never, access as never);
+    mailService = { send: jest.fn() };
+    service = new InvitationService(
+      prisma as never,
+      access as never,
+      mailService as never,
+    );
   });
 
   describe('searchInvitable', () => {
@@ -154,12 +168,26 @@ describe('InvitationService', () => {
     it("crée l'invitation au nom de l'invitant", async () => {
       await service.invite('user-1', 'org-1', 'user-2');
 
-      expect(prisma.invitation.create).toHaveBeenCalledWith({
-        data: {
-          organizationId: 'org-1',
-          userId: 'user-2',
-          invitedById: 'user-1',
-        },
+      expect(prisma.invitation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            organizationId: 'org-1',
+            userId: 'user-2',
+            invitedById: 'user-1',
+          },
+        }),
+      );
+    });
+
+    it("envoie l'e-mail d'invitation vers les invitations du compte", async () => {
+      await service.invite('user-1', 'org-1', 'user-2');
+
+      expect(mailService.send).toHaveBeenCalledWith({
+        template: 'workspace-invitation',
+        to: 'misty@example.com',
+        organizationName: 'Boutique de Misty',
+        inviterUsername: 'Ondine',
+        hasAccount: true,
       });
     });
 
@@ -178,6 +206,7 @@ describe('InvitationService', () => {
       await expect(
         service.invite('user-1', 'org-1', 'user-2'),
       ).rejects.toBeInstanceOf(ConflictException);
+      expect(mailService.send).not.toHaveBeenCalled();
     });
 
     it('refuse un utilisateur inexistant (404)', async () => {
@@ -266,12 +295,28 @@ describe('InvitationService', () => {
         'org-1',
         'MEMBER_INVITE',
       );
-      expect(prisma.emailInvitation.create).toHaveBeenCalledWith({
-        data: {
-          organizationId: 'org-1',
-          email: 'newcomer@example.com',
-          invitedById: 'user-1',
-        },
+      expect(prisma.emailInvitation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            organizationId: 'org-1',
+            email: 'newcomer@example.com',
+            invitedById: 'user-1',
+          },
+        }),
+      );
+    });
+
+    it("envoie à une adresse sans compte l'e-mail qui mène à l'inscription", async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await service.inviteEmail('user-1', 'org-1', 'newcomer@example.com');
+
+      expect(mailService.send).toHaveBeenCalledWith({
+        template: 'workspace-invitation',
+        to: 'newcomer@example.com',
+        organizationName: 'Boutique de Misty',
+        inviterUsername: 'Ondine',
+        hasAccount: false,
       });
     });
 
@@ -280,13 +325,15 @@ describe('InvitationService', () => {
 
       await service.inviteEmail('user-1', 'org-1', 'misty@example.com');
 
-      expect(prisma.invitation.create).toHaveBeenCalledWith({
-        data: {
-          organizationId: 'org-1',
-          userId: 'user-2',
-          invitedById: 'user-1',
-        },
-      });
+      expect(prisma.invitation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            organizationId: 'org-1',
+            userId: 'user-2',
+            invitedById: 'user-1',
+          },
+        }),
+      );
       expect(prisma.emailInvitation.create).not.toHaveBeenCalled();
     });
 

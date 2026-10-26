@@ -24,6 +24,12 @@ bootstrapApplication(App, {
         { path: 'login', component: Login, title: 'Se connecter' },
         { path: 'signup', component: Signup, title: 'Créer un compte' },
         {
+          path: 'confirm-email',
+          loadComponent: () =>
+            import('./app/confirm-email').then((m) => m.ConfirmEmail),
+          title: 'Confirmer mon adresse',
+        },
+        {
           path: 'app',
           component: Dashboard,
           canActivate: [authGuard],
@@ -40,6 +46,12 @@ bootstrapApplication(App, {
               loadComponent: () =>
                 import('./app/inventory-item').then((m) => m.InventoryItemPage),
               title: 'Fiche produit',
+            },
+            {
+              path: 'invitations',
+              loadComponent: () =>
+                import('./app/invitations').then((m) => m.Invitations),
+              title: 'Invitations',
             },
             {
               path: 'management/reports',

@@ -4,6 +4,7 @@ services:
     command: sh -c 'npx prisma migrate deploy && npm run start:dev'
     environment:
       DATABASE_URL: postgresql://lagonadeck:lagonadeck@identity-db:5432/app
+      RABBITMQ_URL: amqp://lagonadeck:lagonadeck@rabbitmq:5672
     ports: ['3001:3001']
     volumes: ['.:/app', '/app/node_modules']
     depends_on:
