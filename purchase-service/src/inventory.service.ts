@@ -1,6 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 
 export interface NewInventoryItem {
+  id: string;
   productId: string;
   condition?: string;
   language: string;
@@ -29,41 +30,57 @@ export interface InventoryItem {
   };
 }
 
-// Le stock vit dans inventory : il valide l'exemplaire et vérifie
+// Le stock vit dans inventory : il valide les exemplaires et vérifie
 // INVENTORY_MANAGE avec le token de l'utilisateur, transmis tel quel. Ses
-// erreurs (400, 403, 404) sont renvoyées sans être réécrites.
+// erreurs (400, 403, 404, 409) sont renvoyées sans être réécrites.
 @Injectable()
 export class InventoryService {
-  async addItem(
+  // Tout ou rien, avec les ids choisis par l'appelant : ils permettent de
+  // retirer le lot même quand la réponse n'arrive pas.
+  addItems(
     authorization: string,
     organizationId: string,
-    item: NewInventoryItem,
-  ): Promise<InventoryItem> {
-    const response = await this.call(authorization, organizationId, '', {
+    items: NewInventoryItem[],
+  ): Promise<InventoryItem[]> {
+    return this.call(authorization, organizationId, '/batch', {
       method: 'POST',
-      body: item,
+      body: { items },
     });
-    return (await response.json()) as InventoryItem;
   }
 
-  // Un exemplaire déjà retiré du stock n'est pas une erreur.
-  async removeItem(
+  // Un exemplaire déjà retiré est ignoré : le retrait peut être rejoué.
+  async removeItems(
     authorization: string,
     organizationId: string,
-    itemId: string,
+    ids: string[],
   ): Promise<void> {
-    await this.call(authorization, organizationId, `/${itemId}`, {
+    await this.call(authorization, organizationId, '/batch', {
       method: 'DELETE',
-      allowNotFound: true,
+      body: { ids },
     });
   }
 
-  private async call(
+  /** Ceux des exemplaires demandés qui sont encore au stock. */
+  findItems(
+    authorization: string,
+    organizationId: string,
+    ids: string[],
+  ): Promise<InventoryItem[]> {
+    const query = new URLSearchParams({
+      ids: ids.join(','),
+      take: String(ids.length),
+    });
+    return this.call(authorization, organizationId, `?${query}`, {
+      method: 'GET',
+    });
+  }
+
+  private async call<T>(
     authorization: string,
     organizationId: string,
     path: string,
-    init: { method: string; body?: unknown; allowNotFound?: boolean },
-  ): Promise<Response> {
+    init: { method: string; body?: unknown },
+  ): Promise<T> {
     const response = await fetch(
       `${process.env.INVENTORY_SERVICE_URL}/api/organizations/${organizationId}/inventory${path}`,
       {
@@ -73,12 +90,12 @@ export class InventoryService {
         signal: AbortSignal.timeout(5000),
       },
     );
-    if (!response.ok && !(init.allowNotFound && response.status === 404)) {
-      throw new HttpException(
-        (await response.json()) as object,
-        response.status,
-      );
+    const payload = (
+      response.status === 204 ? undefined : await response.json()
+    ) as T;
+    if (!response.ok) {
+      throw new HttpException(payload as object, response.status);
     }
-    return response;
+    return payload;
   }
 }

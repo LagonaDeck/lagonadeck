@@ -40,4 +40,34 @@ describe('CreatePurchaseDto', () => {
       'purchasedAt',
     ]);
   });
+
+  it('refuse une date-heure, qui changerait de jour selon le fuseau', async () => {
+    expect(
+      await errorsOf({ ...purchase, purchasedAt: '2026-10-13T01:00:00+02:00' }),
+    ).toEqual(['purchasedAt']);
+  });
+
+  it('refuse un mois sans jour', async () => {
+    expect(await errorsOf({ ...purchase, purchasedAt: '2026-10' })).toEqual([
+      'purchasedAt',
+    ]);
+  });
+
+  it('refuse des frais à null au lieu de les mettre à zéro', async () => {
+    expect(await errorsOf({ ...purchase, fees: null })).toEqual(['fees']);
+  });
+
+  it('refuse une quantité ou un coût unitaire à null', async () => {
+    const [error] = await validate(
+      plainToInstance(CreatePurchaseDto, {
+        ...purchase,
+        lines: [{ ...purchase.lines[0], quantity: null, unitCost: null }],
+      }),
+    );
+
+    expect(error.property).toBe('lines');
+    expect(
+      error.children?.[0].children?.map(({ property }) => property),
+    ).toEqual(['quantity', 'unitCost']);
+  });
 });

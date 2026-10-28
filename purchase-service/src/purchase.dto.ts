@@ -11,14 +11,20 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
 const MAX_AMOUNT = 1_000_000_000;
 const AMOUNT = { maxDecimalPlaces: 2 };
+
+// Contrairement à @IsOptional(), refuse null : un null remplacerait la valeur
+// par défaut sans être validé.
+const IsOmittable = () => ValidateIf((_, value) => value !== undefined);
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
@@ -60,7 +66,7 @@ export class PurchaseLineInputDto {
     maximum: 100,
     description: 'Chaque unité devient un exemplaire du stock.',
   })
-  @IsOptional()
+  @IsOmittable()
   @IsInt()
   @Min(1)
   @Max(100)
@@ -71,7 +77,7 @@ export class PurchaseLineInputDto {
     description:
       'Coût de chaque unité en EUR. Sans coût, l’unité reçoit une part du reste du lot, au prorata de son Price Trend.',
   })
-  @IsOptional()
+  @IsOmittable()
   @IsNumber(AMOUNT)
   @Min(0)
   @Max(MAX_AMOUNT)
@@ -87,6 +93,10 @@ export class CreatePurchaseDto {
   supplier!: string;
 
   @ApiProperty({ format: 'date', example: '2026-10-13' })
+  // Une date-heure avec fuseau changerait de jour dans la colonne DATE.
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'purchasedAt doit être au format AAAA-MM-JJ',
+  })
   @IsISO8601({ strict: true })
   purchasedAt!: string;
 
@@ -101,7 +111,7 @@ export class CreatePurchaseDto {
     example: 6.5,
     description: 'Port et commissions en EUR.',
   })
-  @IsOptional()
+  @IsOmittable()
   @IsNumber(AMOUNT)
   @Min(0)
   @Max(MAX_AMOUNT)
@@ -143,11 +153,14 @@ export class PurchaseLineDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({
-    format: 'uuid',
-    description: 'Exemplaire d’inventory, peut-être sorti du stock depuis.',
-  })
+  @ApiProperty({ format: 'uuid', description: 'Exemplaire d’inventory.' })
   inventoryItemId!: string;
+
+  @ApiProperty({
+    description:
+      'Faux quand l’exemplaire a été retiré du stock depuis l’achat : la ligne garde son produit et son coût.',
+  })
+  inStock!: boolean;
 
   @ApiProperty({ format: 'uuid' })
   productId!: string;

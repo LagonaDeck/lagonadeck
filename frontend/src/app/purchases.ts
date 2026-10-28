@@ -3,6 +3,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import {
   LucideChevronLeft,
   LucideChevronRight,
+  LucideEye,
   LucidePlus,
 } from '@lucide/angular';
 import { RouterLink } from '@angular/router';
@@ -28,6 +29,8 @@ export interface Purchase {
 export interface PurchaseLine {
   id: string;
   inventoryItemId: string;
+  /** Faux quand l'exemplaire a été retiré du stock depuis l'achat. */
+  inStock: boolean;
   productId: string;
   productName: string;
   productType: string;
@@ -75,7 +78,13 @@ const PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-purchases',
-  imports: [LucideChevronLeft, LucideChevronRight, LucidePlus, RouterLink],
+  imports: [
+    LucideChevronLeft,
+    LucideChevronRight,
+    LucideEye,
+    LucidePlus,
+    RouterLink,
+  ],
   template: `
     <div class="page-header">
       <h1>Achats</h1>
@@ -107,17 +116,14 @@ const PAGE_SIZE = 100;
             <th scope="col" class="number">Exemplaires</th>
             <th scope="col" class="number">Valeur à l’achat</th>
             <th scope="col" class="number">Coût</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
           </tr>
         </thead>
         <tbody>
           @for (purchase of list(); track purchase.id) {
             <tr>
               <td>{{ formatDate(purchase.purchasedAt) }}</td>
-              <td>
-                <a class="row-link" [routerLink]="purchase.id">{{
-                  purchase.supplier
-                }}</a>
-              </td>
+              <td>{{ purchase.supplier }}</td>
               <td class="number">{{ purchase.itemCount }}</td>
               <td
                 class="number"
@@ -128,10 +134,25 @@ const PAGE_SIZE = 100;
               <td class="number" title="Prix et frais">
                 {{ formatPrice(purchase.totalCost) }}
               </td>
+              <td>
+                <a
+                  class="small-button"
+                  [routerLink]="purchase.id"
+                  [attr.aria-label]="
+                    'Voir l’achat ' +
+                    purchase.supplier +
+                    ' du ' +
+                    formatDate(purchase.purchasedAt)
+                  "
+                >
+                  <svg lucideEye [size]="16" aria-hidden="true"></svg>
+                  Voir
+                </a>
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td class="empty" colspan="5">
+              <td class="empty" colspan="6">
                 @if (purchases.isLoading()) {
                   Chargement…
                 } @else {

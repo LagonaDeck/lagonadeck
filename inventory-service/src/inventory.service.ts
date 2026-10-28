@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -14,9 +15,11 @@ import { ProductType } from './generated/prisma/enums';
 import { INVENTORY_MANAGE, IdentityService } from './identity.service';
 import {
   AddInventoryItemDto,
+  AddInventoryItemsDto,
   InventoryItemDto,
   InventorySummaryDto,
   ListInventoryDto,
+  RemoveInventoryItemsDto,
 } from './inventory.dto';
 import {
   ProductService,
@@ -66,6 +69,10 @@ function unitPrice(item: InventoryItem & { product: ProductWithCardmarket }) {
   return price?.greaterThan(0) ? price.toFixed(2) : null;
 }
 
+// Deux filtres d'ids facultatifs : sans l'un, l'autre s'applique seul.
+const intersect = (a?: string[], b?: string[]) =>
+  a && b ? a.filter((id) => b.includes(id)) : (a ?? b);
+
 const WITH_PRODUCT = { product: { include: { cardmarketProduct: true } } };
 
 const toDto = (
@@ -109,11 +116,12 @@ export class InventoryService {
               AND ${searchCondition(query.search)}`,
         )
       : undefined;
+    const ids = intersect(
+      matches?.map(({ id }) => id),
+      query.ids,
+    );
     const items = await this.prisma.inventoryItem.findMany({
-      where: {
-        organizationId,
-        id: matches && { in: matches.map(({ id }) => id) },
-      },
+      where: { organizationId, id: ids && { in: ids } },
       include: WITH_PRODUCT,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       take: query.take,
@@ -186,6 +194,63 @@ export class InventoryService {
       },
     });
     return toDto({ ...item, product });
+  }
+
+  // Une seule requête, tout ou rien : un exemplaire refusé n'en laisse aucun.
+  async addMany(
+    authorization: string | undefined,
+    organizationId: string,
+    dto: AddInventoryItemsDto,
+  ): Promise<InventoryItemDto[]> {
+    await this.identity.requirePermission(
+      authorization,
+      organizationId,
+      INVENTORY_MANAGE,
+    );
+    const products = await this.productService.getManyOrThrow(
+      dto.items.map(({ productId }) => productId),
+    );
+    dto.items.forEach((item) =>
+      checkCardState(products.get(item.productId)!, item),
+    );
+    try {
+      const items = await this.prisma.inventoryItem.createManyAndReturn({
+        data: dto.items.map((item) => ({
+          id: item.id,
+          organizationId,
+          productId: item.productId,
+          condition: item.condition,
+          language: item.language,
+          gradingCompany: item.gradingCompany,
+          grade: item.grade,
+          reverse: item.reverse,
+        })),
+      });
+      return items.map((item) =>
+        toDto({ ...item, product: products.get(item.productId)! }),
+      );
+    } catch (error) {
+      if (isPrismaError(error, 'P2002')) {
+        throw new ConflictException('Exemplaire déjà existant');
+      }
+      throw error;
+    }
+  }
+
+  // Un exemplaire déjà retiré est ignoré : on peut rejouer le retrait.
+  async removeMany(
+    authorization: string | undefined,
+    organizationId: string,
+    dto: RemoveInventoryItemsDto,
+  ): Promise<void> {
+    await this.identity.requirePermission(
+      authorization,
+      organizationId,
+      INVENTORY_MANAGE,
+    );
+    await this.prisma.inventoryItem.deleteMany({
+      where: { organizationId, id: { in: dto.ids } },
+    });
   }
 
   async remove(

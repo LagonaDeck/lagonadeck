@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -86,14 +87,16 @@ describe('InventoryService', () => {
       findMany: jest.Mock;
       findFirst: jest.Mock;
       create: jest.Mock;
+      createManyAndReturn: jest.Mock;
       delete: jest.Mock;
+      deleteMany: jest.Mock;
     };
     $queryRaw: jest.Mock;
     $executeRaw: jest.Mock;
     $transaction: jest.Mock;
   };
   let identity: { getPermissions: jest.Mock; requirePermission: jest.Mock };
-  let products: { getOrThrow: jest.Mock };
+  let products: { getOrThrow: jest.Mock; getManyOrThrow: jest.Mock };
   let fetchMock: jest.SpyInstance;
   let service: InventoryService;
 
@@ -103,14 +106,24 @@ describe('InventoryService', () => {
         findMany: jest.fn(),
         findFirst: jest.fn(),
         create: jest.fn(),
+        createManyAndReturn: jest.fn(),
         delete: jest.fn(),
+        deleteMany: jest.fn(),
       },
       $queryRaw: jest.fn(),
       $executeRaw: jest.fn(),
       $transaction: jest.fn(),
     };
     identity = { getPermissions: jest.fn(), requirePermission: jest.fn() };
-    products = { getOrThrow: jest.fn().mockResolvedValue(etb) };
+    products = {
+      getOrThrow: jest.fn().mockResolvedValue(etb),
+      getManyOrThrow: jest.fn().mockResolvedValue(
+        new Map([
+          [etb.id, etb],
+          [charizard.id, charizard],
+        ]),
+      ),
+    };
     fetchMock = jest.spyOn(global, 'fetch');
     service = new InventoryService(
       prisma as never,
@@ -434,6 +447,79 @@ describe('InventoryService', () => {
           grade: 9,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('lot', () => {
+    const newItem = (id: string, productId = etb.id) => ({
+      id,
+      productId,
+      language: 'FRENCH' as const,
+    });
+
+    it('ajoute un lot en une seule requête, avec les ids choisis par l’appelant', async () => {
+      prisma.inventoryItem.createManyAndReturn.mockResolvedValue([
+        { ...stockItem('org-a'), id: 'item-1' },
+        { ...stockItem('org-a'), id: 'item-2' },
+      ]);
+
+      const items = await service.addMany(AUTH, 'org-a', {
+        items: [newItem('item-1'), newItem('item-2')],
+      });
+
+      expect(identity.requirePermission).toHaveBeenCalledWith(
+        AUTH,
+        'org-a',
+        'INVENTORY_MANAGE',
+      );
+      expect(prisma.inventoryItem.createManyAndReturn).toHaveBeenCalledWith({
+        data: [
+          expect.objectContaining({ id: 'item-1', organizationId: 'org-a' }),
+          expect.objectContaining({ id: 'item-2', organizationId: 'org-a' }),
+        ],
+      });
+      expect(items.map(({ id }) => id)).toEqual(['item-1', 'item-2']);
+    });
+
+    it('n’ajoute rien du lot si un exemplaire est refusé', async () => {
+      await expect(
+        service.addMany(AUTH, 'org-a', {
+          items: [newItem('item-1'), newItem('item-2', charizard.id)],
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.inventoryItem.createManyAndReturn).not.toHaveBeenCalled();
+    });
+
+    it('refuse un id déjà existant', async () => {
+      prisma.inventoryItem.createManyAndReturn.mockRejectedValue(
+        prismaError('P2002'),
+      );
+
+      await expect(
+        service.addMany(AUTH, 'org-a', { items: [newItem('item-1')] }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('retire un lot du stock de l’organisation, même déjà en partie retiré', async () => {
+      prisma.inventoryItem.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.removeMany(AUTH, 'org-a', { ids: ['item-1', 'item-2'] });
+
+      expect(prisma.inventoryItem.deleteMany).toHaveBeenCalledWith({
+        where: { organizationId: 'org-a', id: { in: ['item-1', 'item-2'] } },
+      });
+    });
+
+    it('lit seulement les exemplaires demandés par leurs ids', async () => {
+      prisma.inventoryItem.findMany.mockResolvedValue([]);
+
+      await service.list(AUTH, 'org-a', { ids: ['item-1', 'item-2'] });
+
+      expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { organizationId: 'org-a', id: { in: ['item-1', 'item-2'] } },
+        }),
+      );
     });
   });
 });

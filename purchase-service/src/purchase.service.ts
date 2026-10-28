@@ -1,9 +1,12 @@
 import {
   BadRequestException,
+  HttpException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { allocateCosts, checkFixedCosts } from './allocation';
 import {
   Prisma,
@@ -12,7 +15,7 @@ import {
   type PurchaseLine,
 } from './generated/prisma/client';
 import { IdentityService, PURCHASE_MANAGE } from './identity.service';
-import { InventoryItem, InventoryService } from './inventory.service';
+import { InventoryService } from './inventory.service';
 import {
   CreatePurchaseDto,
   ListPurchasesDto,
@@ -24,7 +27,7 @@ import {
   PurchasesSummaryDto,
 } from './purchase.dto';
 
-// Chaque exemplaire est créé par un appel à inventory.
+// Le lot entre au stock en une seule requête à inventory, limitée à 100.
 export const MAX_ITEMS = 100;
 
 const toCents = (amount: number | string): bigint =>
@@ -53,9 +56,13 @@ const toDto = (purchase: Purchase, totals: Totals): PurchaseDto => ({
   createdAt: purchase.createdAt,
 });
 
-const toLineDto = (line: PurchaseLine): PurchaseLineDto => ({
+const toLineDto = (
+  line: PurchaseLine,
+  inStock: Set<string>,
+): PurchaseLineDto => ({
   id: line.id,
   inventoryItemId: line.inventoryItemId,
+  inStock: inStock.has(line.inventoryItemId),
   productId: line.productId,
   productName: line.productName,
   productType: line.productType,
@@ -74,6 +81,7 @@ const toLineDto = (line: PurchaseLine): PurchaseLineDto => ({
 
 const toDetailDto = (
   purchase: Purchase & { lines: PurchaseLine[] },
+  inStock: Set<string>,
 ): PurchaseDetailDto => ({
   ...toDto(purchase, {
     itemCount: purchase.lines.length,
@@ -82,8 +90,12 @@ const toDetailDto = (
       new Prisma.Decimal(0),
     ),
   }),
-  lines: purchase.lines.map(toLineDto),
+  lines: purchase.lines.map((line) => toLineDto(line, inStock)),
 });
+
+// Un refus d'inventory (4xx) vaut pour tout le lot : rien n'est entré au stock.
+const rejectedByInventory = (error: unknown) =>
+  error instanceof HttpException && error.getStatus() < 500;
 
 const WITH_LINES = { lines: { orderBy: { position: 'asc' } } } as const;
 
@@ -100,6 +112,8 @@ const expandUnits = (lines: PurchaseLineInputDto[]) =>
 // modifie jamais les achats d'une autre, même avec l'id d'un de ses achats.
 @Injectable()
 export class PurchaseService {
+  private readonly logger = new Logger(PurchaseService.name);
+
   constructor(
     @Inject(PrismaClient) private readonly prisma: PrismaClient,
     private readonly identity: IdentityService,
@@ -163,7 +177,13 @@ export class PurchaseService {
     id: string,
   ): Promise<PurchaseDetailDto> {
     await this.identity.getPermissions(authorization, organizationId);
-    return toDetailDto(await this.findOrThrow(organizationId, id));
+    const purchase = await this.findOrThrow(organizationId, id);
+    const inStock = await this.inventory.findItems(
+      authorization!,
+      organizationId,
+      purchase.lines.map(({ inventoryItemId }) => inventoryItemId),
+    );
+    return toDetailDto(purchase, new Set(inStock.map(({ id }) => id)));
   }
 
   async getItem(
@@ -186,7 +206,8 @@ export class PurchaseService {
   }
 
   // Les exemplaires entrent au stock d'abord : leur Price Trend fixe la
-  // répartition. Si une étape échoue, ceux déjà créés en sont retirés.
+  // répartition. Leurs ids sont choisis ici, pour retirer le lot si l'achat
+  // échoue, même quand inventory n'a pas répondu.
   async create(
     authorization: string | undefined,
     organizationId: string,
@@ -209,19 +230,21 @@ export class PurchaseService {
       units.map(({ cost }) => cost),
     );
 
-    const items: InventoryItem[] = [];
+    const ids = units.map(() => randomUUID());
     try {
-      for (const { item } of units) {
-        items.push(
-          await this.inventory.addItem(authorization!, organizationId, item),
-        );
-      }
+      const items = await this.inventory.addItems(
+        authorization!,
+        organizationId,
+        units.map(({ item }, index) => ({ id: ids[index], ...item })),
+      );
+      const byId = new Map(items.map((item) => [item.id, item]));
+      const ordered = ids.map((id) => byId.get(id)!);
       const costs = allocateCosts(
         total,
-        units.map(({ cost }, index) => ({
-          cost,
-          marketPrice: items[index].price ? toCents(items[index].price) : null,
-        })),
+        units.map(({ cost }, index) => {
+          const { price } = ordered[index];
+          return { cost, marketPrice: price ? toCents(price) : null };
+        }),
       );
       const purchase = await this.prisma.purchase.create({
         data: {
@@ -232,7 +255,7 @@ export class PurchaseService {
           fees: dto.fees,
           notes: dto.notes || null,
           lines: {
-            create: items.map((item, position) => ({
+            create: ordered.map((item, position) => ({
               position,
               inventoryItemId: item.id,
               productId: item.product.id,
@@ -254,13 +277,11 @@ export class PurchaseService {
         },
         include: WITH_LINES,
       });
-      return toDetailDto(purchase);
+      return toDetailDto(purchase, new Set(ids));
     } catch (error) {
-      await Promise.allSettled(
-        items.map(({ id }) =>
-          this.inventory.removeItem(authorization!, organizationId, id),
-        ),
-      );
+      if (!rejectedByInventory(error)) {
+        await this.removeFromStock(authorization!, organizationId, ids);
+      }
       throw error;
     }
   }
@@ -278,14 +299,29 @@ export class PurchaseService {
       PURCHASE_MANAGE,
     );
     const purchase = await this.findOrThrow(organizationId, id);
-    for (const line of purchase.lines) {
-      await this.inventory.removeItem(
-        authorization!,
-        organizationId,
-        line.inventoryItemId,
+    await this.inventory.removeItems(
+      authorization!,
+      organizationId,
+      purchase.lines.map(({ inventoryItemId }) => inventoryItemId),
+    );
+    await this.prisma.purchase.deleteMany({ where: { id, organizationId } });
+  }
+
+  // Un échec ici laisse au stock des exemplaires sans achat : le log garde
+  // leurs ids pour les retirer à la main.
+  private async removeFromStock(
+    authorization: string,
+    organizationId: string,
+    ids: string[],
+  ): Promise<void> {
+    try {
+      await this.inventory.removeItems(authorization, organizationId, ids);
+    } catch (error) {
+      this.logger.error(
+        `Exemplaires restés au stock sans achat (organisation ${organizationId}) : ${ids.join(', ')}`,
+        error instanceof Error ? error.stack : String(error),
       );
     }
-    await this.prisma.purchase.deleteMany({ where: { id, organizationId } });
   }
 
   private async findOrThrow(organizationId: string, id: string) {

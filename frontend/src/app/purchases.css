@@ -100,17 +100,6 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-.row-link {
-  color: inherit;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.row-link:hover {
-  color: var(--blue);
-  text-decoration: underline;
-}
-
 .product {
   display: flex;
   align-items: center;
@@ -125,7 +114,8 @@ th {
   white-space: normal;
 }
 
-a.product:hover strong {
+/* Sans href, l'exemplaire n'est plus au stock : il n'a plus de fiche. */
+a.product[href]:hover strong {
   color: var(--blue);
   text-decoration: underline;
 }

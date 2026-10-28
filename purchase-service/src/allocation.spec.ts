@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { allocateCosts } from './allocation';
+import { allocateCosts, checkFixedCosts } from './allocation';
 
 const priced = (marketPrice: bigint) => ({ marketPrice });
 const unpriced = { marketPrice: null };
@@ -43,22 +43,25 @@ describe('allocateCosts', () => {
     ).toEqual([7000n, 2000n, 1000n]);
   });
 
+  it('accepte un lot gratuit', () => {
+    expect(allocateCosts(0n, [priced(500n), unpriced])).toEqual([0n, 0n]);
+  });
+});
+
+describe('checkFixedCosts', () => {
   it('refuse des coûts saisis qui dépassent le prix du lot', () => {
-    expect(() =>
-      allocateCosts(1000n, [{ cost: 1200n, marketPrice: null }, unpriced]),
-    ).toThrow(BadRequestException);
+    expect(() => checkFixedCosts(1000n, [1200n, undefined])).toThrow(
+      BadRequestException,
+    );
   });
 
   it('refuse des coûts tous saisis dont la somme ne fait pas le prix du lot', () => {
-    expect(() =>
-      allocateCosts(1000n, [
-        { cost: 400n, marketPrice: null },
-        { cost: 500n, marketPrice: null },
-      ]),
-    ).toThrow(BadRequestException);
+    expect(() => checkFixedCosts(1000n, [400n, 500n])).toThrow(
+      BadRequestException,
+    );
   });
 
-  it('accepte un lot gratuit', () => {
-    expect(allocateCosts(0n, [priced(500n), unpriced])).toEqual([0n, 0n]);
+  it('accepte des coûts saisis qui laissent un reste à répartir', () => {
+    expect(() => checkFixedCosts(1000n, [400n, undefined])).not.toThrow();
   });
 });

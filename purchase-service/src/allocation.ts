@@ -31,11 +31,8 @@ export function checkFixedCosts(
 // plus coûte plus. Un exemplaire sans prix compte pour la moyenne des autres,
 // et sans aucun prix, la part est égale. Les centimes perdus à l'arrondi vont
 // aux plus grands restes : la somme des coûts vaut toujours le total.
+// Les coûts saisis ont été validés avant, par checkFixedCosts.
 export function allocateCosts(total: bigint, shares: CostShare[]): bigint[] {
-  checkFixedCosts(
-    total,
-    shares.map(({ cost }) => cost),
-  );
   const free = shares.filter(({ cost }) => cost === undefined);
   const remaining = total - sum(shares.map(({ cost }) => cost ?? 0n));
   const known = free.flatMap(({ marketPrice }) => marketPrice ?? []);

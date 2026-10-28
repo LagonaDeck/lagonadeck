@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from './generated/prisma/client';
@@ -56,6 +57,27 @@ const savedPurchase = (lines: object[] = []) => ({
   lines,
 });
 
+const savedLine = (id: string, inventoryItemId: string) => ({
+  id,
+  purchaseId: 'purchase-1',
+  position: 0,
+  inventoryItemId,
+  productId: 'product-1',
+  productName: 'Dracaufeu-ex',
+  productType: 'SINGLE',
+  setCode: 'MEW',
+  setName: '151',
+  cardNumber: '006',
+  imageUrl: null,
+  condition: 'NEAR_MINT',
+  language: 'FRENCH',
+  gradingCompany: null,
+  grade: null,
+  reverse: false,
+  marketPrice: null,
+  cost: new Prisma.Decimal(30),
+});
+
 describe('PurchaseService', () => {
   let prisma: {
     purchase: {
@@ -67,7 +89,11 @@ describe('PurchaseService', () => {
     purchaseLine: { groupBy: jest.Mock; findFirst: jest.Mock };
   };
   let identity: { getPermissions: jest.Mock; requirePermission: jest.Mock };
-  let inventory: { addItem: jest.Mock; removeItem: jest.Mock };
+  let inventory: {
+    addItems: jest.Mock;
+    removeItems: jest.Mock;
+    findItems: jest.Mock;
+  };
   let service: PurchaseService;
 
   beforeEach(() => {
@@ -98,7 +124,11 @@ describe('PurchaseService', () => {
       purchaseLine: { groupBy: jest.fn(), findFirst: jest.fn() },
     };
     identity = { getPermissions: jest.fn(), requirePermission: jest.fn() };
-    inventory = { addItem: jest.fn(), removeItem: jest.fn() };
+    inventory = {
+      addItems: jest.fn(),
+      removeItems: jest.fn(),
+      findItems: jest.fn(),
+    };
     service = new PurchaseService(
       prisma as never,
       identity,
@@ -106,10 +136,23 @@ describe('PurchaseService', () => {
     );
   });
 
-  it('ajoute chaque exemplaire du lot au stock et répartit le prix au Price Trend', async () => {
-    inventory.addItem
-      .mockResolvedValueOnce(inventoryItem('item-1', '40.00'))
-      .mockResolvedValueOnce(inventoryItem('item-2', '20.00'));
+  // Inventory crée les exemplaires avec les ids reçus, chacun avec son prix,
+  // et les renvoie dans un autre ordre.
+  const stock = (...prices: (string | null)[]) =>
+    inventory.addItems.mockImplementation(
+      (_auth: string, _org: string, items: { id: string }[]) =>
+        Promise.resolve(
+          items
+            .map(({ id }, index) => inventoryItem(id, prices[index]))
+            .reverse(),
+        ),
+    );
+
+  const sentIds = (): string[] =>
+    inventory.addItems.mock.calls[0][2].map(({ id }: { id: string }) => id);
+
+  it('ajoute le lot au stock en une requête et répartit le prix au Price Trend', async () => {
+    stock('40.00', '20.00');
 
     const purchase = await service.create(
       AUTH,
@@ -122,11 +165,14 @@ describe('PurchaseService', () => {
       ORG,
       'PURCHASE_MANAGE',
     );
-    expect(inventory.addItem).toHaveBeenCalledWith(AUTH, ORG, {
-      productId: 'p1',
-      condition: 'NEAR_MINT',
-      language: 'FRENCH',
-    });
+    expect(inventory.addItems).toHaveBeenCalledTimes(1);
+    expect(inventory.addItems).toHaveBeenCalledWith(AUTH, ORG, [
+      expect.objectContaining({ productId: 'p1', language: 'FRENCH' }),
+      expect.objectContaining({ productId: 'p2', language: 'FRENCH' }),
+    ]);
+    expect(
+      purchase.lines.map(({ inventoryItemId }) => inventoryItemId),
+    ).toEqual(sentIds());
     expect(purchase.lines.map(({ cost }) => cost)).toEqual(['40.00', '20.00']);
     expect(purchase).toEqual(
       expect.objectContaining({
@@ -138,7 +184,7 @@ describe('PurchaseService', () => {
   });
 
   it('crée un exemplaire par unité et inclut les frais dans le coût', async () => {
-    inventory.addItem.mockResolvedValue(inventoryItem('item', null));
+    stock(null, null, null);
 
     const purchase = await service.create(
       AUTH,
@@ -146,7 +192,7 @@ describe('PurchaseService', () => {
       lot([line('booster', 3)], 15, 3),
     );
 
-    expect(inventory.addItem).toHaveBeenCalledTimes(3);
+    expect(new Set(sentIds()).size).toBe(3);
     expect(purchase.lines.map(({ cost }) => cost)).toEqual([
       '6.00',
       '6.00',
@@ -155,10 +201,7 @@ describe('PurchaseService', () => {
   });
 
   it('garde le coût saisi pour une ligne et répartit le reste', async () => {
-    inventory.addItem
-      .mockResolvedValueOnce(inventoryItem('item-1', '10.00'))
-      .mockResolvedValueOnce(inventoryItem('item-2', '30.00'))
-      .mockResolvedValueOnce(inventoryItem('item-3', '10.00'));
+    stock('10.00', '30.00', '10.00');
 
     const purchase = await service.create(
       AUTH,
@@ -177,36 +220,67 @@ describe('PurchaseService', () => {
     await expect(
       service.create(AUTH, ORG, lot([{ ...line('p1'), unitCost: 80 }], 60)),
     ).rejects.toThrow(BadRequestException);
-    expect(inventory.addItem).not.toHaveBeenCalled();
+    expect(inventory.addItems).not.toHaveBeenCalled();
   });
 
   it('refuse un achat de plus de 100 exemplaires', async () => {
     await expect(
       service.create(AUTH, ORG, lot([line('p1', 60), line('p2', 41)])),
     ).rejects.toThrow(BadRequestException);
-    expect(inventory.addItem).not.toHaveBeenCalled();
+    expect(inventory.addItems).not.toHaveBeenCalled();
   });
 
-  it('retire du stock les exemplaires déjà créés si un ajout échoue', async () => {
-    inventory.addItem
-      .mockResolvedValueOnce(inventoryItem('item-1', '10.00'))
-      .mockRejectedValueOnce(new BadRequestException('Langue invalide'));
+  it('ne retire rien quand inventory refuse le lot, qui n’est pas entré au stock', async () => {
+    inventory.addItems.mockRejectedValue(
+      new BadRequestException('Langue invalide'),
+    );
 
     await expect(
       service.create(AUTH, ORG, lot([line('p1'), line('p2')])),
     ).rejects.toThrow(BadRequestException);
-    expect(inventory.removeItem).toHaveBeenCalledWith(AUTH, ORG, 'item-1');
+    expect(inventory.removeItems).not.toHaveBeenCalled();
     expect(prisma.purchase.create).not.toHaveBeenCalled();
   });
 
-  it('retire du stock les exemplaires si l’achat ne peut être enregistré', async () => {
-    inventory.addItem.mockResolvedValue(inventoryItem('item-1', '10.00'));
+  it('retire le lot par ses ids quand inventory ne répond pas à temps', async () => {
+    inventory.addItems.mockRejectedValue(
+      new DOMException('The operation timed out.', 'TimeoutError'),
+    );
+
+    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
+      'timed out',
+    );
+    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, sentIds());
+  });
+
+  it('retire le lot du stock si l’achat ne peut être enregistré', async () => {
+    stock('10.00');
     prisma.purchase.create.mockRejectedValue(new Error('base indisponible'));
 
     await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
       'base indisponible',
     );
-    expect(inventory.removeItem).toHaveBeenCalledWith(AUTH, ORG, 'item-1');
+    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, sentIds());
+  });
+
+  it('logge les exemplaires restés au stock si leur retrait échoue', async () => {
+    const logError = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    stock('10.00');
+    prisma.purchase.create.mockRejectedValue(new Error('base indisponible'));
+    inventory.removeItems.mockRejectedValue(
+      new Error('inventory indisponible'),
+    );
+
+    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
+      'base indisponible',
+    );
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining(sentIds()[0]),
+      expect.anything(),
+    );
+    logError.mockRestore();
   });
 
   it('refuse l’achat sans la permission, avant de toucher au stock', async () => {
@@ -215,7 +289,7 @@ describe('PurchaseService', () => {
     await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
       ForbiddenException,
     );
-    expect(inventory.addItem).not.toHaveBeenCalled();
+    expect(inventory.addItems).not.toHaveBeenCalled();
   });
 
   it("ne liste que les achats de l'organisation, avec leurs totaux", async () => {
@@ -243,18 +317,38 @@ describe('PurchaseService', () => {
     );
   });
 
-  it('supprime un achat en retirant ses exemplaires du stock', async () => {
+  it('signale les exemplaires d’un achat qui ne sont plus au stock', async () => {
     prisma.purchase.findFirst.mockResolvedValue(
       savedPurchase([
-        { inventoryItemId: 'item-1' },
-        { inventoryItemId: 'item-2' },
+        savedLine('line-1', 'item-1'),
+        savedLine('line-2', 'item-2'),
+      ]),
+    );
+    inventory.findItems.mockResolvedValue([inventoryItem('item-2', null)]);
+
+    const purchase = await service.get(AUTH, ORG, 'purchase-1');
+
+    expect(inventory.findItems).toHaveBeenCalledWith(AUTH, ORG, [
+      'item-1',
+      'item-2',
+    ]);
+    expect(purchase.lines.map(({ inStock }) => inStock)).toEqual([false, true]);
+  });
+
+  it('supprime un achat en retirant ses exemplaires du stock en une requête', async () => {
+    prisma.purchase.findFirst.mockResolvedValue(
+      savedPurchase([
+        savedLine('line-1', 'item-1'),
+        savedLine('line-2', 'item-2'),
       ]),
     );
 
     await service.remove(AUTH, ORG, 'purchase-1');
 
-    expect(inventory.removeItem).toHaveBeenCalledWith(AUTH, ORG, 'item-1');
-    expect(inventory.removeItem).toHaveBeenCalledWith(AUTH, ORG, 'item-2');
+    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, [
+      'item-1',
+      'item-2',
+    ]);
     expect(prisma.purchase.deleteMany).toHaveBeenCalledWith({
       where: { id: 'purchase-1', organizationId: ORG },
     });
@@ -271,7 +365,7 @@ describe('PurchaseService', () => {
         where: { id: 'purchase-b', organizationId: ORG },
       }),
     );
-    expect(inventory.removeItem).not.toHaveBeenCalled();
+    expect(inventory.removeItems).not.toHaveBeenCalled();
   });
 
   it("donne le coût d'achat d'un exemplaire du stock", async () => {

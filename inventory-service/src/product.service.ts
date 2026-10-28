@@ -270,4 +270,17 @@ export class ProductService {
     if (!product) throw new NotFoundException('Produit introuvable');
     return product;
   }
+
+  async getManyOrThrow(
+    ids: string[],
+  ): Promise<Map<string, ProductWithCardmarket>> {
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      include: WITH_CARDMARKET,
+    });
+    if (products.length !== new Set(ids).size) {
+      throw new NotFoundException('Produit introuvable');
+    }
+    return new Map(products.map((product) => [product.id, product]));
+  }
 }

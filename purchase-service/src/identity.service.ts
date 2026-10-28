@@ -15,16 +15,11 @@ export class IdentityService {
     authorization: string | undefined,
     organizationId: string,
   ): Promise<string[]> {
-    if (!authorization) throw new UnauthorizedException('Session invalide');
-    const response = await fetch(
-      `${process.env.IDENTITY_SERVICE_URL}/api/organizations/${organizationId}/me`,
-      { headers: { authorization }, signal: AbortSignal.timeout(5000) },
+    const { permissions } = await this.call<{ permissions: string[] }>(
+      `/api/organizations/${organizationId}/me`,
+      authorization,
     );
-    const payload = (await response.json()) as { permissions: string[] };
-    if (!response.ok) {
-      throw new HttpException(payload, response.status);
-    }
-    return payload.permissions;
+    return permissions;
   }
 
   async requirePermission(
@@ -39,5 +34,21 @@ export class IdentityService {
     if (!permissions.includes(permission)) {
       throw new ForbiddenException('Permission insuffisante');
     }
+  }
+
+  private async call<T>(
+    path: string,
+    authorization: string | undefined,
+  ): Promise<T> {
+    if (!authorization) throw new UnauthorizedException('Session invalide');
+    const response = await fetch(`${process.env.IDENTITY_SERVICE_URL}${path}`, {
+      headers: { authorization },
+      signal: AbortSignal.timeout(5000),
+    });
+    const payload = (await response.json()) as T;
+    if (!response.ok) {
+      throw new HttpException(payload as object, response.status);
+    }
+    return payload;
   }
 }

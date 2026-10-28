@@ -97,7 +97,11 @@ import {
                 <td>
                   <a
                     class="product"
-                    [routerLink]="['/app/inventory', line.inventoryItemId]"
+                    [routerLink]="
+                      line.inStock
+                        ? ['/app/inventory', line.inventoryItemId]
+                        : null
+                    "
                   >
                     <span class="card-thumb">
                       @if (line.imageUrl) {
@@ -114,6 +118,13 @@ import {
                       <span>{{ lineDetails(line) }}</span>
                     </span>
                   </a>
+                  @if (!line.inStock) {
+                    <app-chip
+                      class="removed"
+                      text="Retiré du stock"
+                      tooltip="L’exemplaire n’est plus au stock : l’achat garde son produit et son coût"
+                    />
+                  }
                 </td>
                 <td><app-item-state [item]="line" /></td>
                 <td>
@@ -150,6 +161,12 @@ import {
   styles: `
     .summary .hint {
       font-size: 0.8rem;
+    }
+
+    .removed {
+      margin-top: 0.35rem;
+      margin-left: 3.25rem;
+      color: var(--slate);
     }
 
     .notes {

@@ -165,7 +165,7 @@ const today = () => new Date().toLocaleDateString('sv');
                     min="1"
                     max="100"
                     required
-                    [value]="line.quantity"
+                    value="1"
                     [attr.aria-label]="'Quantité de ' + name(line)"
                     (input)="
                       update(line, { quantity: +$any($event.target).value })
@@ -179,7 +179,6 @@ const today = () => new Date().toLocaleDateString('sv');
                     min="0"
                     step="0.01"
                     placeholder="Auto"
-                    [value]="line.unitCost ?? ''"
                     [attr.aria-label]="'Coût unitaire de ' + name(line)"
                     (input)="update(line, { unitCost: cost($event) })"
                   />
@@ -370,6 +369,8 @@ export class PurchaseNew {
     this.lines.update((lines) => lines.filter((line) => line !== removed));
   }
 
+  // Le champ suit la saisie et le signal le suit, jamais l'inverse : « 1. »
+  // est vide pour un input number, le réécrire effacerait la frappe.
   update(changed: DraftLine, values: Partial<DraftLine>): void {
     this.lines.update((lines) =>
       lines.map((line) => (line === changed ? { ...line, ...values } : line)),

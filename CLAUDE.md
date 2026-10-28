@@ -158,6 +158,9 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
     lecture pour un membre, écriture avec `INVENTORY_MANAGE` ;
   - le stock est fait d'exemplaires uniques, sans quantité : chaque ajout crée
     un `InventoryItem` (il aura son emplacement et ses photos) ;
+  - ajout et retrait en lot (`POST` et `DELETE inventory/batch`, 100 au plus),
+    en une requête, tout ou rien ; les ids du lot sont choisis par l'appelant,
+    le retrait ignore ceux déjà retirés ;
   - une carte à l'unité est brute (état obligatoire) ou gradée (société et note
     à la place de l'état) ; une carte gradée n'est pas valorisée au Price Trend ;
   - une carte à l'unité peut être une reverse (`InventoryItem.reverse`), refusée
@@ -170,11 +173,13 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   - un achat (souvent un lot) a un fournisseur, une date, un prix et des frais ;
     lecture pour un membre, écriture avec `PURCHASE_MANAGE` (et
     `INVENTORY_MANAGE`, vérifiée par inventory) ;
-  - l'enregistrer crée ses exemplaires dans inventory (`InventoryService`,
-    token transmis tel quel), un par unité, puis l'achat ; si une étape échoue,
-    les exemplaires déjà créés sont retirés du stock ;
+  - l'enregistrer crée ses exemplaires dans inventory en un lot
+    (`InventoryService`, token transmis tel quel), un par unité, puis l'achat ;
+    purchase choisit leurs ids : si l'achat échoue, même sans réponse
+    d'inventory, le lot est retiré du stock, et un retrait en échec est loggé ;
   - chaque `PurchaseLine` copie le produit et l'état de son exemplaire :
-    l'achat reste lisible quand l'exemplaire quitte le stock ;
+    l'achat reste lisible quand l'exemplaire quitte le stock ; le détail d'un
+    achat demande à inventory lesquels y sont encore (`inStock`) ;
   - coût (`allocateCosts`, en centimes) : un coût unitaire saisi est gardé, le
     reste du prix et des frais est réparti au prorata du Price Trend du jour ;
     un exemplaire sans prix compte pour la moyenne des autres, et sans aucun

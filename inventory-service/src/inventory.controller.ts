@@ -18,9 +18,11 @@ import {
 } from '@nestjs/swagger';
 import {
   AddInventoryItemDto,
+  AddInventoryItemsDto,
   InventoryItemDto,
   InventorySummaryDto,
   ListInventoryDto,
+  RemoveInventoryItemsDto,
 } from './inventory.dto';
 import { InventoryService } from './inventory.service';
 
@@ -69,6 +71,37 @@ export class InventoryController {
     @Body() dto: AddInventoryItemDto,
   ): Promise<InventoryItemDto> {
     return this.inventoryService.add(authorization, organizationId, dto);
+  }
+
+  @Post('batch')
+  @ApiOperation({
+    summary:
+      'Ajoute un lot d’exemplaires au stock, tout ou rien (INVENTORY_MANAGE).',
+  })
+  @ApiResponse({ status: 201, type: [InventoryItemDto] })
+  @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
+  @ApiResponse({ status: 409, description: 'Un id existe déjà.' })
+  addMany(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() dto: AddInventoryItemsDto,
+  ): Promise<InventoryItemDto[]> {
+    return this.inventoryService.addMany(authorization, organizationId, dto);
+  }
+
+  @Delete('batch')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Retire un lot d’exemplaires du stock ; ceux déjà retirés sont ignorés (INVENTORY_MANAGE).',
+  })
+  @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
+  removeMany(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Body() dto: RemoveInventoryItemsDto,
+  ): Promise<void> {
+    return this.inventoryService.removeMany(authorization, organizationId, dto);
   }
 
   @Get(':itemId')
