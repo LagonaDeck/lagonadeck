@@ -16,6 +16,7 @@ import {
   LucidePanelLeftOpen,
   LucideFlag,
   LucideShieldCheck,
+  LucideShoppingCart,
   LucideUserCog,
 } from '@lucide/angular';
 import {
@@ -56,6 +57,7 @@ function readCollapsed(): boolean {
     LucidePanelLeftOpen,
     LucideFlag,
     LucideShieldCheck,
+    LucideShoppingCart,
     LucideUserCog,
     RouterLink,
     RouterLinkActive,
@@ -136,6 +138,15 @@ function readCollapsed(): boolean {
         >
           <svg lucideLayoutDashboard [size]="20" aria-hidden="true"></svg>
           <span>Tableau de bord</span>
+        </a>
+        <a
+          routerLink="/app/purchases"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          title="Achats"
+        >
+          <svg lucideShoppingCart [size]="20" aria-hidden="true"></svg>
+          <span>Achats</span>
         </a>
         <a
           routerLink="/app/inventory"

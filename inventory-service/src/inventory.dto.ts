@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
   IsBoolean,
   IsEnum,
   IsIn,
@@ -11,6 +13,7 @@ import {
   IsUUID,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { Condition, GradingCompany, Language } from './generated/prisma/enums';
 import { ProductDto } from './product.dto';
@@ -54,7 +57,49 @@ export class AddInventoryItemDto {
   reverse?: boolean;
 }
 
+// Un lot est ajouté ou retiré en une seule requête, tout ou rien.
+const MAX_BATCH_SIZE = 100;
+
+export class NewInventoryItemDto extends AddInventoryItemDto {
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Choisi par l’appelant : il peut retirer les exemplaires même sans avoir reçu la réponse.',
+  })
+  @IsUUID()
+  id!: string;
+}
+
+export class AddInventoryItemsDto {
+  @ApiProperty({ type: [NewInventoryItemDto] })
+  @ValidateNested({ each: true })
+  @Type(() => NewInventoryItemDto)
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_BATCH_SIZE)
+  items!: NewInventoryItemDto[];
+}
+
+export class RemoveInventoryItemsDto {
+  @ApiProperty({ type: [String], format: 'uuid' })
+  @IsUUID('all', { each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAX_BATCH_SIZE)
+  ids!: string[];
+}
+
 export class ListInventoryDto {
+  @ApiPropertyOptional({
+    type: String,
+    description: 'Exemplaires à lire, ids séparés par des virgules.',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  @IsUUID('all', { each: true })
+  @ArrayMaxSize(MAX_BATCH_SIZE)
+  ids?: string[];
+
   @ApiPropertyOptional({
     description: 'Partie du nom du produit, sans tenir compte de la casse.',
   })

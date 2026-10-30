@@ -139,7 +139,9 @@ export const formatPrice = (price: string | number | null): string =>
   price === null ? '—' : euros.format(Number(price));
 
 /** « Pingoléon FB (SV 27) » : le set et le numéro identifient la carte. */
-export const cardName = (product: Product): string => {
+export const cardName = (
+  product: Pick<Product, 'name' | 'setCode' | 'cardNumber'>,
+): string => {
   const reference = [product.setCode, product.cardNumber]
     .filter(Boolean)
     .join(' ');

@@ -30,6 +30,24 @@ bootstrapApplication(App, {
           children: [
             { path: '', component: Overview, title: 'LagonaDeck' },
             {
+              path: 'purchases',
+              loadComponent: () =>
+                import('./app/purchases').then((m) => m.Purchases),
+              title: 'Achats',
+            },
+            {
+              path: 'purchases/new',
+              loadComponent: () =>
+                import('./app/purchase-new').then((m) => m.PurchaseNew),
+              title: 'Nouvel achat',
+            },
+            {
+              path: 'purchases/:purchaseId',
+              loadComponent: () =>
+                import('./app/purchase').then((m) => m.PurchasePage),
+              title: 'Achat',
+            },
+            {
               path: 'inventory',
               loadComponent: () =>
                 import('./app/inventory').then((m) => m.Inventory),
