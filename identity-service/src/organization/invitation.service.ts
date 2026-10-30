@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../generated/prisma/client';
+import { MailService } from '../mail/mail.service';
 import {
   InvitableUserDto,
   PendingInvitationDto,
@@ -24,6 +25,16 @@ const maskEmail = (email: string) => {
   return `${local[0]}•••@${domain}`;
 };
 
+const INVITATION_MAIL = {
+  organization: { select: { name: true } },
+  invitedBy: { select: { username: true } },
+} as const;
+
+interface InvitationMail {
+  organization: { name: string };
+  invitedBy: { username: string };
+}
+
 const isPrismaError = (error: unknown, code: string) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 
@@ -32,6 +43,7 @@ export class InvitationService {
   constructor(
     @Inject(PrismaClient) private readonly prisma: PrismaClient,
     private readonly access: OrganizationAccessService,
+    private readonly mailService: MailService,
   ) {}
 
   // Email exact ou début du nom d'utilisateur : la recherche ne permet pas de
@@ -92,9 +104,11 @@ export class InvitationService {
     if (member) throw new ConflictException('Déjà membre de l’organisation');
 
     try {
-      await this.prisma.invitation.create({
+      const invitation = await this.prisma.invitation.create({
         data: { organizationId, userId: inviteeId, invitedById: userId },
+        select: { user: { select: { email: true } }, ...INVITATION_MAIL },
       });
+      this.sendInvitation(invitation.user.email, invitation, true);
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
         throw new ConflictException('Une invitation est déjà en attente');
@@ -149,9 +163,11 @@ export class InvitationService {
       'MEMBER_INVITE',
     );
     try {
-      await this.prisma.emailInvitation.create({
+      const invitation = await this.prisma.emailInvitation.create({
         data: { organizationId, email, invitedById: userId },
+        select: INVITATION_MAIL,
       });
+      this.sendInvitation(email, invitation, false);
     } catch (error) {
       if (isPrismaError(error, 'P2002')) {
         throw new ConflictException('Une invitation est déjà en attente');
@@ -260,6 +276,20 @@ export class InvitationService {
   async decline(userId: string, organizationId: string): Promise<void> {
     await this.prisma.invitation.deleteMany({
       where: { organizationId, userId },
+    });
+  }
+
+  private sendInvitation(
+    to: string,
+    { organization, invitedBy }: InvitationMail,
+    hasAccount: boolean,
+  ): void {
+    this.mailService.send({
+      template: 'workspace-invitation',
+      to,
+      organizationName: organization.name,
+      inviterUsername: invitedBy.username,
+      hasAccount,
     });
   }
 }

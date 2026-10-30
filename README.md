@@ -39,6 +39,7 @@ identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
 inventory-service/  NestJS + Prisma : catalogue Pokémon (TCGdex, prix Cardmarket), stock des organisations
 purchase-service/   NestJS + Prisma : achats et lots, répartition de leur coût entre les exemplaires
+mail-service/       Python + FastAPI, sans base : envoi des e-mails par SMTP (Mailpit en dev), lus dans RabbitMQ
 ```
 
 Communication entre services :
@@ -48,6 +49,7 @@ Communication entre services :
 - **Asynchrone** (événements, traitements longs) : RabbitMQ via
   `@nestjs/microservices`, une file durable par consumer, ack manuel après
   traitement, `eventId` (`crypto.randomUUID()`) pour ignorer un doublon.
+  identity envoie ainsi ses e-mails à mail-service (file `mail-service`).
 
 ## Démarrage
 
@@ -56,15 +58,20 @@ make docker-dev-up-rebuild   # arrêt : make docker-dev-down
 ```
 
 Lance le frontend (4200), l'api-gateway (3000), identity-service (3001),
-inventory-service (3002), purchase-service (3003) et media-service (3006) en hot reload, avec un Postgres par service et MinIO
-(console sur 9001). Les migrations Prisma sont appliquées au démarrage. Chaque
+inventory-service (3002), purchase-service (3003), media-service (3006) et mail-service (3007) en hot reload,
+avec un Postgres par service, MinIO (console sur 9001), RabbitMQ (interface sur
+http://localhost:15672, lagonadeck / lagonadeck) et Mailpit, qui garde
+tous les e-mails envoyés (http://localhost:8025). Les migrations Prisma sont appliquées au démarrage. Chaque
 projet a son propre `compose.yaml` (service + sa base) : `docker compose up`
 dans son dossier le lance seul. Après
 un changement de dépendances : `docker compose -f dev.compose.yaml up --build --renew-anon-volumes`.
 
 Sans Docker, dans chaque dossier : `npm install`, `cp .env.example .env`, puis
 `npm run start:dev` (frontend : `npm start`), `npm run build`, `npm test` et
-`npm run lint`.
+`npm run lint`. mail-service se gère avec [uv](https://docs.astral.sh/uv/) :
+`uv sync`, `cp .env.example .env`, un RabbitMQ local, puis
+`uv run --env-file .env uvicorn app.main:app --reload --port 3007`,
+`uv run pytest` et `uv run ruff check .`.
 
 ## Objectif du projet
 

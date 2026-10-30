@@ -46,6 +46,20 @@ import { Auth, errorMessage, formValues } from './auth';
         <button [disabled]="pending()">
           {{ pending() ? 'Connexion…' : 'Se connecter' }}
         </button>
+        @if (unconfirmedEmail()) {
+          <button
+            type="button"
+            class="secondary"
+            [disabled]="resent()"
+            (click)="resend()"
+          >
+            {{
+              resent()
+                ? 'E-mail envoyé, vérifiez votre boîte'
+                : 'Renvoyer l’e-mail de confirmation'
+            }}
+          </button>
+        }
       </form>
       <p class="switch">
         Pas encore de compte ? <a routerLink="/signup">Créer un compte</a>
@@ -59,15 +73,27 @@ export class Login {
   private readonly router = inject(Router);
   readonly error = signal('');
   readonly pending = signal(false);
+  readonly unconfirmedEmail = signal('');
+  readonly resent = signal(false);
 
   submit(event: SubmitEvent): void {
     this.pending.set(true);
-    this.auth.login(formValues(event)).subscribe({
+    const form = formValues(event) as { email: string };
+    this.auth.login(form).subscribe({
       next: () => void this.router.navigate(['/app']),
       error: (error: HttpErrorResponse) => {
         this.pending.set(false);
         this.error.set(errorMessage(error));
+        // 403 : identifiants corrects, adresse pas encore confirmée.
+        this.unconfirmedEmail.set(error.status === 403 ? form.email : '');
+        this.resent.set(false);
       },
     });
+  }
+
+  resend(): void {
+    this.auth
+      .resendConfirmation(this.unconfirmedEmail())
+      .subscribe(() => this.resent.set(true));
   }
 }

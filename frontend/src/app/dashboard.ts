@@ -11,6 +11,7 @@ import {
   LucideChevronsUpDown,
   LucideLayoutDashboard,
   LucideLogOut,
+  LucideMail,
   LucidePackage,
   LucidePanelLeftClose,
   LucidePanelLeftOpen,
@@ -52,6 +53,7 @@ function readCollapsed(): boolean {
     LucideChevronsUpDown,
     LucideLayoutDashboard,
     LucideLogOut,
+    LucideMail,
     LucidePackage,
     LucidePanelLeftClose,
     LucidePanelLeftOpen,
@@ -156,6 +158,15 @@ function readCollapsed(): boolean {
         >
           <svg lucidePackage [size]="20" aria-hidden="true"></svg>
           <span>Inventaire</span>
+        </a>
+        <a
+          routerLink="/app/invitations"
+          routerLinkActive="active"
+          ariaCurrentWhenActive="page"
+          title="Invitations"
+        >
+          <svg lucideMail [size]="20" aria-hidden="true"></svg>
+          <span>Invitations</span>
         </a>
       </nav>
       @if (auth.catalogStaff()) {

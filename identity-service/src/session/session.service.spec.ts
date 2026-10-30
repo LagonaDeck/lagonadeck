@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Prisma, PrismaClient } from '../generated/prisma/client';
 import { hashPassword } from '../user/utils/password.util';
 import { LoginThrottleService } from './login-throttle.service';
@@ -50,6 +50,7 @@ describe('SessionService', () => {
         id: 'user-1',
         salt: 'salt',
         passwordHash: await hashPassword('Sup3rSecret!', 'salt'),
+        emailConfirmedAt: new Date(),
       });
     });
 
@@ -66,6 +67,20 @@ describe('SessionService', () => {
         userId: 'user-1',
       });
       expect(session.token).not.toBe(session.refreshToken);
+    });
+
+    it("refuse un compte dont l'adresse n'est pas confirmée", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        salt: 'salt',
+        passwordHash: await hashPassword('Sup3rSecret!', 'salt'),
+        emailConfirmedAt: null,
+      });
+
+      await expect(
+        service.login({ email: 'jane@example.com', password: 'Sup3rSecret!' }),
+      ).rejects.toThrow(new ForbiddenException('Adresse e-mail non confirmée'));
+      expect(prisma.session.create).not.toHaveBeenCalled();
     });
 
     it('refuse un mauvais mot de passe', async () => {

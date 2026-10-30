@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -57,6 +58,10 @@ export class SessionService implements OnModuleInit {
       throw new UnauthorizedException('Identifiants invalides');
     }
     this.throttle.reset(dto.email);
+    // Après le mot de passe : sinon la réponse révélerait qu'un compte existe.
+    if (!user.emailConfirmedAt) {
+      throw new ForbiddenException('Adresse e-mail non confirmée');
+    }
     return this.create(user.id);
   }
 

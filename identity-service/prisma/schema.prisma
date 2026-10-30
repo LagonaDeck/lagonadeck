@@ -28,9 +28,13 @@ model User {
   salt               String
   // Équipe LagonaDeck : permissions sur toute la plateforme, hors organisation.
   staffPermissions   StaffPermission[] @default([])
+  // Null tant que le lien reçu par e-mail n'a pas été ouvert : la connexion
+  // est refusée, l'adresse n'est pas prouvée.
+  emailConfirmedAt   DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
+  emailConfirmation   EmailConfirmation?
   sessions            Session[]
   memberships         OrganizationMember[]
   invitationsReceived Invitation[]         @relation("InvitationsReceived")
@@ -48,6 +52,16 @@ model Session {
   expiresAt        DateTime
   refreshExpiresAt DateTime
   createdAt        DateTime @default(now())
+}
+
+// Lien de confirmation de l'adresse e-mail, un seul par compte : en redemander
+// un remplace le précédent. Comme pour `Session`, seul le hash du token est stocké.
+model EmailConfirmation {
+  tokenHash String   @id
+  userId    String   @unique @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 // Aucune route ne les accorde.

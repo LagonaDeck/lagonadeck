@@ -5,12 +5,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Projet
 
 LagonaDeck : ERP de flipping de cartes TCG. Pas de monorepo : chaque dossier
-racine est un projet indépendant, avec son `package.json`, son lockfile, son
-`Dockerfile` et son `compose.yaml`, sans code partagé.
+racine est un projet indépendant, avec son `package.json` (`pyproject.toml`
+pour mail-service), son lockfile, son `Dockerfile` et son `compose.yaml`, sans
+code partagé.
 
 **Stack** : TypeScript 6, Node 26, NestJS 11, Prisma 7 (PostgreSQL 17, driver
 adapter `@prisma/adapter-pg`), Angular 22, S3/MinIO, jest + ts-jest, Prettier,
-Docker Compose.
+Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
 
 **Structure** :
 
@@ -20,7 +21,7 @@ Docker Compose.
   `data-theme` sur `<html>`), pas de couleur en dur hors des surfaces toujours
   sombres comme le menu de gauche.
 - `api-gateway/` : NestJS, seul point d'entrée HTTP, sans base. Routes
-  `/api/auth` (signup, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
+  `/api/auth` (signup, confirm-email et confirm-email/resend, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
   est relayé tel quel à identity, sauf `/api/organizations/:id/inventory/**`
   et `/api/products/**` relayés à inventory, et
@@ -36,6 +37,10 @@ Docker Compose.
   (`/api/organizations/:organizationId/inventory`).
 - `purchase-service/` : NestJS + Prisma, achats de chaque organisation
   (`/api/organizations/:organizationId/purchases`).
+- `mail-service/` : Python + FastAPI, sans base ni route, consumer RabbitMQ
+  (aio-pika) de la file `mail-service` : chaque événement `mail.send` envoie un
+  template (`account-confirmation`, `workspace-invitation`) par SMTP ; Mailpit
+  en dev.
 
 **Commandes** :
 
@@ -43,9 +48,9 @@ Docker Compose.
 make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
 make build                           # build des 6 projets
-make test                            # tests d'identity-service, media-service, inventory-service et purchase-service
-make format                          # Prettier sur tout le dépôt
-make lint                            # ESLint dans les 6 projets
+make test                            # tests d'identity-service, media-service, inventory-service, purchase-service et mail-service
+make format                          # Prettier sur tout le dépôt, ruff format pour mail-service
+make lint                            # ESLint dans les 6 projets, ruff pour mail-service
 make quality                         # make format puis make lint
 make docker-dev-up-rebuild           # tout le système en arrière-plan (dev.compose.yaml fait un include: des composes des projets)
 make docker-dev-down                 # arrête la stack
@@ -64,13 +69,22 @@ npm run db:migrate                   # prisma migrate dev
 docker compose up                    # ce service seul, avec sa base
 ```
 
+Dans `mail-service/` (uv ; sans uv, les cibles make l'ignorent en local) :
+
+```bash
+uv sync                              # dépendances dans .venv
+uv run pytest                        # tests
+uv run ruff check . && uv run ruff format .
+```
+
 Lefthook (`lefthook.yml`) : Prettier sur les fichiers indexés au pre-commit,
 `make lint build test` au pre-push. ESLint (un `eslint.config.mjs` par projet,
 typescript-eslint en `recommendedTypeChecked`, angular-eslint pour le
 frontend) ne porte aucune règle de style : c'est le rôle de Prettier. Il n'y a
 pas de script de type-check : le type-check passe par `npm run build`. La CI
 lance Prettier, ESLint (`npm ci && npm run lint`), puis
-`npm ci && npm run build && npm test --if-present` dans chaque projet.
+`npm ci && npm run build && npm test --if-present` dans chaque projet ; pour
+mail-service, ruff puis pytest via uv.
 
 **Patterns** :
 
@@ -188,8 +202,21 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
   - supprimer un achat retire ses exemplaires du stock (correction de saisie) ;
   - la fiche d'un exemplaire affiche son coût d'achat
     (`GET purchases/items/:inventoryItemId`, 404 hors achat).
-- **Communication inter-services** (inventory et purchase → identity, purchase
-  → inventory, en synchrone ; le reste est cible) :
+- **mail** :
+  - les liens des e-mails sont construits par mail-service à partir de
+    `APP_URL`, jamais reçus de l'appelant ; les valeurs saisies par les
+    utilisateurs sont échappées dans le HTML ;
+  - identity publie `{ eventId, mail }` sans attendre (`MailService`, `ClientRMQ`) :
+    un échec est journalisé et n'annule pas l'action ;
+  - mail-service traite un message à la fois et l'ack après l'envoi ; un message
+    invalide ou refusé par le SMTP (5xx) est rejeté, une panne SMTP le remet en
+    file après 5 s ;
+  - la connexion attend que l'adresse soit confirmée (`User.emailConfirmedAt`,
+    token haché dans `EmailConfirmation`, valable 24 h, renvoi au plus une fois
+    par minute) ; changer d'adresse dans le profil la redemande.
+- **Communication inter-services** (inventory et purchase → identity,
+  purchase → inventory, en synchrone ; identity → mail-service en asynchrone ;
+  le reste est cible) :
   - synchrone : `fetch` avec `signal: AbortSignal.timeout(5000)` et une URL en
     variable d'env `SERVICE_X_URL` ;
   - asynchrone : RabbitMQ via `@nestjs/microservices`, une file durable par
@@ -199,8 +226,9 @@ lance Prettier, ESLint (`npm ci && npm run lint`), puis
 - **Docker** :
   - deux stages : `dev` (`npm ci`, build, `start:dev`) et `prod`
     (`npm ci --omit=dev` et `dist`) ; le frontend est servi par nginx en prod ;
+    mail-service : `uv sync --locked` puis uvicorn (`--reload` en dev) ;
   - chaque compose de service déclare son propre Postgres (et MinIO pour
-    media).
+    media, Mailpit et RabbitMQ pour mail-service).
 - **npm 11** : `allowScripts` n'autorise que `prisma` et `@prisma/engines`.
 
 ## Commentaires et lisibilité

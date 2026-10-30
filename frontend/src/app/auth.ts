@@ -31,6 +31,14 @@ export class Auth {
     return this.http.post('/api/auth/login', form);
   }
 
+  confirmEmail(token: string) {
+    return this.http.post<void>('/api/auth/confirm-email', { token });
+  }
+
+  resendConfirmation(email: string) {
+    return this.http.post<void>('/api/auth/confirm-email/resend', { email });
+  }
+
   logout() {
     return this.http
       .post('/api/auth/logout', null)
@@ -59,6 +67,8 @@ const WITHOUT_SESSION = [
   '/api/auth/login',
   '/api/auth/signup',
   '/api/auth/refresh',
+  '/api/auth/confirm-email',
+  '/api/auth/confirm-email/resend',
 ];
 
 // Le token de session expire vite : sur un 401, on le renouvelle une fois

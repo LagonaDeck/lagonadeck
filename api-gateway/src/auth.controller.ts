@@ -46,17 +46,22 @@ function clearSessionCookies(res: ServerResponse) {
 
 @Controller('auth')
 export class AuthController {
+  // Pas de session : la connexion attend que l'adresse soit confirmée.
   @Post('signup')
-  async signup(
-    @Body() body: { email?: unknown; password?: unknown },
-    @Res({ passthrough: true }) res: ServerResponse,
-  ): Promise<unknown> {
-    const user = await callIdentity('/api/users', { body });
-    const session = await callIdentity<Session>('/api/sessions', {
-      body: { email: body.email, password: body.password },
-    });
-    setSessionCookies(res, session);
-    return user;
+  signup(@Body() body: unknown): Promise<unknown> {
+    return callIdentity('/api/users', { body });
+  }
+
+  @Post('confirm-email')
+  @HttpCode(204)
+  async confirmEmail(@Body() body: unknown): Promise<void> {
+    await callIdentity('/api/users/confirm-email', { body });
+  }
+
+  @Post('confirm-email/resend')
+  @HttpCode(204)
+  async resendConfirmation(@Body() body: unknown): Promise<void> {
+    await callIdentity('/api/users/confirm-email/resend', { body });
   }
 
   @Post('login')

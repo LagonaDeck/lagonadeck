@@ -3,8 +3,10 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { scryptSync } from 'node:crypto';
 import { UserService } from './user.service';
 import { Prisma, PrismaClient } from '../generated/prisma/client';
+import { MailService } from '../mail/mail.service';
 import { InvitationService } from '../organization/invitation.service';
 import { OrganizationService } from '../organization/organization.service';
+import { hashToken } from '../session/utils/token.util';
 
 function prismaError(code: string) {
   return new Prisma.PrismaClientKnownRequestError(`Prisma error ${code}`, {
@@ -22,10 +24,17 @@ describe('UserService', () => {
     user: {
       create: jest.Mock;
       update: jest.Mock;
+      findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
     };
     session: { deleteMany: jest.Mock };
+    emailConfirmation: {
+      findUnique: jest.Mock;
+      deleteMany: jest.Mock;
+      upsert: jest.Mock;
+    };
   };
+  let mailService: { send: jest.Mock };
   let organizationService: { createPersonal: jest.Mock };
   let invitationService: {
     claimEmailInvitations: jest.Mock;
@@ -53,10 +62,17 @@ describe('UserService', () => {
       user: {
         create: jest.fn(),
         update: jest.fn(),
+        findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
       },
       session: { deleteMany: jest.fn() },
+      emailConfirmation: {
+        findUnique: jest.fn(),
+        deleteMany: jest.fn(),
+        upsert: jest.fn(),
+      },
     };
+    mailService = { send: jest.fn() };
     organizationService = { createPersonal: jest.fn() };
     invitationService = {
       claimEmailInvitations: jest.fn(),
@@ -69,6 +85,7 @@ describe('UserService', () => {
         { provide: PrismaClient, useValue: prisma },
         { provide: OrganizationService, useValue: organizationService },
         { provide: InvitationService, useValue: invitationService },
+        { provide: MailService, useValue: mailService },
       ],
     }).compile();
 
@@ -157,12 +174,32 @@ describe('UserService', () => {
       expect(first.passwordHash).not.toBe(second.passwordHash);
     });
 
-    it('convertit une violation de contrainte unique (P2002) en 409', async () => {
+    it("envoie le lien de confirmation et n'en stocke que le hash, valable 24 h", async () => {
+      prisma.user.create.mockResolvedValue(baseUser);
+
+      await service.create(dto);
+
+      const { emailConfirmation } = prisma.user.create.mock.calls[0][0].data;
+      const [[mail]] = mailService.send.mock.calls;
+      expect(mail).toMatchObject({
+        template: 'account-confirmation',
+        to: baseUser.email,
+        username: baseUser.username,
+      });
+      expect(emailConfirmation.create.tokenHash).toBe(hashToken(mail.token));
+      expect(emailConfirmation.create.expiresAt.getTime()).toBeCloseTo(
+        Date.now() + 24 * 60 * 60 * 1000,
+        -4,
+      );
+    });
+
+    it('convertit une violation de contrainte unique (P2002) en 409, sans e-mail', async () => {
       prisma.user.create.mockRejectedValue(uniqueConstraintError());
 
       await expect(service.create(dto)).rejects.toBeInstanceOf(
         ConflictException,
       );
+      expect(mailService.send).not.toHaveBeenCalled();
     });
 
     it('propage les autres erreurs sans les convertir', async () => {
@@ -173,7 +210,88 @@ describe('UserService', () => {
     });
   });
 
+  describe('confirmEmail', () => {
+    const confirmation = (expiresAt: Date) => ({
+      tokenHash: hashToken('token'),
+      userId: 'user-1',
+      expiresAt,
+    });
+
+    it("confirme l'adresse et consomme le lien", async () => {
+      prisma.emailConfirmation.findUnique.mockResolvedValue(
+        confirmation(new Date(Date.now() + 60_000)),
+      );
+
+      await service.confirmEmail('token');
+
+      expect(prisma.emailConfirmation.findUnique).toHaveBeenCalledWith({
+        where: { tokenHash: hashToken('token') },
+      });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { emailConfirmedAt: expect.any(Date) },
+      });
+      expect(prisma.emailConfirmation.deleteMany).toHaveBeenCalledWith({
+        where: { tokenHash: hashToken('token') },
+      });
+    });
+
+    it.each([
+      ['inconnu', null],
+      ['expiré', confirmation(new Date(Date.now() - 1))],
+    ])('refuse un lien %s', async (_, found) => {
+      prisma.emailConfirmation.findUnique.mockResolvedValue(found);
+
+      await expect(service.confirmEmail('token')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resendConfirmation', () => {
+    const unconfirmed = (sentAt: Date) => ({
+      ...baseUser,
+      emailConfirmedAt: null,
+      emailConfirmation: { createdAt: sentAt },
+    });
+
+    it('remplace le lien précédent et envoie le nouveau', async () => {
+      prisma.user.findUnique.mockResolvedValue(
+        unconfirmed(new Date(Date.now() - 2 * 60_000)),
+      );
+
+      await service.resendConfirmation(baseUser.email);
+
+      const { create, update } =
+        prisma.emailConfirmation.upsert.mock.calls[0][0];
+      const [[mail]] = mailService.send.mock.calls;
+      expect(update.tokenHash).toBe(hashToken(mail.token));
+      expect(create).toMatchObject({ ...update, userId: baseUser.id });
+    });
+
+    it.each([
+      ['une adresse sans compte', null],
+      [
+        'un compte déjà confirmé',
+        { ...baseUser, emailConfirmedAt: new Date(), emailConfirmation: null },
+      ],
+      ["un lien envoyé il y a moins d'une minute", unconfirmed(new Date())],
+    ])("n'envoie rien pour %s", async (_, user) => {
+      prisma.user.findUnique.mockResolvedValue(user);
+
+      await service.resendConfirmation(baseUser.email);
+
+      expect(prisma.emailConfirmation.upsert).not.toHaveBeenCalled();
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateProfile', () => {
+    beforeEach(() => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
+    });
+
     it("modifie l'utilisateur connecté et recalcule la clé d'unicité du nom", async () => {
       prisma.user.update.mockResolvedValue(baseUser);
 
@@ -183,25 +301,50 @@ describe('UserService', () => {
         where: { id: 'user-1' },
         data: { username: 'Janet42', usernameNormalized: 'janet42' },
       });
+      expect(mailService.send).not.toHaveBeenCalled();
     });
 
-    it("ne touche pas au nom quand seul l'email change", async () => {
-      prisma.user.update.mockResolvedValue(baseUser);
+    it('redemande la confirmation de la nouvelle adresse, sans toucher au nom', async () => {
+      const updated = { ...baseUser, email: 'janet@example.com' };
+      prisma.user.update.mockResolvedValue(updated);
 
       await service.updateProfile('user-1', { email: 'janet@example.com' });
 
-      expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        data: { email: 'janet@example.com' },
+      const { data } = prisma.user.update.mock.calls[0][0];
+      const [[mail]] = mailService.send.mock.calls;
+      expect(data).toMatchObject({
+        email: 'janet@example.com',
+        emailConfirmedAt: null,
+      });
+      expect(data).not.toHaveProperty('usernameNormalized');
+      expect(data.emailConfirmation.upsert.update.tokenHash).toBe(
+        hashToken(mail.token),
+      );
+      expect(mail).toMatchObject({
+        template: 'account-confirmation',
+        to: 'janet@example.com',
       });
     });
 
-    it('convertit une violation de contrainte unique (P2002) en 409', async () => {
+    it("ne redemande rien quand l'adresse envoyée est l'adresse actuelle", async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+
+      await service.updateProfile('user-1', { email: baseUser.email });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { email: baseUser.email },
+      });
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it('convertit une violation de contrainte unique (P2002) en 409, sans e-mail', async () => {
       prisma.user.update.mockRejectedValue(uniqueConstraintError());
 
       await expect(
         service.updateProfile('user-1', { email: 'taken@example.com' }),
       ).rejects.toBeInstanceOf(ConflictException);
+      expect(mailService.send).not.toHaveBeenCalled();
     });
   });
 

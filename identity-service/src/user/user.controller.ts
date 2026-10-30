@@ -18,8 +18,10 @@ import { CurrentUserId, SessionGuard } from '../session/session.guard';
 import { bearerToken, hashToken } from '../session/utils/token.util';
 import {
   ChangePasswordDto,
+  ConfirmEmailDto,
   CreateUserDto,
   CurrentUserDto,
+  ResendConfirmationDto,
   UpdateProfileDto,
   UserPublicDto,
 } from './models/dtos/user.dto';
@@ -40,6 +42,24 @@ export class UserController {
   async createUser(@Body() dto: CreateUserDto): Promise<UserPublicDto> {
     const user = await this.userService.create(dto);
     return UserPublicDto.fromEntity(user);
+  }
+
+  @Post('confirm-email')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Confirme l’adresse e-mail avec le token reçu.' })
+  @ApiResponse({ status: 400, description: 'Lien invalide ou expiré.' })
+  confirmEmail(@Body() dto: ConfirmEmailDto): Promise<void> {
+    return this.userService.confirmEmail(dto.token);
+  }
+
+  @Post('confirm-email/resend')
+  @HttpCode(204)
+  @ApiOperation({
+    summary:
+      'Renvoie le lien de confirmation, au plus une fois par minute ; même réponse si l’adresse n’a pas de compte.',
+  })
+  resendConfirmation(@Body() dto: ResendConfirmationDto): Promise<void> {
+    return this.userService.resendConfirmation(dto.email);
   }
 
   @Patch('me')

@@ -12,3 +12,9 @@ coverage
 
 # Clients Prisma générés par `prisma generate`
 */src/generated
+
+# Python (mail-service)
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
