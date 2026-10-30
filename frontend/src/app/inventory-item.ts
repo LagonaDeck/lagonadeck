@@ -27,6 +27,7 @@ import { ItemState } from './item-state';
 import { Organizations } from './organizations';
 import { PriceAveragesChart } from './price-averages-chart';
 import { PriceHistoryChart, PricePoint } from './price-history-chart';
+import { PurchasedItem, formatDate } from './purchases';
 
 const SOURCES: Record<string, string> = {
   TCGDEX: 'TCGdex',
@@ -189,6 +190,25 @@ const DIRECTIONS: Record<Direction, string> = {
                 {{ formatPrice(item.price) }}
               </dd>
             </div>
+            @if (purchase.hasValue()) {
+              @let purchased = purchase.value();
+              <div>
+                <dt>Coût d’achat</dt>
+                <dd>
+                  <a
+                    class="purchase-link"
+                    [routerLink]="['/app/purchases', purchased.purchaseId]"
+                    [title]="
+                      'Acheté le ' +
+                      formatDate(purchased.purchasedAt) +
+                      ' chez ' +
+                      purchased.supplier
+                    "
+                    >{{ formatPrice(purchased.cost) }}</a
+                  >
+                </dd>
+              </div>
+            }
           </dl>
           <p class="hint">
             Dans le stock depuis le {{ date(item.createdAt) }}.
@@ -483,6 +503,10 @@ const DIRECTIONS: Record<Direction, string> = {
       font-weight: 700;
     }
 
+    .purchase-link:hover {
+      color: var(--blue);
+    }
+
     .stock + .hint {
       margin-top: -0.75rem;
       font-size: 0.85rem;
@@ -597,6 +621,7 @@ export class InventoryItemPage {
   readonly flags = LANGUAGE_FLAGS;
   readonly languages = LANGUAGES;
   readonly itemValueTitle = itemValueTitle;
+  readonly formatDate = formatDate;
   readonly linkError = signal('');
   readonly reportError = signal('');
   readonly reported = signal(false);
@@ -608,6 +633,10 @@ export class InventoryItemPage {
   });
   readonly item = httpResource<InventoryItem>(() =>
     this.base() ? `${this.base()}/inventory/${this.itemId()}` : undefined,
+  );
+  // Un exemplaire ajouté hors d'un achat n'en a pas : la réponse est un 404.
+  readonly purchase = httpResource<PurchasedItem>(() =>
+    this.base() ? `${this.base()}/purchases/items/${this.itemId()}` : undefined,
   );
   readonly history = httpResource<PricePoint[]>(() => {
     const product = this.item.value()?.product;

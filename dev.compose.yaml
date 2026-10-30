@@ -6,4 +6,5 @@ include:
   - identity-service/compose.yaml
   - media-service/compose.yaml
   - inventory-service/compose.yaml
+  - purchase-service/compose.yaml
   - mail-service/compose.yaml

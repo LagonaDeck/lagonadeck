@@ -57,7 +57,7 @@ jobs:
         id: lint
         run: |
           set -o pipefail
-          for project in frontend api-gateway identity-service media-service inventory-service; do
+          for project in frontend api-gateway identity-service media-service inventory-service purchase-service; do
             echo "::group::$project"
             (cd "$project" && npm ci && npm run lint) 2>&1 | tee -a /tmp/lint.log
             echo "::endgroup::"
@@ -89,7 +89,7 @@ jobs:
         id: tests
         run: |
           set -o pipefail
-          for project in frontend api-gateway identity-service media-service inventory-service; do
+          for project in frontend api-gateway identity-service media-service inventory-service purchase-service; do
             echo "::group::$project"
             (cd "$project" && npm ci && npm run build && npm test --if-present) 2>&1 | tee -a /tmp/tests.log
             echo "::endgroup::"

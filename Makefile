@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-PROJECTS = frontend api-gateway identity-service media-service inventory-service
+PROJECTS = frontend api-gateway identity-service media-service inventory-service purchase-service
 
 # mail-service est en Python : ses commandes passent par uv. Sans uv, il est
 # ignoré en local ; la CI le vérifie toujours.

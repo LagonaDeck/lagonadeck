@@ -53,6 +53,7 @@ const PERMISSIONS: { id: string; label: string }[] = [
   { id: 'BILLING_VIEW', label: 'Voir la facturation' },
   { id: 'BILLING_MANAGE', label: 'Gérer la facturation' },
   { id: 'INVENTORY_MANAGE', label: 'Gérer le stock' },
+  { id: 'PURCHASE_MANAGE', label: 'Gérer les achats' },
 ];
 
 @Component({

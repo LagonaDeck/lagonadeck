@@ -38,6 +38,7 @@ api-gateway/        NestJS, seul point d'entrée HTTP (sans base)
 identity-service/   NestJS + Prisma : utilisateurs
 media-service/      NestJS + Prisma + object storage S3 : médias
 inventory-service/  NestJS + Prisma : catalogue Pokémon (TCGdex, prix Cardmarket), stock des organisations
+purchase-service/   NestJS + Prisma : achats et lots, répartition de leur coût entre les exemplaires
 mail-service/       Python + FastAPI, sans base : envoi des e-mails par SMTP (Mailpit en dev), lus dans RabbitMQ
 ```
 
@@ -57,7 +58,7 @@ make docker-dev-up-rebuild   # arrêt : make docker-dev-down
 ```
 
 Lance le frontend (4200), l'api-gateway (3000), identity-service (3001),
-inventory-service (3002), media-service (3006) et mail-service (3007) en hot reload,
+inventory-service (3002), purchase-service (3003), media-service (3006) et mail-service (3007) en hot reload,
 avec un Postgres par service, MinIO (console sur 9001), RabbitMQ (interface sur
 http://localhost:15672, lagonadeck / lagonadeck) et Mailpit, qui garde
 tous les e-mails envoyés (http://localhost:8025). Les migrations Prisma sont appliquées au démarrage. Chaque
