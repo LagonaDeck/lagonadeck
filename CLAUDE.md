@@ -125,8 +125,9 @@ mail-service, ruff puis pytest via uv.
   - un utilisateur fait partie de 3 organisations au plus (verrou sur sa ligne
     `User` à la création et à l'acceptation d'une invitation) ;
   - on rejoint une organisation par une invitation acceptée ; une adresse
-    sans compte reçoit une `EmailInvitation`, qui devient une invitation au
-    signup (le signup peut en accepter une, sans organisation personnelle).
+    sans compte reçoit une `EmailInvitation`, qui devient une invitation à la
+    confirmation de l'adresse (le signup peut en choisir une, acceptée à la
+    confirmation, sans organisation personnelle).
   - supprimer l'organisation ou en transférer la propriété (à un membre) est
     réservé au propriétaire (`requireOwner`), pas à une permission ;
   - équipe LagonaDeck : `User.staffPermissions` (enum `StaffPermission`,
@@ -134,8 +135,9 @@ mail-service, ruff puis pytest via uv.
     par `/api/sessions/current` ; aucune route ne les accorde (la future section
     « Gestion LagonaDeck » le fera) ;
   - login bloqué 15 min après 5 échecs pour un même email
-    (`LoginThrottleService`, en mémoire) ; sessions expirées purgées toutes les
-    heures par un `setInterval`, comme les médias PENDING.
+    (`LoginThrottleService`, en mémoire) ; sessions expirées et comptes jamais
+    confirmés dont le lien a expiré purgés toutes les heures par un
+    `setInterval`, comme les médias PENDING.
 - **media** :
   - le client S3 vit dans `MediaService` ;
   - type et taille sont figés dans la policy du POST pré-signé, puis
@@ -209,11 +211,13 @@ mail-service, ruff puis pytest via uv.
   - identity publie `{ eventId, mail }` sans attendre (`MailService`, `ClientRMQ`) :
     un échec est journalisé et n'annule pas l'action ;
   - mail-service traite un message à la fois et l'ack après l'envoi ; un message
-    invalide ou refusé par le SMTP (5xx) est rejeté, une panne SMTP le remet en
-    file après 5 s ;
+    invalide, impossible à construire ou refusé par le SMTP (5xx) est rejeté,
+    une panne SMTP le remet en file après 5 s ;
   - la connexion attend que l'adresse soit confirmée (`User.emailConfirmedAt`,
     token haché dans `EmailConfirmation`, valable 24 h, renvoi au plus une fois
-    par minute) ; changer d'adresse dans le profil la redemande.
+    par minute) ; organisations et invitations attendent la confirmation ;
+  - une nouvelle adresse saisie dans le profil va dans `User.pendingEmail` et ne
+    remplace `email` qu'à la confirmation : l'ancienne reste celle du compte.
 - **Communication inter-services** (inventory et purchase → identity,
   purchase → inventory, en synchrone ; identity → mail-service en asynchrone ;
   le reste est cible) :

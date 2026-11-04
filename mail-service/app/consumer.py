@@ -65,11 +65,21 @@ def process(body: bytes, settings: Settings, send: Sender, sent: SentEvents) -> 
         return Outcome.REJECT
     if event.event_id in sent:
         return Outcome.ACK
+    # Une erreur de rendu se reproduirait à chaque essai : remis en file, le
+    # message bloquerait les suivants.
     try:
-        send(settings, build_message(settings, event.mail))
+        message = build_message(settings, event.mail)
+    except Exception:
+        logger.exception("Impossible de construire %s", event.mail.template)
+        return Outcome.REJECT
+    try:
+        send(settings, message)
     except OSError as error:
         logger.error("Échec de l'envoi de %s : %s", event.mail.template, error)
         return Outcome.REJECT if smtp.is_permanent(error) else Outcome.RETRY
+    except Exception:
+        logger.exception("Échec inattendu de l'envoi de %s", event.mail.template)
+        return Outcome.REJECT
     sent.add(event.event_id)
     return Outcome.ACK
 

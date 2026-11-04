@@ -32,7 +32,7 @@ import { Auth, errorMessage } from './auth';
         @case ('confirmed') {
           <h1>Adresse confirmée</h1>
           <p class="intro" role="status">
-            Votre compte est activé, vous pouvez vous connecter.
+            Vous pouvez vous connecter avec cette adresse.
           </p>
           <p class="switch"><a routerLink="/login">Se connecter</a></p>
         }
@@ -41,7 +41,9 @@ import { Auth, errorMessage } from './auth';
           <p class="intro" role="alert">{{ error() }}</p>
           <p class="switch">
             Pour recevoir un nouveau lien,
-            <a routerLink="/login">connectez-vous</a>.
+            <a routerLink="/login">connectez-vous</a>. Un compte jamais confirmé
+            est supprimé à l'expiration de son lien : il faut alors
+            <a routerLink="/signup">s'inscrire</a> à nouveau.
           </p>
         }
       }

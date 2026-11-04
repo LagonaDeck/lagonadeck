@@ -135,6 +135,14 @@ export class CurrentUserDto extends UserPublicDto {
   email!: string;
 
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Nouvelle adresse en attente de confirmation : `email` reste celle du compte d’ici là.',
+  })
+  pendingEmail!: string | null;
+
+  @ApiProperty({
     enum: StaffPermission,
     isArray: true,
     description:
@@ -145,6 +153,7 @@ export class CurrentUserDto extends UserPublicDto {
   static override fromEntity(user: User): CurrentUserDto {
     return Object.assign(new CurrentUserDto(), UserPublicDto.fromEntity(user), {
       email: user.email,
+      pendingEmail: user.pendingEmail,
       staffPermissions: user.staffPermissions,
     });
   }

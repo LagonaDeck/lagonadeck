@@ -66,12 +66,6 @@ bootstrapApplication(App, {
               title: 'Fiche produit',
             },
             {
-              path: 'invitations',
-              loadComponent: () =>
-                import('./app/invitations').then((m) => m.Invitations),
-              title: 'Invitations',
-            },
-            {
               path: 'management/reports',
               loadComponent: () =>
                 import('./app/management').then((m) => m.Management),
