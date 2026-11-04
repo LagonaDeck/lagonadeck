@@ -11,7 +11,6 @@ import {
   LucideChevronsUpDown,
   LucideLayoutDashboard,
   LucideLogOut,
-  LucideMail,
   LucidePackage,
   LucidePanelLeftClose,
   LucidePanelLeftOpen,
@@ -28,6 +27,7 @@ import {
 } from '@angular/router';
 import { AccountDialog, AccountSection } from './account-dialog';
 import { Auth } from './auth';
+import { InvitationsMenu } from './invitations-menu';
 import {
   Organizations,
   organizationInitials,
@@ -48,12 +48,12 @@ function readCollapsed(): boolean {
   selector: 'app-dashboard',
   imports: [
     AccountDialog,
+    InvitationsMenu,
     LucideBuilding,
     LucideCheck,
     LucideChevronsUpDown,
     LucideLayoutDashboard,
     LucideLogOut,
-    LucideMail,
     LucidePackage,
     LucidePanelLeftClose,
     LucidePanelLeftOpen,
@@ -159,15 +159,6 @@ function readCollapsed(): boolean {
           <svg lucidePackage [size]="20" aria-hidden="true"></svg>
           <span>Inventaire</span>
         </a>
-        <a
-          routerLink="/app/invitations"
-          routerLinkActive="active"
-          ariaCurrentWhenActive="page"
-          title="Invitations"
-        >
-          <svg lucideMail [size]="20" aria-hidden="true"></svg>
-          <span>Invitations</span>
-        </a>
       </nav>
       @if (auth.catalogStaff()) {
         <nav class="management" aria-labelledby="management-title">
@@ -202,6 +193,7 @@ function readCollapsed(): boolean {
     </aside>
 
     <header class="topbar">
+      <app-invitations-menu />
       <details class="account">
         <summary
           class="avatar"

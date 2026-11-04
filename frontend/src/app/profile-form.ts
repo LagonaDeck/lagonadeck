@@ -100,8 +100,11 @@ type Field = 'username' | 'email';
     @if (error()) {
       <p class="error" role="alert">{{ error() }}</p>
     }
-    @if (notice()) {
-      <p class="hint" role="status">{{ notice() }}</p>
+    @if (auth.user()?.pendingEmail; as pendingEmail) {
+      <p class="hint" role="status">
+        Un lien de confirmation a été envoyé à {{ pendingEmail }}. D'ici son
+        ouverture, votre adresse reste {{ auth.user()?.email }}.
+      </p>
     }
 
     <ng-template #editButton let-field="field" let-label="label">
@@ -173,7 +176,6 @@ export class ProfileForm {
   readonly auth = inject(Auth);
   readonly editing = signal<Field | null>(null);
   readonly error = signal('');
-  readonly notice = signal('');
   readonly pending = signal(false);
   readonly initials = computed(() =>
     (this.auth.user()?.username ?? '').slice(0, 2).toUpperCase(),
@@ -198,16 +200,10 @@ export class ProfileForm {
 
   save(event: SubmitEvent): void {
     this.pending.set(true);
-    const previousEmail = this.auth.user()?.email;
     this.auth.updateProfile(formValues(event)).subscribe({
-      next: (user) => {
+      next: () => {
         this.pending.set(false);
         this.editing.set(null);
-        if (user.email !== previousEmail) {
-          this.notice.set(
-            `Un lien de confirmation a été envoyé à ${user.email}. Ouvrez-le avant votre prochaine connexion.`,
-          );
-        }
       },
       error: (error: HttpErrorResponse) => {
         this.pending.set(false);

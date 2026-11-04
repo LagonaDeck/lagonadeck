@@ -26,8 +26,10 @@ describe('UserService', () => {
       update: jest.Mock;
       findUnique: jest.Mock;
       findUniqueOrThrow: jest.Mock;
+      deleteMany: jest.Mock;
     };
     session: { deleteMany: jest.Mock };
+    invitation: { findUnique: jest.Mock };
     emailConfirmation: {
       findUnique: jest.Mock;
       deleteMany: jest.Mock;
@@ -44,10 +46,12 @@ describe('UserService', () => {
   const baseUser = {
     id: 'user-1',
     email: 'jane@example.com',
+    pendingEmail: null,
     username: 'JaneDoe',
     usernameNormalized: 'janedoe',
     passwordHash: 'hashed',
     salt: 'salt',
+    emailConfirmedAt: new Date('2026-01-01T00:00:00.000Z'),
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   };
@@ -64,8 +68,10 @@ describe('UserService', () => {
         update: jest.fn(),
         findUnique: jest.fn(),
         findUniqueOrThrow: jest.fn(),
+        deleteMany: jest.fn(),
       },
       session: { deleteMany: jest.fn() },
+      invitation: { findUnique: jest.fn() },
       emailConfirmation: {
         findUnique: jest.fn(),
         deleteMany: jest.fn(),
@@ -98,9 +104,10 @@ describe('UserService', () => {
       username: 'JaneDoe',
       password: 'Sup3rSecret!',
     };
+    const unconfirmedUser = { ...baseUser, emailConfirmedAt: null };
 
     it("hache le mot de passe (scrypt + salt aléatoire) et crée l'utilisateur", async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
+      prisma.user.create.mockResolvedValue(unconfirmedUser);
 
       const result = await service.create(dto);
 
@@ -114,55 +121,23 @@ describe('UserService', () => {
       expect(data.passwordHash).toBe(
         scryptSync(dto.password, data.salt, 64).toString('hex'),
       );
-      expect(result).toEqual(baseUser);
+      expect(result).toEqual(unconfirmedUser);
     });
 
-    it("crée l'organisation personnelle dans la même transaction que le compte", async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
-
-      await service.create(dto);
-
-      expect(organizationService.createPersonal).toHaveBeenCalledWith(
-        prisma,
-        baseUser,
-      );
-    });
-
-    it('transforme les invitations faites à son email en invitations en attente', async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
-
-      await service.create(dto);
-
-      expect(invitationService.claimEmailInvitations).toHaveBeenCalledWith(
-        prisma,
-        baseUser,
-      );
-      expect(invitationService.acceptIn).not.toHaveBeenCalled();
-    });
-
-    it("rejoint l'organisation dont il accepte l'invitation, sans organisation personnelle", async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
+    it("ne crée ni organisation ni invitation avant la confirmation de l'adresse", async () => {
+      prisma.user.create.mockResolvedValue(unconfirmedUser);
 
       await service.create({ ...dto, invitationOrganizationId: 'org-1' });
 
-      expect(invitationService.acceptIn).toHaveBeenCalledWith(
-        prisma,
-        baseUser.id,
-        'org-1',
-      );
       expect(organizationService.createPersonal).not.toHaveBeenCalled();
-    });
-
-    it("n'aboutit pas si l'organisation ne peut pas être créée", async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
-      const dbError = new Error('connexion perdue');
-      organizationService.createPersonal.mockRejectedValue(dbError);
-
-      await expect(service.create(dto)).rejects.toBe(dbError);
+      expect(invitationService.claimEmailInvitations).not.toHaveBeenCalled();
+      expect(invitationService.acceptIn).not.toHaveBeenCalled();
+      const { emailConfirmation } = prisma.user.create.mock.calls[0][0].data;
+      expect(emailConfirmation.create.invitationOrganizationId).toBe('org-1');
     });
 
     it('génère un salt différent à chaque création', async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
+      prisma.user.create.mockResolvedValue(unconfirmedUser);
 
       await service.create(dto);
       await service.create(dto);
@@ -175,7 +150,7 @@ describe('UserService', () => {
     });
 
     it("envoie le lien de confirmation et n'en stocke que le hash, valable 24 h", async () => {
-      prisma.user.create.mockResolvedValue(baseUser);
+      prisma.user.create.mockResolvedValue(unconfirmedUser);
 
       await service.create(dto);
 
@@ -210,30 +185,152 @@ describe('UserService', () => {
     });
   });
 
+  describe('purgeUnconfirmed', () => {
+    it("supprime les comptes jamais confirmés dont le lien a expiré, pour libérer l'adresse", async () => {
+      await service.purgeUnconfirmed();
+
+      expect(prisma.user.deleteMany).toHaveBeenCalledWith({
+        where: {
+          emailConfirmedAt: null,
+          emailConfirmation: { is: { expiresAt: { lt: expect.any(Date) } } },
+        },
+      });
+    });
+  });
+
   describe('confirmEmail', () => {
-    const confirmation = (expiresAt: Date) => ({
+    const confirmation = (
+      expiresAt: Date,
+      invitationOrganizationId: string | null = null,
+    ) => ({
       tokenHash: hashToken('token'),
       userId: 'user-1',
+      invitationOrganizationId,
       expiresAt,
     });
+    const valid = (invitationOrganizationId?: string) =>
+      confirmation(new Date(Date.now() + 60_000), invitationOrganizationId);
 
-    it("confirme l'adresse et consomme le lien", async () => {
-      prisma.emailConfirmation.findUnique.mockResolvedValue(
-        confirmation(new Date(Date.now() + 60_000)),
-      );
+    describe("d'un compte qui vient de s'inscrire", () => {
+      const unconfirmedUser = { ...baseUser, emailConfirmedAt: null };
+
+      beforeEach(() => {
+        prisma.emailConfirmation.deleteMany.mockResolvedValue({ count: 1 });
+        prisma.user.findUniqueOrThrow.mockResolvedValue(unconfirmedUser);
+        prisma.user.update.mockResolvedValue(baseUser);
+      });
+
+      it("confirme l'adresse, consomme le lien et crée l'organisation personnelle", async () => {
+        prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+
+        await service.confirmEmail('token');
+
+        expect(prisma.emailConfirmation.deleteMany).toHaveBeenCalledWith({
+          where: { tokenHash: hashToken('token') },
+        });
+        expect(prisma.user.update).toHaveBeenCalledWith({
+          where: { id: 'user-1' },
+          data: { emailConfirmedAt: expect.any(Date) },
+        });
+        expect(organizationService.createPersonal).toHaveBeenCalledWith(
+          prisma,
+          baseUser,
+        );
+      });
+
+      it('transforme les invitations faites à son adresse en invitations en attente', async () => {
+        prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+
+        await service.confirmEmail('token');
+
+        expect(invitationService.claimEmailInvitations).toHaveBeenCalledWith(
+          prisma,
+          baseUser,
+        );
+        expect(invitationService.acceptIn).not.toHaveBeenCalled();
+      });
+
+      it("rejoint l'organisation dont il a choisi l'invitation, sans organisation personnelle", async () => {
+        prisma.emailConfirmation.findUnique.mockResolvedValue(valid('org-1'));
+        prisma.invitation.findUnique.mockResolvedValue({
+          organizationId: 'org-1',
+          userId: 'user-1',
+        });
+
+        await service.confirmEmail('token');
+
+        expect(invitationService.acceptIn).toHaveBeenCalledWith(
+          prisma,
+          'user-1',
+          'org-1',
+        );
+        expect(organizationService.createPersonal).not.toHaveBeenCalled();
+      });
+
+      it("reçoit une organisation personnelle si l'invitation a été révoquée depuis", async () => {
+        prisma.emailConfirmation.findUnique.mockResolvedValue(valid('org-1'));
+        prisma.invitation.findUnique.mockResolvedValue(null);
+
+        await service.confirmEmail('token');
+
+        expect(invitationService.acceptIn).not.toHaveBeenCalled();
+        expect(organizationService.createPersonal).toHaveBeenCalled();
+      });
+
+      it("n'aboutit pas si l'organisation ne peut pas être créée", async () => {
+        prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+        const dbError = new Error('connexion perdue');
+        organizationService.createPersonal.mockRejectedValue(dbError);
+
+        await expect(service.confirmEmail('token')).rejects.toBe(dbError);
+      });
+    });
+
+    it("remplace l'adresse du compte par la nouvelle adresse confirmée", async () => {
+      const updated = { ...baseUser, email: 'janet@example.com' };
+      prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+      prisma.emailConfirmation.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.user.findUniqueOrThrow.mockResolvedValue({
+        ...baseUser,
+        pendingEmail: 'janet@example.com',
+      });
+      prisma.user.update.mockResolvedValue(updated);
 
       await service.confirmEmail('token');
 
-      expect(prisma.emailConfirmation.findUnique).toHaveBeenCalledWith({
-        where: { tokenHash: hashToken('token') },
-      });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { emailConfirmedAt: expect.any(Date) },
+        data: { email: 'janet@example.com', pendingEmail: null },
       });
-      expect(prisma.emailConfirmation.deleteMany).toHaveBeenCalledWith({
-        where: { tokenHash: hashToken('token') },
+      expect(invitationService.claimEmailInvitations).toHaveBeenCalledWith(
+        prisma,
+        updated,
+      );
+      expect(organizationService.createPersonal).not.toHaveBeenCalled();
+    });
+
+    it('refuse en 409 une nouvelle adresse prise par un autre compte entre-temps', async () => {
+      prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+      prisma.emailConfirmation.deleteMany.mockResolvedValue({ count: 1 });
+      prisma.user.findUniqueOrThrow.mockResolvedValue({
+        ...baseUser,
+        pendingEmail: 'janet@example.com',
       });
+      prisma.user.update.mockRejectedValue(uniqueConstraintError());
+
+      await expect(service.confirmEmail('token')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it("n'applique qu'une fois un lien ouvert deux fois en même temps", async () => {
+      prisma.emailConfirmation.findUnique.mockResolvedValue(valid());
+      prisma.emailConfirmation.deleteMany.mockResolvedValue({ count: 0 });
+
+      await service.confirmEmail('token');
+
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(organizationService.createPersonal).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -304,18 +401,19 @@ describe('UserService', () => {
       expect(mailService.send).not.toHaveBeenCalled();
     });
 
-    it('redemande la confirmation de la nouvelle adresse, sans toucher au nom', async () => {
-      const updated = { ...baseUser, email: 'janet@example.com' };
-      prisma.user.update.mockResolvedValue(updated);
+    it("garde l'adresse actuelle et envoie le lien à la nouvelle, sans toucher au nom", async () => {
+      prisma.user.update.mockResolvedValue({
+        ...baseUser,
+        pendingEmail: 'janet@example.com',
+      });
 
       await service.updateProfile('user-1', { email: 'janet@example.com' });
 
       const { data } = prisma.user.update.mock.calls[0][0];
       const [[mail]] = mailService.send.mock.calls;
-      expect(data).toMatchObject({
-        email: 'janet@example.com',
-        emailConfirmedAt: null,
-      });
+      expect(data).toMatchObject({ pendingEmail: 'janet@example.com' });
+      expect(data).not.toHaveProperty('email');
+      expect(data).not.toHaveProperty('emailConfirmedAt');
       expect(data).not.toHaveProperty('usernameNormalized');
       expect(data.emailConfirmation.upsert.update.tokenHash).toBe(
         hashToken(mail.token),
@@ -326,15 +424,29 @@ describe('UserService', () => {
       });
     });
 
-    it("ne redemande rien quand l'adresse envoyée est l'adresse actuelle", async () => {
+    it("annule le changement en attente quand l'adresse envoyée est l'adresse actuelle", async () => {
       prisma.user.update.mockResolvedValue(baseUser);
 
       await service.updateProfile('user-1', { email: baseUser.email });
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
-        data: { email: baseUser.email },
+        data: { pendingEmail: null },
       });
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it("refuse en 409 l'adresse d'un autre compte, sans e-mail", async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...baseUser,
+        id: 'user-2',
+        email: 'taken@example.com',
+      });
+
+      await expect(
+        service.updateProfile('user-1', { email: 'taken@example.com' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
       expect(mailService.send).not.toHaveBeenCalled();
     });
 
@@ -342,7 +454,7 @@ describe('UserService', () => {
       prisma.user.update.mockRejectedValue(uniqueConstraintError());
 
       await expect(
-        service.updateProfile('user-1', { email: 'taken@example.com' }),
+        service.updateProfile('user-1', { username: 'Taken' }),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(mailService.send).not.toHaveBeenCalled();
     });

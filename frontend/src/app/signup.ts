@@ -111,8 +111,11 @@ import { Auth, errorMessage, formValues } from './auth';
 })
 export class Signup {
   private readonly auth = inject(Auth);
-  // Pré-remplie par le lien d'un e-mail d'invitation.
-  readonly email = input('');
+  // Pré-remplie par le lien d'un e-mail d'invitation. Sans `?email=`, le router
+  // passe `undefined`, qui remplace la valeur par défaut.
+  readonly email = input('', {
+    transform: (email: string | undefined) => email ?? '',
+  });
   readonly sentTo = signal('');
   readonly error = signal('');
   readonly pending = signal(false);
