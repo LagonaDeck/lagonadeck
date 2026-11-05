@@ -17,6 +17,7 @@ import {
   AddInventoryItemDto,
   AddInventoryItemsDto,
   InventoryItemDto,
+  InventoryItemPriceDto,
   InventorySummaryDto,
   ListInventoryDto,
   RemoveInventoryItemsDto,
@@ -73,6 +74,18 @@ function unitPrice(item: InventoryItem & { product: ProductWithCardmarket }) {
 const intersect = (a?: string[], b?: string[]) =>
   a && b ? a.filter((id) => b.includes(id)) : (a ?? b);
 
+// Même règle que unitPrice.
+const stockWithPrice = (organizationId: string) => Prisma.sql`
+  FROM "InventoryItem" i
+  JOIN "Product" p ON p."id" = i."productId"
+  LEFT JOIN "CardmarketProduct" c ON c."id" = p."cardmarketId"
+  CROSS JOIN LATERAL (
+    SELECT CASE WHEN i."gradingCompany" IS NULL
+      THEN nullif(CASE WHEN i."reverse" THEN c."trendHolo" ELSE c."trend" END, 0)
+    END AS "price"
+  ) l
+  WHERE i."organizationId" = ${organizationId}::uuid`;
+
 const WITH_PRODUCT = { product: { include: { cardmarketProduct: true } } };
 
 const toDto = (
@@ -123,7 +136,10 @@ export class InventoryService {
     const items = await this.prisma.inventoryItem.findMany({
       where: { organizationId, id: ids && { in: ids } },
       include: WITH_PRODUCT,
-      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      orderBy: [
+        { createdAt: query.sort === 'oldest' ? 'asc' : 'desc' },
+        { id: 'asc' },
+      ],
       take: query.take,
       skip: query.skip,
     });
@@ -157,17 +173,22 @@ export class InventoryService {
         count(*)::int AS "itemCount",
         coalesce(sum(l."price"), 0) AS "value",
         (count(*) FILTER (WHERE l."price" IS NULL))::int AS "unpricedItemCount"
-      FROM "InventoryItem" i
-      JOIN "Product" p ON p."id" = i."productId"
-      LEFT JOIN "CardmarketProduct" c ON c."id" = p."cardmarketId"
-      -- Même règle que unitPrice.
-      CROSS JOIN LATERAL (
-        SELECT CASE WHEN i."gradingCompany" IS NULL
-          THEN nullif(CASE WHEN i."reverse" THEN c."trendHolo" ELSE c."trend" END, 0)
-        END AS "price"
-      ) l
-      WHERE i."organizationId" = ${organizationId}::uuid`;
+      ${stockWithPrice(organizationId)}`;
     return { ...summary, value: summary.value.toFixed(2) };
+  }
+
+  async prices(
+    authorization: string | undefined,
+    organizationId: string,
+  ): Promise<InventoryItemPriceDto[]> {
+    await this.identity.getPermissions(authorization, organizationId);
+    const rows = await this.prisma.$queryRaw<
+      { id: string; price: Prisma.Decimal | null }[]
+    >`SELECT i."id", l."price" ${stockWithPrice(organizationId)}`;
+    return rows.map(({ id, price }) => ({
+      id,
+      price: price?.toFixed(2) ?? null,
+    }));
   }
 
   async add(

@@ -20,6 +20,7 @@ import {
   AddInventoryItemDto,
   AddInventoryItemsDto,
   InventoryItemDto,
+  InventoryItemPriceDto,
   InventorySummaryDto,
   ListInventoryDto,
   RemoveInventoryItemsDto,
@@ -57,6 +58,18 @@ export class InventoryController {
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
   ): Promise<InventorySummaryDto> {
     return this.inventoryService.summary(authorization, organizationId);
+  }
+
+  @Get('prices')
+  @ApiOperation({
+    summary: 'Prix de tout le stock, sans pagination, pour le valoriser.',
+  })
+  @ApiResponse({ status: 200, type: [InventoryItemPriceDto] })
+  prices(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+  ): Promise<InventoryItemPriceDto[]> {
+    return this.inventoryService.prices(authorization, organizationId);
   }
 
   @Post()

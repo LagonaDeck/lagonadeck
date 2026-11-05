@@ -25,6 +25,8 @@ import {
   PurchaseLineInputDto,
   PurchasedItemDto,
   PurchasesSummaryDto,
+  PurchasesSummaryQueryDto,
+  StockSummaryDto,
 } from './purchase.dto';
 
 // Le lot entre au stock en une seule requête à inventory, limitée à 100.
@@ -151,23 +153,65 @@ export class PurchaseService {
   async summary(
     authorization: string | undefined,
     organizationId: string,
+    { from }: PurchasesSummaryQueryDto,
   ): Promise<PurchasesSummaryDto> {
     await this.identity.getPermissions(authorization, organizationId);
+    const where = {
+      organizationId,
+      purchasedAt: from ? { gte: new Date(from) } : undefined,
+    };
     const [purchases, itemCount] = await Promise.all([
       this.prisma.purchase.aggregate({
-        where: { organizationId },
+        where,
         _count: { _all: true },
         _sum: { price: true, fees: true },
       }),
-      this.prisma.purchaseLine.count({
-        where: { purchase: { organizationId } },
-      }),
+      this.prisma.purchaseLine.count({ where: { purchase: where } }),
     ]);
     const { price, fees } = purchases._sum;
     return {
       purchaseCount: purchases._count._all,
       itemCount,
       totalCost: (price ?? new Prisma.Decimal(0)).plus(fees ?? 0).toFixed(2),
+    };
+  }
+
+  // Les coûts vivent ici et le stock dans inventory : le croisement se fait
+  // ici, sur tout le stock, car un total sur une page serait faux.
+  async stockSummary(
+    authorization: string | undefined,
+    organizationId: string,
+  ): Promise<StockSummaryDto> {
+    await this.identity.getPermissions(authorization, organizationId);
+    const [lines, stock] = await Promise.all([
+      this.prisma.purchaseLine.findMany({
+        where: { purchase: { organizationId } },
+        select: { inventoryItemId: true, cost: true },
+      }),
+      this.inventory.findPrices(authorization!, organizationId),
+    ]);
+    const costs = new Map(
+      lines.map(({ inventoryItemId, cost }) => [inventoryItemId, cost]),
+    );
+    let immobilizedCapital = new Prisma.Decimal(0);
+    let potentialProfit = new Prisma.Decimal(0);
+    let unpricedItemCount = 0;
+    let uncostedItemCount = 0;
+    for (const { id, price } of stock) {
+      const cost = costs.get(id);
+      if (!cost) {
+        uncostedItemCount++;
+        continue;
+      }
+      immobilizedCapital = immobilizedCapital.plus(cost);
+      if (price === null) unpricedItemCount++;
+      else potentialProfit = potentialProfit.plus(price).minus(cost);
+    }
+    return {
+      immobilizedCapital: immobilizedCapital.toFixed(2),
+      potentialProfit: potentialProfit.toFixed(2),
+      unpricedItemCount,
+      uncostedItemCount,
     };
   }
 

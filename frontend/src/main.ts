@@ -11,7 +11,6 @@ import { authGuard, refreshExpiredSession } from './app/auth';
 import { Dashboard } from './app/dashboard';
 import { Home } from './app/home';
 import { Login } from './app/login';
-import { Overview } from './app/overview';
 import { Signup } from './app/signup';
 
 bootstrapApplication(App, {
@@ -34,7 +33,12 @@ bootstrapApplication(App, {
           component: Dashboard,
           canActivate: [authGuard],
           children: [
-            { path: '', component: Overview, title: 'LagonaDeck' },
+            {
+              path: '',
+              loadComponent: () =>
+                import('./app/overview').then((m) => m.Overview),
+              title: 'LagonaDeck',
+            },
             {
               path: 'purchases',
               loadComponent: () =>
