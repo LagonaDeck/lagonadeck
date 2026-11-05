@@ -201,7 +201,13 @@ mail-service, ruff puis pytest via uv.
     restes ;
   - supprimer un achat retire ses exemplaires du stock (correction de saisie) ;
   - la fiche d'un exemplaire affiche son coût d'achat
-    (`GET purchases/items/:inventoryItemId`, 404 hors achat).
+    (`GET purchases/items/:inventoryItemId`, 404 hors achat) ;
+  - capital immobilisé et bénéfice potentiel (`GET purchases/stock-summary`)
+    croisent les coûts avec les prix de tout le stock (`GET inventory/prices`).
+- **tableau de bord** (`overview.ts` du frontend) : widgets à afficher ou
+  déplacer, choix gardés dans le `localStorage` ; la période filtre le capital
+  investi et les cartes acquises ; les widgets qui dépendent des ventes
+  (`needsSales`) restent vides tant que les ventes n'existent pas.
 - **mail** :
   - les liens des e-mails sont construits par mail-service à partir de
     `APP_URL`, jamais reçus de l'appelant ; les valeurs saisies par les

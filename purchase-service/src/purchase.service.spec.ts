@@ -81,24 +81,32 @@ const savedLine = (id: string, inventoryItemId: string) => ({
 describe('PurchaseService', () => {
   let prisma: {
     purchase: {
+      aggregate: jest.Mock;
       findMany: jest.Mock;
       findFirst: jest.Mock;
       create: jest.Mock;
       deleteMany: jest.Mock;
     };
-    purchaseLine: { groupBy: jest.Mock; findFirst: jest.Mock };
+    purchaseLine: {
+      count: jest.Mock;
+      findMany: jest.Mock;
+      groupBy: jest.Mock;
+      findFirst: jest.Mock;
+    };
   };
   let identity: { getPermissions: jest.Mock; requirePermission: jest.Mock };
   let inventory: {
     addItems: jest.Mock;
     removeItems: jest.Mock;
     findItems: jest.Mock;
+    findPrices: jest.Mock;
   };
   let service: PurchaseService;
 
   beforeEach(() => {
     prisma = {
       purchase: {
+        aggregate: jest.fn(),
         findMany: jest.fn(),
         findFirst: jest.fn(),
         // Renvoie l'achat tel qu'il serait enregistré, lignes comprises.
@@ -121,13 +129,19 @@ describe('PurchaseService', () => {
         ),
         deleteMany: jest.fn(),
       },
-      purchaseLine: { groupBy: jest.fn(), findFirst: jest.fn() },
+      purchaseLine: {
+        count: jest.fn(),
+        findMany: jest.fn(),
+        groupBy: jest.fn(),
+        findFirst: jest.fn(),
+      },
     };
     identity = { getPermissions: jest.fn(), requirePermission: jest.fn() };
     inventory = {
       addItems: jest.fn(),
       removeItems: jest.fn(),
       findItems: jest.fn(),
+      findPrices: jest.fn(),
     };
     service = new PurchaseService(
       prisma as never,
@@ -150,6 +164,118 @@ describe('PurchaseService', () => {
 
   const sentIds = (): string[] =>
     inventory.addItems.mock.calls[0][2].map(({ id }: { id: string }) => id);
+
+  describe('summary', () => {
+    const totals = {
+      _count: { _all: 2 },
+      _sum: {
+        price: new Prisma.Decimal(100),
+        fees: new Prisma.Decimal('5.5'),
+      },
+    };
+
+    beforeEach(() => {
+      prisma.purchase.aggregate.mockResolvedValue(totals);
+      prisma.purchaseLine.count.mockResolvedValue(7);
+    });
+
+    it('additionne les prix et les frais de tous les achats', async () => {
+      expect(await service.summary(AUTH, ORG, {})).toEqual({
+        purchaseCount: 2,
+        itemCount: 7,
+        totalCost: '105.50',
+      });
+      expect(prisma.purchase.aggregate.mock.calls[0][0].where).toEqual({
+        organizationId: ORG,
+        purchasedAt: undefined,
+      });
+    });
+
+    it('ne compte que les achats à partir de la date demandée', async () => {
+      const where = {
+        organizationId: ORG,
+        purchasedAt: { gte: new Date('2026-10-01') },
+      };
+
+      await service.summary(AUTH, ORG, { from: '2026-10-01' });
+
+      expect(prisma.purchase.aggregate.mock.calls[0][0].where).toEqual(where);
+      expect(prisma.purchaseLine.count).toHaveBeenCalledWith({
+        where: { purchase: where },
+      });
+    });
+  });
+
+  describe('stockSummary', () => {
+    const bought = (inventoryItemId: string, cost: string) => ({
+      inventoryItemId,
+      cost: new Prisma.Decimal(cost),
+    });
+
+    it('immobilise le coût du stock et compare son prix à son coût', async () => {
+      prisma.purchaseLine.findMany.mockResolvedValue([
+        bought('item-1', '10'),
+        bought('item-2', '30'),
+      ]);
+      inventory.findPrices.mockResolvedValue([
+        { id: 'item-1', price: '25.50' },
+        { id: 'item-2', price: '20.00' },
+      ]);
+
+      expect(await service.stockSummary(AUTH, ORG)).toEqual({
+        immobilizedCapital: '40.00',
+        potentialProfit: '5.50',
+        unpricedItemCount: 0,
+        uncostedItemCount: 0,
+      });
+    });
+
+    it("n'immobilise plus un exemplaire sorti du stock", async () => {
+      prisma.purchaseLine.findMany.mockResolvedValue([
+        bought('item-1', '10'),
+        bought('sorti', '500'),
+      ]);
+      inventory.findPrices.mockResolvedValue([{ id: 'item-1', price: '12' }]);
+
+      expect(await service.stockSummary(AUTH, ORG)).toMatchObject({
+        immobilizedCapital: '10.00',
+        potentialProfit: '2.00',
+      });
+    });
+
+    it('garde le coût d’un exemplaire sans prix, hors du bénéfice potentiel', async () => {
+      prisma.purchaseLine.findMany.mockResolvedValue([bought('gradée', '80')]);
+      inventory.findPrices.mockResolvedValue([{ id: 'gradée', price: null }]);
+
+      expect(await service.stockSummary(AUTH, ORG)).toEqual({
+        immobilizedCapital: '80.00',
+        potentialProfit: '0.00',
+        unpricedItemCount: 1,
+        uncostedItemCount: 0,
+      });
+    });
+
+    it('ne compte pas de bénéfice sur un exemplaire ajouté hors d’un achat', async () => {
+      prisma.purchaseLine.findMany.mockResolvedValue([]);
+      inventory.findPrices.mockResolvedValue([{ id: 'main', price: '50' }]);
+
+      expect(await service.stockSummary(AUTH, ORG)).toEqual({
+        immobilizedCapital: '0.00',
+        potentialProfit: '0.00',
+        unpricedItemCount: 0,
+        uncostedItemCount: 1,
+      });
+    });
+
+    it("ne lit rien pour un non-membre (404 d'identity)", async () => {
+      identity.getPermissions.mockRejectedValue(new NotFoundException());
+
+      await expect(service.stockSummary(AUTH, ORG)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(inventory.findPrices).not.toHaveBeenCalled();
+    });
+  });
 
   it('ajoute le lot au stock en une requête et répartit le prix au Price Trend', async () => {
     stock('40.00', '20.00');

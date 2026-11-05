@@ -282,6 +282,40 @@ describe('InventoryService', () => {
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 
+  it('renvoie le prix de tout le stock, null sans prix', async () => {
+    prisma.$queryRaw.mockResolvedValue([
+      { id: 'item-1', price: new Prisma.Decimal('18.4') },
+      { id: 'item-2', price: null },
+    ]);
+
+    expect(await service.prices(AUTH, 'org-a')).toEqual([
+      { id: 'item-1', price: '18.40' },
+      { id: 'item-2', price: null },
+    ]);
+    expect(identity.getPermissions).toHaveBeenCalledWith(AUTH, 'org-a');
+  });
+
+  it("ne donne pas les prix du stock à un non-membre (404 d'identity)", async () => {
+    identity.getPermissions.mockRejectedValue(new NotFoundException());
+
+    await expect(service.prices(AUTH, 'org-b')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('lit le stock du plus ancien au plus récent pour repérer le stock dormant', async () => {
+    prisma.inventoryItem.findMany.mockResolvedValue([]);
+
+    await service.list(AUTH, 'org-a', { sort: 'oldest' });
+
+    expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      }),
+    );
+  });
+
   it("n'ajoute pas un produit absent du catalogue", async () => {
     products.getOrThrow.mockRejectedValue(new NotFoundException());
 
