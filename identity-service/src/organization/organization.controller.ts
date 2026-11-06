@@ -11,9 +11,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUserId, SessionGuard } from '../session/session.guard';
@@ -29,7 +29,7 @@ import { OrganizationAccessService } from './organization-access.service';
 import { OrganizationService } from './organization.service';
 
 @ApiTags('organizations')
-@ApiBearerAuth()
+@ApiSecurity({ internal: [], user: [] })
 @ApiResponse({ status: 401, description: 'Session invalide.' })
 @UseGuards(SessionGuard)
 @Controller('organizations')

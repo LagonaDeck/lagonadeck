@@ -31,18 +31,18 @@ export interface InventoryItem {
 }
 
 // Le stock vit dans inventory : il valide les exemplaires et vérifie
-// INVENTORY_MANAGE avec le token de l'utilisateur, transmis tel quel. Ses
-// erreurs (400, 403, 404, 409) sont renvoyées sans être réécrites.
+// INVENTORY_MANAGE pour l'utilisateur transmis. Ses erreurs (400, 403, 404,
+// 409) sont renvoyées sans être réécrites.
 @Injectable()
 export class InventoryService {
   // Tout ou rien, avec les ids choisis par l'appelant : ils permettent de
   // retirer le lot même quand la réponse n'arrive pas.
   addItems(
-    authorization: string,
+    userId: string,
     organizationId: string,
     items: NewInventoryItem[],
   ): Promise<InventoryItem[]> {
-    return this.call(authorization, organizationId, '/batch', {
+    return this.call(userId, organizationId, '/batch', {
       method: 'POST',
       body: { items },
     });
@@ -50,11 +50,11 @@ export class InventoryService {
 
   // Un exemplaire déjà retiré est ignoré : le retrait peut être rejoué.
   async removeItems(
-    authorization: string,
+    userId: string,
     organizationId: string,
     ids: string[],
   ): Promise<void> {
-    await this.call(authorization, organizationId, '/batch', {
+    await this.call(userId, organizationId, '/batch', {
       method: 'DELETE',
       body: { ids },
     });
@@ -62,7 +62,7 @@ export class InventoryService {
 
   /** Ceux des exemplaires demandés qui sont encore au stock. */
   findItems(
-    authorization: string,
+    userId: string,
     organizationId: string,
     ids: string[],
   ): Promise<InventoryItem[]> {
@@ -70,13 +70,13 @@ export class InventoryService {
       ids: ids.join(','),
       take: String(ids.length),
     });
-    return this.call(authorization, organizationId, `?${query}`, {
+    return this.call(userId, organizationId, `?${query}`, {
       method: 'GET',
     });
   }
 
   private async call<T>(
-    authorization: string,
+    userId: string,
     organizationId: string,
     path: string,
     init: { method: string; body?: unknown },
@@ -85,7 +85,11 @@ export class InventoryService {
       `${process.env.INVENTORY_SERVICE_URL}/api/organizations/${organizationId}/inventory${path}`,
       {
         method: init.method,
-        headers: { authorization, 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          'x-internal-token': process.env.INTERNAL_TOKEN!,
+          'x-user-id': userId,
+        },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         signal: AbortSignal.timeout(5000),
       },

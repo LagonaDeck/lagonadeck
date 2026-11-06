@@ -7,7 +7,7 @@ import {
 import { Prisma } from './generated/prisma/client';
 import { PurchaseService } from './purchase.service';
 
-const AUTH = 'Bearer token';
+const USER_ID = 'user-1';
 const ORG = 'org-a';
 
 const inventoryItem = (id: string, price: string | null) => ({
@@ -155,18 +155,18 @@ describe('PurchaseService', () => {
     stock('40.00', '20.00');
 
     const purchase = await service.create(
-      AUTH,
+      USER_ID,
       ORG,
       lot([line('p1'), line('p2')]),
     );
 
     expect(identity.requirePermission).toHaveBeenCalledWith(
-      AUTH,
+      USER_ID,
       ORG,
       'PURCHASE_MANAGE',
     );
     expect(inventory.addItems).toHaveBeenCalledTimes(1);
-    expect(inventory.addItems).toHaveBeenCalledWith(AUTH, ORG, [
+    expect(inventory.addItems).toHaveBeenCalledWith(USER_ID, ORG, [
       expect.objectContaining({ productId: 'p1', language: 'FRENCH' }),
       expect.objectContaining({ productId: 'p2', language: 'FRENCH' }),
     ]);
@@ -187,7 +187,7 @@ describe('PurchaseService', () => {
     stock(null, null, null);
 
     const purchase = await service.create(
-      AUTH,
+      USER_ID,
       ORG,
       lot([line('booster', 3)], 15, 3),
     );
@@ -204,7 +204,7 @@ describe('PurchaseService', () => {
     stock('10.00', '30.00', '10.00');
 
     const purchase = await service.create(
-      AUTH,
+      USER_ID,
       ORG,
       lot([{ ...line('p1'), unitCost: 50 }, line('p2'), line('p3')], 90),
     );
@@ -218,14 +218,14 @@ describe('PurchaseService', () => {
 
   it('refuse des coûts saisis supérieurs au lot sans toucher au stock', async () => {
     await expect(
-      service.create(AUTH, ORG, lot([{ ...line('p1'), unitCost: 80 }], 60)),
+      service.create(USER_ID, ORG, lot([{ ...line('p1'), unitCost: 80 }], 60)),
     ).rejects.toThrow(BadRequestException);
     expect(inventory.addItems).not.toHaveBeenCalled();
   });
 
   it('refuse un achat de plus de 100 exemplaires', async () => {
     await expect(
-      service.create(AUTH, ORG, lot([line('p1', 60), line('p2', 41)])),
+      service.create(USER_ID, ORG, lot([line('p1', 60), line('p2', 41)])),
     ).rejects.toThrow(BadRequestException);
     expect(inventory.addItems).not.toHaveBeenCalled();
   });
@@ -236,7 +236,7 @@ describe('PurchaseService', () => {
     );
 
     await expect(
-      service.create(AUTH, ORG, lot([line('p1'), line('p2')])),
+      service.create(USER_ID, ORG, lot([line('p1'), line('p2')])),
     ).rejects.toThrow(BadRequestException);
     expect(inventory.removeItems).not.toHaveBeenCalled();
     expect(prisma.purchase.create).not.toHaveBeenCalled();
@@ -247,20 +247,20 @@ describe('PurchaseService', () => {
       new DOMException('The operation timed out.', 'TimeoutError'),
     );
 
-    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
-      'timed out',
-    );
-    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, sentIds());
+    await expect(
+      service.create(USER_ID, ORG, lot([line('p1')])),
+    ).rejects.toThrow('timed out');
+    expect(inventory.removeItems).toHaveBeenCalledWith(USER_ID, ORG, sentIds());
   });
 
   it('retire le lot du stock si l’achat ne peut être enregistré', async () => {
     stock('10.00');
     prisma.purchase.create.mockRejectedValue(new Error('base indisponible'));
 
-    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
-      'base indisponible',
-    );
-    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, sentIds());
+    await expect(
+      service.create(USER_ID, ORG, lot([line('p1')])),
+    ).rejects.toThrow('base indisponible');
+    expect(inventory.removeItems).toHaveBeenCalledWith(USER_ID, ORG, sentIds());
   });
 
   it('logge les exemplaires restés au stock si leur retrait échoue', async () => {
@@ -273,9 +273,9 @@ describe('PurchaseService', () => {
       new Error('inventory indisponible'),
     );
 
-    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
-      'base indisponible',
-    );
+    await expect(
+      service.create(USER_ID, ORG, lot([line('p1')])),
+    ).rejects.toThrow('base indisponible');
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining(sentIds()[0]),
       expect.anything(),
@@ -286,9 +286,9 @@ describe('PurchaseService', () => {
   it('refuse l’achat sans la permission, avant de toucher au stock', async () => {
     identity.requirePermission.mockRejectedValue(new ForbiddenException());
 
-    await expect(service.create(AUTH, ORG, lot([line('p1')]))).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      service.create(USER_ID, ORG, lot([line('p1')])),
+    ).rejects.toThrow(ForbiddenException);
     expect(inventory.addItems).not.toHaveBeenCalled();
   });
 
@@ -302,9 +302,9 @@ describe('PurchaseService', () => {
       },
     ]);
 
-    const [purchase] = await service.list(AUTH, ORG, { take: 20, skip: 0 });
+    const [purchase] = await service.list(USER_ID, ORG, { take: 20, skip: 0 });
 
-    expect(identity.getPermissions).toHaveBeenCalledWith(AUTH, ORG);
+    expect(identity.getPermissions).toHaveBeenCalledWith(USER_ID, ORG);
     expect(prisma.purchase.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { organizationId: ORG } }),
     );
@@ -326,9 +326,9 @@ describe('PurchaseService', () => {
     );
     inventory.findItems.mockResolvedValue([inventoryItem('item-2', null)]);
 
-    const purchase = await service.get(AUTH, ORG, 'purchase-1');
+    const purchase = await service.get(USER_ID, ORG, 'purchase-1');
 
-    expect(inventory.findItems).toHaveBeenCalledWith(AUTH, ORG, [
+    expect(inventory.findItems).toHaveBeenCalledWith(USER_ID, ORG, [
       'item-1',
       'item-2',
     ]);
@@ -343,9 +343,9 @@ describe('PurchaseService', () => {
       ]),
     );
 
-    await service.remove(AUTH, ORG, 'purchase-1');
+    await service.remove(USER_ID, ORG, 'purchase-1');
 
-    expect(inventory.removeItems).toHaveBeenCalledWith(AUTH, ORG, [
+    expect(inventory.removeItems).toHaveBeenCalledWith(USER_ID, ORG, [
       'item-1',
       'item-2',
     ]);
@@ -357,7 +357,7 @@ describe('PurchaseService', () => {
   it("ne supprime pas l'achat d'une autre organisation", async () => {
     prisma.purchase.findFirst.mockResolvedValue(null);
 
-    await expect(service.remove(AUTH, ORG, 'purchase-b')).rejects.toThrow(
+    await expect(service.remove(USER_ID, ORG, 'purchase-b')).rejects.toThrow(
       NotFoundException,
     );
     expect(prisma.purchase.findFirst).toHaveBeenCalledWith(
@@ -375,7 +375,7 @@ describe('PurchaseService', () => {
       purchase: savedPurchase(),
     });
 
-    expect(await service.getItem(AUTH, ORG, 'item-1')).toEqual({
+    expect(await service.getItem(USER_ID, ORG, 'item-1')).toEqual({
       purchaseId: 'purchase-1',
       supplier: 'Vinted',
       purchasedAt: '2026-10-13',

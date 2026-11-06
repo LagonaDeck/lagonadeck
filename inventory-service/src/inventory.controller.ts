@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -11,11 +10,12 @@ import {
   Query,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from './current-user';
 import {
   AddInventoryItemDto,
   AddInventoryItemsDto,
@@ -27,7 +27,7 @@ import {
 import { InventoryService } from './inventory.service';
 
 @ApiTags('inventory')
-@ApiBearerAuth()
+@ApiSecurity({ internal: [], user: [] })
 @ApiResponse({ status: 401, description: 'Session invalide.' })
 @ApiResponse({ status: 404, description: 'Introuvable ou non membre.' })
 @Controller('organizations/:organizationId/inventory')
@@ -40,11 +40,11 @@ export class InventoryController {
   })
   @ApiResponse({ status: 200, type: [InventoryItemDto] })
   list(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Query() query: ListInventoryDto,
   ): Promise<InventoryItemDto[]> {
-    return this.inventoryService.list(authorization, organizationId, query);
+    return this.inventoryService.list(user.id, organizationId, query);
   }
 
   @Get('summary')
@@ -53,10 +53,10 @@ export class InventoryController {
   })
   @ApiResponse({ status: 200, type: InventorySummaryDto })
   summary(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
   ): Promise<InventorySummaryDto> {
-    return this.inventoryService.summary(authorization, organizationId);
+    return this.inventoryService.summary(user.id, organizationId);
   }
 
   @Post()
@@ -66,11 +66,11 @@ export class InventoryController {
   @ApiResponse({ status: 201, type: InventoryItemDto })
   @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
   add(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Body() dto: AddInventoryItemDto,
   ): Promise<InventoryItemDto> {
-    return this.inventoryService.add(authorization, organizationId, dto);
+    return this.inventoryService.add(user.id, organizationId, dto);
   }
 
   @Post('batch')
@@ -82,11 +82,11 @@ export class InventoryController {
   @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
   @ApiResponse({ status: 409, description: 'Un id existe déjà.' })
   addMany(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Body() dto: AddInventoryItemsDto,
   ): Promise<InventoryItemDto[]> {
-    return this.inventoryService.addMany(authorization, organizationId, dto);
+    return this.inventoryService.addMany(user.id, organizationId, dto);
   }
 
   @Delete('batch')
@@ -97,22 +97,22 @@ export class InventoryController {
   })
   @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
   removeMany(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Body() dto: RemoveInventoryItemsDto,
   ): Promise<void> {
-    return this.inventoryService.removeMany(authorization, organizationId, dto);
+    return this.inventoryService.removeMany(user.id, organizationId, dto);
   }
 
   @Get(':itemId')
   @ApiOperation({ summary: 'Un exemplaire du stock, avec son produit.' })
   @ApiResponse({ status: 200, type: InventoryItemDto })
   get(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Param('itemId', ParseUUIDPipe) itemId: string,
   ): Promise<InventoryItemDto> {
-    return this.inventoryService.get(authorization, organizationId, itemId);
+    return this.inventoryService.get(user.id, organizationId, itemId);
   }
 
   @Delete(':itemId')
@@ -120,10 +120,10 @@ export class InventoryController {
   @ApiOperation({ summary: 'Supprime un exemplaire (INVENTORY_MANAGE).' })
   @ApiResponse({ status: 403, description: 'Permission insuffisante.' })
   remove(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Param('itemId', ParseUUIDPipe) itemId: string,
   ): Promise<void> {
-    return this.inventoryService.remove(authorization, organizationId, itemId);
+    return this.inventoryService.remove(user.id, organizationId, itemId);
   }
 }

@@ -12,9 +12,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUserId, SessionGuard } from '../session/session.guard';
@@ -23,7 +23,7 @@ import { GroupDto, SetGroupPermissionsDto } from './models/dtos/group.dto';
 import { NameDto } from './models/dtos/organization.dto';
 
 @ApiTags('groups')
-@ApiBearerAuth()
+@ApiSecurity({ internal: [], user: [] })
 @ApiResponse({ status: 401, description: 'Session invalide.' })
 @ApiResponse({
   status: 404,

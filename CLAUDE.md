@@ -25,8 +25,11 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
   est relayé tel quel à identity, sauf `/api/organizations/:id/inventory/**`
   et `/api/products/**` relayés à inventory, et
-  `/api/organizations/:id/purchases/**` relayé à purchase, avec le cookie
-  `session` en `Bearer` (`relay.ts`) ; les permissions restent dans les services.
+  `/api/organizations/:id/purchases/**` relayé à purchase (`relay.ts`). La
+  gateway est le seul endroit qui vérifie le cookie `session` (`authenticate`,
+  via `/api/sessions/current`) : les services reçoivent l'utilisateur en
+  en-têtes (`x-user-id`, `x-session-id`, `x-staff-permissions`), jamais le
+  token ; les permissions restent dans les services.
 - `identity-service/` : NestJS + Prisma, utilisateurs (`/api/users`), sessions
   (`/api/sessions`), organisations, groupes et invitations
   (`/api/organizations`).
@@ -113,8 +116,9 @@ mail-service, ruff puis pytest via uv.
 - **identity** :
   - mots de passe hachés avec `crypto.scrypt` et un salt aléatoire stocké dans
     `User.salt` ;
-  - routes authentifiées par `SessionGuard` (token de session en `Bearer`) et
-    `@CurrentUserId()` ;
+  - routes authentifiées par `SessionGuard` (`x-user-id` transmis par la
+    gateway) et `@CurrentUserId()` ; seule `/api/sessions/current` lit le token
+    en `Bearer` ;
   - tout accès à une organisation passe par `OrganizationAccessService`
     (`getPermissions`, `requirePermission`) au début de la méthode de service :
     404 pour un non-membre, 403 sans la permission ;
@@ -168,7 +172,7 @@ mail-service, ruff puis pytest via uv.
     ou anglais), du set ou du numéro (`searchText` normalisé, index trigram) ;
     dès 4 lettres, tolérance aux fautes (`pg_trgm`, seuil 0,45) ; classement par
     distance d'édition (`fuzzystrmatch`) ;
-  - l'accès passe par identity (`IdentityService`, token transmis tel quel) :
+  - l'accès passe par identity (`IdentityService`, avec `x-user-id`) :
     lecture pour un membre, écriture avec `INVENTORY_MANAGE` ;
   - le stock est fait d'exemplaires uniques, sans quantité : chaque ajout crée
     un `InventoryItem` (il aura son emplacement et ses photos) ;
@@ -188,7 +192,7 @@ mail-service, ruff puis pytest via uv.
     lecture pour un membre, écriture avec `PURCHASE_MANAGE` (et
     `INVENTORY_MANAGE`, vérifiée par inventory) ;
   - l'enregistrer crée ses exemplaires dans inventory en un lot
-    (`InventoryService`, token transmis tel quel), un par unité, puis l'achat ;
+    (`InventoryService`, avec `x-user-id`), un par unité, puis l'achat ;
     purchase choisit leurs ids : si l'achat échoue, même sans réponse
     d'inventory, le lot est retiré du stock, et un retrait en échec est loggé ;
   - chaque `PurchaseLine` copie le produit et l'état de son exemplaire :
@@ -222,6 +226,10 @@ mail-service, ruff puis pytest via uv.
   - asynchrone : RabbitMQ via `@nestjs/microservices`, une file durable par
     consumer, `noAck: false`, ack manuel après traitement, `eventId` pour
     ignorer les doublons ;
+  - tout appel entre la gateway et les services porte `x-internal-token`
+    (`INTERNAL_TOKEN`) : `InternalGuard`, global dans identity, inventory et
+    purchase, refuse les autres, sans quoi n'importe qui pourrait envoyer un
+    `x-user-id` ;
   - pas de lib partagée en dessous de 3 services qui partagent le même contrat.
 - **Docker** :
   - deux stages : `dev` (`npm ci`, build, `start:dev`) et `prod`

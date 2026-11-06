@@ -1,48 +1,39 @@
-import {
-  ForbiddenException,
-  HttpException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
 
 export const PURCHASE_MANAGE = 'PURCHASE_MANAGE';
 
-// Les sessions et les permissions vivent dans identity : ce service lui
-// transmet le token tel quel et renvoie ses erreurs (401, 404) sans les réécrire.
+// Les permissions vivent dans identity : ses erreurs (404, 403) sont renvoyées
+// sans les réécrire.
 @Injectable()
 export class IdentityService {
   async getPermissions(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
   ): Promise<string[]> {
     const { permissions } = await this.call<{ permissions: string[] }>(
       `/api/organizations/${organizationId}/me`,
-      authorization,
+      userId,
     );
     return permissions;
   }
 
   async requirePermission(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     permission: string,
   ): Promise<void> {
-    const permissions = await this.getPermissions(
-      authorization,
-      organizationId,
-    );
+    const permissions = await this.getPermissions(userId, organizationId);
     if (!permissions.includes(permission)) {
       throw new ForbiddenException('Permission insuffisante');
     }
   }
 
-  private async call<T>(
-    path: string,
-    authorization: string | undefined,
-  ): Promise<T> {
-    if (!authorization) throw new UnauthorizedException('Session invalide');
+  private async call<T>(path: string, userId: string): Promise<T> {
     const response = await fetch(`${process.env.IDENTITY_SERVICE_URL}${path}`, {
-      headers: { authorization },
+      headers: {
+        'x-internal-token': process.env.INTERNAL_TOKEN!,
+        'x-user-id': userId,
+      },
       signal: AbortSignal.timeout(5000),
     });
     const payload = (await response.json()) as T;

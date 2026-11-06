@@ -6,7 +6,7 @@ import {
   type Product,
 } from './generated/prisma/client';
 import { ProductSource } from './generated/prisma/enums';
-import { CATALOG_MANAGE, IdentityService } from './identity.service';
+import { CATALOG_MANAGE, CurrentUser, requireStaff } from './current-user';
 import {
   CreateProductDto,
   PriceDto,
@@ -113,19 +113,12 @@ export async function searchRows<T>(
 
 @Injectable()
 export class ProductService {
-  constructor(
-    @Inject(PrismaClient) private readonly prisma: PrismaClient,
-    private readonly identity: IdentityService,
-  ) {}
+  constructor(@Inject(PrismaClient) private readonly prisma: PrismaClient) {}
 
   // Le nom le plus proche du premier mot d'abord : « dracofeu » est plus près
   // de « dracaufeu » (2 lettres) que de « draco » (3), ce que les trigrammes
   // ne distinguent pas.
-  async search(
-    authorization: string | undefined,
-    query: SearchProductsDto,
-  ): Promise<ProductDto[]> {
-    await this.identity.requireSession(authorization);
+  async search(query: SearchProductsDto): Promise<ProductDto[]> {
     const rows = await searchRows<{ id: string }>(
       this.prisma,
       Prisma.sql`
@@ -149,28 +142,17 @@ export class ProductService {
     });
   }
 
-  async get(
-    authorization: string | undefined,
-    id: string,
-  ): Promise<ProductDto> {
-    await this.identity.requireSession(authorization);
+  async get(id: string): Promise<ProductDto> {
     return toProductDto(await this.getOrThrow(id));
   }
 
-  async getPrice(
-    authorization: string | undefined,
-    id: string,
-  ): Promise<PriceDto> {
-    const { price, priceUpdatedAt } = await this.get(authorization, id);
+  async getPrice(id: string): Promise<PriceDto> {
+    const { price, priceUpdatedAt } = await this.get(id);
     return { price, priceUpdatedAt };
   }
 
   // Relevés quotidiens du produit Cardmarket lié ; vide sans lien.
-  async priceHistory(
-    authorization: string | undefined,
-    id: string,
-  ): Promise<PricePointDto[]> {
-    await this.identity.requireSession(authorization);
+  async priceHistory(id: string): Promise<PricePointDto[]> {
     const { cardmarketId } = await this.getOrThrow(id);
     if (cardmarketId === null) return [];
     const since = new Date(Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000);
@@ -187,11 +169,8 @@ export class ProductService {
 
   // Produit absent des sources, ajouté par l'équipe : une création concurrente
   // du même produit renvoie celui qui existe déjà au lieu d'en créer un second.
-  async create(
-    authorization: string | undefined,
-    dto: CreateProductDto,
-  ): Promise<ProductDto> {
-    await this.identity.requireStaff(authorization, CATALOG_MANAGE);
+  async create(user: CurrentUser, dto: CreateProductDto): Promise<ProductDto> {
+    requireStaff(user, CATALOG_MANAGE);
     const unique = {
       source: ProductSource.MANUAL,
       productType: dto.productType,
@@ -234,11 +213,11 @@ export class ProductService {
   // Corrige un lien faux ou absent : le produit Cardmarket est retiré du
   // produit qui le portait, et la synchronisation ne revient plus dessus.
   async linkCardmarket(
-    authorization: string | undefined,
+    user: CurrentUser,
     id: string,
     cardmarketId: number | null,
   ): Promise<ProductDto> {
-    await this.identity.requireStaff(authorization, CATALOG_MANAGE);
+    requireStaff(user, CATALOG_MANAGE);
     await this.getOrThrow(id);
     if (cardmarketId !== null) {
       const cardmarket = await this.prisma.cardmarketProduct.findUnique({

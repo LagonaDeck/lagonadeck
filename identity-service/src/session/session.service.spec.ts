@@ -146,15 +146,15 @@ describe('SessionService', () => {
     });
   });
 
-  describe('findUser', () => {
-    it("renvoie l'utilisateur d'une session valide", async () => {
-      const user = { id: 'user-1', username: 'JaneDoe' };
-      prisma.session.findUnique.mockResolvedValue({
+  describe('findSession', () => {
+    it('renvoie une session valide avec son utilisateur', async () => {
+      const session = {
         expiresAt: new Date(Date.now() + 60_000),
-        user,
-      });
+        user: { id: 'user-1', username: 'JaneDoe' },
+      };
+      prisma.session.findUnique.mockResolvedValue(session);
 
-      await expect(service.findUser('token')).resolves.toBe(user);
+      await expect(service.findSession('token')).resolves.toBe(session);
       expect(prisma.session.findUnique).toHaveBeenCalledWith({
         where: { id: hashToken('token') },
         include: { user: true },
@@ -167,7 +167,7 @@ describe('SessionService', () => {
     ])('refuse une session %s', async (_, session) => {
       prisma.session.findUnique.mockResolvedValue(session);
 
-      await expect(service.findUser('token')).rejects.toThrow(
+      await expect(service.findSession('token')).rejects.toThrow(
         new UnauthorizedException('Session invalide'),
       );
     });
