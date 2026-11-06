@@ -83,7 +83,7 @@ export class SessionService implements OnModuleInit {
     return this.create(session.userId);
   }
 
-  async findUser(token: string) {
+  async findSession(token: string) {
     const session = await this.prisma.session.findUnique({
       where: { id: hashToken(token) },
       include: { user: true },
@@ -91,7 +91,7 @@ export class SessionService implements OnModuleInit {
     if (!session || session.expiresAt <= new Date()) {
       throw new UnauthorizedException('Session invalide');
     }
-    return session.user;
+    return session;
   }
 
   async logout(refreshToken: string): Promise<void> {

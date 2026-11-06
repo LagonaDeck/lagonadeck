@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Headers,
   HttpCode,
   Patch,
   Post,
@@ -9,13 +8,17 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentUserId, SessionGuard } from '../session/session.guard';
-import { bearerToken, hashToken } from '../session/utils/token.util';
+import {
+  CurrentSessionId,
+  CurrentUserId,
+  SessionGuard,
+} from '../session/session.guard';
 import {
   ChangePasswordDto,
   ConfirmEmailDto,
@@ -64,7 +67,7 @@ export class UserController {
 
   @Patch('me')
   @UseGuards(SessionGuard)
-  @ApiBearerAuth()
+  @ApiSecurity({ internal: [], user: [] })
   @ApiOperation({ summary: "Modifie le profil de l'utilisateur connecté." })
   @ApiResponse({ status: 200, type: CurrentUserDto })
   @ApiResponse({ status: 401, description: 'Session invalide.' })
@@ -83,7 +86,8 @@ export class UserController {
   @Put('me/password')
   @HttpCode(204)
   @UseGuards(SessionGuard)
-  @ApiBearerAuth()
+  @ApiSecurity({ internal: [], user: [] })
+  @ApiHeader({ name: 'x-session-id', required: true })
   @ApiOperation({
     summary:
       "Change le mot de passe de l'utilisateur connecté et ferme ses autres sessions.",
@@ -96,13 +100,9 @@ export class UserController {
   @ApiResponse({ status: 401, description: 'Session invalide.' })
   changePassword(
     @CurrentUserId() userId: string,
-    @Headers('authorization') authorization: string,
+    @CurrentSessionId() sessionId: string,
     @Body() dto: ChangePasswordDto,
   ): Promise<void> {
-    return this.userService.changePassword(
-      userId,
-      hashToken(bearerToken(authorization)),
-      dto,
-    );
+    return this.userService.changePassword(userId, sessionId, dto);
   }
 }
