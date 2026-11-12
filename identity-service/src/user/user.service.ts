@@ -250,6 +250,11 @@ export class UserService implements OnModuleInit {
       })
       .catch(rethrowConflict);
     if (confirmation) this.sendConfirmation(user, confirmation.token);
+    // Renvoyer son adresse actuelle annule le changement : le lien déjà
+    // envoyé ne doit plus rien confirmer.
+    else if (email !== undefined) {
+      await this.prisma.emailConfirmation.deleteMany({ where: { userId } });
+    }
     return user;
   }
 

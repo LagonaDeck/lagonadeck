@@ -40,10 +40,14 @@ import { Auth, errorMessage } from './auth';
           <h1>Lien invalide</h1>
           <p class="intro" role="alert">{{ error() }}</p>
           <p class="switch">
-            Pour recevoir un nouveau lien,
-            <a routerLink="/login">connectez-vous</a>. Un compte jamais confirmé
-            est supprimé à l'expiration de son lien : il faut alors
+            Pour une inscription, <a routerLink="/login">connectez-vous</a>
+            pour recevoir un nouveau lien. Un compte jamais confirmé est
+            supprimé à l'expiration de son lien : il faut alors
             <a routerLink="/signup">s'inscrire</a> à nouveau.
+          </p>
+          <p class="switch">
+            Pour un changement d'adresse, saisissez-la à nouveau dans votre
+            profil.
           </p>
         }
       }

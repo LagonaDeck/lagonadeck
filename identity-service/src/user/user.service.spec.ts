@@ -433,7 +433,18 @@ describe('UserService', () => {
         where: { id: 'user-1' },
         data: { pendingEmail: null },
       });
+      expect(prisma.emailConfirmation.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
       expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it('garde le lien en attente quand seul le nom change', async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+
+      await service.updateProfile('user-1', { username: 'Janet42' });
+
+      expect(prisma.emailConfirmation.deleteMany).not.toHaveBeenCalled();
     });
 
     it("refuse en 409 l'adresse d'un autre compte, sans e-mail", async () => {

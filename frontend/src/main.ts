@@ -59,6 +59,8 @@ bootstrapApplication(App, {
                 import('./app/inventory').then((m) => m.Inventory),
               title: 'Inventaire',
             },
+            // Lien des e-mails d'invitation envoyés avant la cloche.
+            { path: 'invitations', redirectTo: '/app' },
             {
               path: 'inventory/:itemId',
               loadComponent: () =>

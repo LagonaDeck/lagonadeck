@@ -102,8 +102,10 @@ type Field = 'username' | 'email';
     }
     @if (auth.user()?.pendingEmail; as pendingEmail) {
       <p class="hint" role="status">
-        Un lien de confirmation a été envoyé à {{ pendingEmail }}. D'ici son
-        ouverture, votre adresse reste {{ auth.user()?.email }}.
+        Un lien de confirmation, valable 24 h, a été envoyé à
+        {{ pendingEmail }}. D'ici son ouverture, votre adresse reste
+        {{ auth.user()?.email }}. Sans e-mail reçu, saisissez à nouveau la
+        nouvelle adresse pour en recevoir un autre.
       </p>
     }
 
