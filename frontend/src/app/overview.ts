@@ -30,8 +30,6 @@ interface Widget {
   id: string;
   label: string;
   kind: 'stat' | 'list';
-  // TODO(ventes) : brancher ces widgets quand les ventes existeront.
-  needsSales?: boolean;
 }
 
 interface WidgetPreference {
@@ -39,78 +37,27 @@ interface WidgetPreference {
   visible: boolean;
 }
 
-// Par défaut, ce qui a déjà des données passe avant ce qui attend les ventes.
+const PREFERENCES_KEY = 'dashboard-widgets';
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DORMANT_DAYS = 90;
+const LIST_SIZE = 5;
+
 const WIDGETS: Widget[] = [
   { id: 'stockValue', label: 'Valeur du stock', kind: 'stat' },
   { id: 'stockCount', label: 'Nombre de cartes en stock', kind: 'stat' },
   { id: 'investedCapital', label: 'Capital investi', kind: 'stat' },
   { id: 'immobilizedCapital', label: 'Capital immobilisé', kind: 'stat' },
   { id: 'potentialProfit', label: 'Bénéfice potentiel', kind: 'stat' },
-  {
-    id: 'revenue',
-    label: 'Chiffre d’affaires',
-    kind: 'stat',
-    needsSales: true,
-  },
-  { id: 'netProfit', label: 'Bénéfice net', kind: 'stat', needsSales: true },
-  {
-    id: 'realizedProfit',
-    label: 'Bénéfice réalisé',
-    kind: 'stat',
-    needsSales: true,
-  },
-  { id: 'averageRoi', label: 'ROI moyen', kind: 'stat', needsSales: true },
-  {
-    id: 'averageMargin',
-    label: 'Marge moyenne',
-    kind: 'stat',
-    needsSales: true,
-  },
-  {
-    id: 'salesCount',
-    label: 'Nombre de ventes',
-    kind: 'stat',
-    needsSales: true,
-  },
   { id: 'recentlyAcquired', label: 'Cartes récemment acquises', kind: 'list' },
   { id: 'dormantStock', label: 'Stock dormant', kind: 'list' },
-  {
-    id: 'salesTrend',
-    label: 'Évolution des ventes',
-    kind: 'list',
-    needsSales: true,
-  },
-  {
-    id: 'profitTrend',
-    label: 'Évolution du bénéfice',
-    kind: 'list',
-    needsSales: true,
-  },
-  {
-    id: 'bestCards',
-    label: 'Meilleures cartes',
-    kind: 'list',
-    needsSales: true,
-  },
-  {
-    id: 'worstCards',
-    label: 'Pires performances',
-    kind: 'list',
-    needsSales: true,
-  },
-  { id: 'bestLots', label: 'Meilleurs lots', kind: 'list', needsSales: true },
-  {
-    id: 'recentlySold',
-    label: 'Cartes récemment vendues',
-    kind: 'list',
-    needsSales: true,
-  },
 ];
 
-const PREFERENCES_KEY = 'dashboard-widgets';
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DORMANT_DAYS = 90;
-const LIST_SIZE = 5;
+// Le capital investi suit la date d'achat, les listes la date d'entrée au
+// stock : un achat saisi en retard n'apparaît pas au même endroit.
+const LIST_HINTS: Record<string, string> = {
+  recentlyAcquired: 'Par date d’entrée au stock, sur la période.',
+  dormantStock: `Au stock depuis plus de ${DORMANT_DAYS} jours.`,
+};
 
 const PERIODS = [
   { days: 30, label: '30 derniers jours' },
@@ -265,28 +212,25 @@ const daysSince = (date: string): number =>
         } @else {
           <section class="widget list">
             <h2>{{ widget.label }}</h2>
-            @if (widget.needsSales) {
-              <p class="hint">{{ salesHint }}</p>
-            } @else {
-              <ul>
-                @for (row of rows(widget.id); track row.item.id) {
-                  <li>
-                    <a [routerLink]="['/app/inventory', row.item.id]">
-                      <strong>{{ cardName(row.item.product) }}</strong>
-                      <span class="hint">{{
-                        productDetails(row.item.product)
-                      }}</span>
-                    </a>
-                    <span class="meta">
-                      {{ formatPrice(row.item.price) }}
-                      <span class="hint">{{ row.detail }}</span>
-                    </span>
-                  </li>
-                } @empty {
-                  <li class="hint">{{ emptyText(widget.id) }}</li>
-                }
-              </ul>
-            }
+            <p class="hint">{{ listHints[widget.id] }}</p>
+            <ul>
+              @for (row of rows(widget.id); track row.item.id) {
+                <li>
+                  <a [routerLink]="['/app/inventory', row.item.id]">
+                    <strong>{{ cardName(row.item.product) }}</strong>
+                    <span class="hint">{{
+                      productDetails(row.item.product)
+                    }}</span>
+                  </a>
+                  <span class="meta">
+                    {{ formatPrice(row.item.price) }}
+                    <span class="hint">{{ row.detail }}</span>
+                  </span>
+                </li>
+              } @empty {
+                <li class="hint">{{ emptyText(widget.id) }}</li>
+              }
+            </ul>
           </section>
         }
       } @empty {
@@ -461,7 +405,7 @@ const daysSince = (date: string): number =>
 export class Overview {
   readonly organizations = inject(Organizations);
   readonly periods = PERIODS;
-  readonly salesHint = 'Disponible avec les ventes';
+  readonly listHints = LIST_HINTS;
   readonly cardName = cardName;
   readonly productDetails = productDetails;
   readonly formatPrice = formatPrice;
@@ -519,8 +463,7 @@ export class Overview {
     return WIDGETS.find((widget) => widget.id === id)!;
   }
 
-  stat({ id, needsSales }: Widget): { value: string; hint: string } {
-    if (needsSales) return { value: '—', hint: this.salesHint };
+  stat({ id }: Widget): { value: string; hint: string } {
     const inventory = loaded(this.inventorySummary);
     const stock = loaded(this.stockSummary);
     const purchases = loaded(this.purchasesSummary);
@@ -540,7 +483,7 @@ export class Overview {
       case 'investedCapital':
         return {
           value: formatPrice(purchases?.totalCost ?? null),
-          hint: 'Achats de la période, frais compris.',
+          hint: 'Achats datés de la période, frais compris.',
         };
       case 'immobilizedCapital':
         return {

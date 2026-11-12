@@ -206,8 +206,8 @@ mail-service, ruff puis pytest via uv.
     croisent les coûts avec les prix de tout le stock (`GET inventory/prices`).
 - **tableau de bord** (`overview.ts` du frontend) : widgets à afficher ou
   déplacer, choix gardés dans le `localStorage` ; la période filtre le capital
-  investi et les cartes acquises ; les widgets qui dépendent des ventes
-  (`needsSales`) restent vides tant que les ventes n'existent pas.
+  investi (date d'achat) et les cartes acquises (date d'entrée au stock) ; les
+  indicateurs de ventes s'ajouteront avec le service de ventes.
 - **mail** :
   - les liens des e-mails sont construits par mail-service à partir de
     `APP_URL`, jamais reçus de l'appelant ; les valeurs saisies par les
