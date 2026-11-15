@@ -43,8 +43,8 @@ import { Auth, errorMessage, formValues } from './auth';
       @if (sentTo(); as sentTo) {
         <h1>Vérifiez vos e-mails</h1>
         <p class="intro" role="status">
-          Un lien de confirmation a été envoyé à <strong>{{ sentTo }}</strong
-          >. Ouvrez-le pour activer votre compte, puis connectez-vous.
+          Un lien de confirmation a été envoyé à <strong>{{ sentTo }}</strong>.
+          Ouvrez-le pour activer votre compte, puis connectez-vous.
         </p>
         <p class="switch"><a routerLink="/login">Se connecter</a></p>
       } @else {
