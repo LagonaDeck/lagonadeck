@@ -1,0 +1,162 @@
+<aside class="sidebar">
+  @if (current(); as current) {
+    <details #switcher class="switcher">
+      <summary
+        [attr.aria-label]="'Changer d’organisation, actuelle : ' + current.name"
+      >
+        <span class="org-avatar" aria-hidden="true">{{
+          orgInitials(current.name)
+        }}</span>
+        <span class="org-text">
+          <strong [title]="current.name">{{ current.name }}</strong>
+          <span>{{ role(current) }}</span>
+        </span>
+        <svg
+          class="org-chevron"
+          lucideChevronsUpDown
+          [size]="16"
+          aria-hidden="true"
+        ></svg>
+      </summary>
+      <div class="org-menu">
+        <ul class="org-list">
+          @for (organization of organizations.list(); track organization.id) {
+            <li>
+              <button
+                type="button"
+                [attr.aria-current]="organization.id === current.id"
+                (click)="
+                  organizations.select(organization.id); switcher.open = false
+                "
+              >
+                <span class="org-avatar" aria-hidden="true">{{
+                  orgInitials(organization.name)
+                }}</span>
+                <span class="org-text">
+                  <strong [title]="organization.name">{{
+                    organization.name
+                  }}</strong>
+                  <span>{{ role(organization) }}</span>
+                </span>
+                @if (organization.id === current.id) {
+                  <svg lucideCheck [size]="16" aria-hidden="true"></svg>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+        <button
+          type="button"
+          class="action"
+          (click)="openAccount('organizations')"
+        >
+          <svg lucideBuilding [size]="18" aria-hidden="true"></svg>
+          Gérer mes organisations
+        </button>
+      </div>
+    </details>
+  }
+  <nav aria-label="Navigation principale">
+    <a
+      routerLink="/app"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      [routerLinkActiveOptions]="{ exact: true }"
+      title="Tableau de bord"
+    >
+      <svg lucideLayoutDashboard [size]="20" aria-hidden="true"></svg>
+      <span>Tableau de bord</span>
+    </a>
+    <a
+      routerLink="/app/purchases"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      title="Achats"
+    >
+      <svg lucideShoppingCart [size]="20" aria-hidden="true"></svg>
+      <span>Achats</span>
+    </a>
+    <a
+      routerLink="/app/inventory"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      title="Inventaire"
+    >
+      <svg lucidePackage [size]="20" aria-hidden="true"></svg>
+      <span>Inventaire</span>
+    </a>
+    <a
+      routerLink="/app/invitations"
+      routerLinkActive="active"
+      ariaCurrentWhenActive="page"
+      title="Invitations"
+    >
+      <svg lucideMail [size]="20" aria-hidden="true"></svg>
+      <span>Invitations</span>
+    </a>
+  </nav>
+  @if (auth.catalogStaff()) {
+    <nav class="management" aria-labelledby="management-title">
+      <p id="management-title" class="nav-title">
+        <svg lucideShieldCheck [size]="16" aria-hidden="true"></svg>
+        <span>Gestion LagonaDeck</span>
+      </p>
+      <a
+        routerLink="/app/management/reports"
+        routerLinkActive="active"
+        ariaCurrentWhenActive="page"
+        title="Signalements cartes incomplètes"
+      >
+        <svg lucideFlag [size]="20" aria-hidden="true"></svg>
+        <span>Signalements cartes incomplètes</span>
+      </a>
+    </nav>
+  }
+  <button
+    type="button"
+    class="collapse"
+    [attr.aria-label]="collapsed() ? 'Agrandir le menu' : 'Réduire le menu'"
+    [attr.aria-expanded]="!collapsed()"
+    (click)="toggleSidebar()"
+  >
+    @if (collapsed()) {
+      <svg lucidePanelLeftOpen [size]="20" aria-hidden="true"></svg>
+    } @else {
+      <svg lucidePanelLeftClose [size]="20" aria-hidden="true"></svg>
+    }
+  </button>
+</aside>
+
+<header class="topbar">
+  <details class="account">
+    <summary
+      class="avatar"
+      [attr.aria-label]="'Compte de ' + auth.user()?.username"
+    >
+      {{ initials() }}
+    </summary>
+    <div class="menu">
+      <div class="identity">
+        <span class="avatar large" aria-hidden="true">{{ initials() }}</span>
+        <p>
+          <strong>{{ auth.user()?.username }}</strong>
+          <span>{{ auth.user()?.email }}</span>
+        </p>
+      </div>
+      <button type="button" class="action" (click)="openAccount('me')">
+        <svg lucideUserCog [size]="18" aria-hidden="true"></svg>
+        Gérer mon compte
+      </button>
+      <button type="button" class="action logout" (click)="logout()">
+        <svg lucideLogOut [size]="18" aria-hidden="true"></svg>
+        Déconnexion
+      </button>
+    </div>
+  </details>
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
+
+<app-account-dialog />

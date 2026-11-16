@@ -19,7 +19,8 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
   (`<svg lucideNomIcone>`), pas de SVG d'icône écrit à la main. Couleurs :
   tokens de `styles.css` en `light-dark()` (thème clair, sombre ou système via
   `data-theme` sur `<html>`), pas de couleur en dur hors des surfaces toujours
-  sombres comme le menu de gauche.
+  sombres comme le menu de gauche. Rangement de `src/app/` et rôles des
+  components, services et models : `frontend/docs/architecture.md`.
 - `api-gateway/` : NestJS, seul point d'entrée HTTP, sans base. Routes
   `/api/auth` (signup, confirm-email et confirm-email/resend, login, refresh, me en GET et PATCH, me/password, logout) qui relaient identity et
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
@@ -48,7 +49,7 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
 make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
 make build                           # build des 6 projets
-make test                            # tests d'identity-service, media-service, inventory-service, purchase-service et mail-service
+make test                            # tests du frontend, d'identity-service, media-service, inventory-service, purchase-service et mail-service
 make format                          # Prettier sur tout le dépôt, ruff format pour mail-service
 make lint                            # ESLint dans les 6 projets, ruff pour mail-service
 make quality                         # make format puis make lint
@@ -61,7 +62,7 @@ Dans le dossier d'un projet :
 ```bash
 npm run start:dev                    # frontend : npm start
 npm run build                        # services : prisma generate && nest build → dist/main.js
-npm test                             # identity-service, media-service, inventory-service, purchase-service
+npm test                             # frontend (Vitest), identity-service, media-service, inventory-service, purchase-service
 npm run lint                         # ESLint (services Prisma : prisma generate d'abord)
 npx jest src/user.service.spec.ts    # un fichier de test (après un premier npx prisma generate)
 npx jest -t "nom du test"            # un test par nom

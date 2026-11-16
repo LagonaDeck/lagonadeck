@@ -1,0 +1,22 @@
+.summary .hint {
+  font-size: 0.8rem;
+}
+
+.removed {
+  margin-top: 0.35rem;
+  margin-left: 3.25rem;
+  color: var(--slate);
+}
+
+.notes {
+  max-width: 40rem;
+  white-space: pre-line;
+}
+
+.small-button.delete {
+  background: var(--danger);
+}
+
+.small-button.delete:hover {
+  background: color-mix(in srgb, var(--danger) 80%, var(--ink));
+}

@@ -1,0 +1,274 @@
+:host {
+  display: grid;
+  gap: 2rem;
+  max-width: 68rem;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: start;
+  color: var(--slate);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--blue);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(14rem, 22rem) minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.card-image {
+  margin: 0;
+  perspective: 60rem;
+}
+
+.card-image img,
+.no-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  border-radius: 4.5% / 3.2%;
+  object-fit: cover;
+  background: var(--hover);
+  box-shadow: 0 24px 40px -24px var(--shadow);
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+.card-image img {
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition:
+    transform 0.5s ease-out,
+    box-shadow 0.5s ease-out;
+}
+
+.card-image:hover img {
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
+    scale(1.03);
+  box-shadow: 0 36px 48px -24px var(--shadow);
+  transition-duration: 0.12s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-image img,
+  .card-image:hover img {
+    transform: none;
+    transition: none;
+  }
+}
+
+.identity {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.subtitle {
+  margin-top: -0.75rem;
+  color: var(--slate);
+}
+
+.facts,
+.stock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  margin: 0;
+}
+
+.facts .wide {
+  flex-basis: 100%;
+}
+
+dt {
+  color: var(--slate);
+  font-size: 0.8rem;
+}
+
+dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.moves li {
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.quote {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.price {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 7vw, 4rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: proportional-nums;
+}
+
+.price-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  margin-top: 0.4rem;
+  color: var(--slate);
+  font-size: 0.9rem;
+}
+
+.direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+}
+
+.direction.up {
+  color: var(--success);
+}
+
+.direction.down {
+  color: var(--danger);
+}
+
+.stock {
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.75rem;
+  background: var(--hover);
+}
+
+.stock dd {
+  font-weight: 700;
+}
+
+.purchase-link:hover {
+  color: var(--blue);
+}
+
+.stock + .hint {
+  margin-top: -0.75rem;
+  font-size: 0.85rem;
+}
+
+.market {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
+  gap: 1.5rem 2.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 1rem;
+  background: var(--surface);
+}
+
+.chart {
+  display: grid;
+  align-content: start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+h2 {
+  font-size: 1.3rem;
+}
+
+.source {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 2rem 2.5rem;
+  align-items: start;
+}
+
+.columns section {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.link-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.link-form label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+.link-form input {
+  width: 10rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.report-form {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+}
+
+.report-form textarea {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 2px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+@media (max-width: 56rem) {
+  .market {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 40rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .card-image {
+    width: min(15rem, 70%);
+  }
+
+  .market {
+    padding: 1rem;
+  }
+}

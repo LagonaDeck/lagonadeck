@@ -1,0 +1,159 @@
+:host {
+  --series-trend: light-dark(#2a78d6, #3987e5);
+  --series-low: light-dark(#eb6834, #d95926);
+  display: block;
+  /* La largeur vient du conteneur, jamais du SVG qu'on redimensionne. */
+  contain: inline-size;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  color: var(--slate);
+  font-size: 0.85rem;
+  list-style: none;
+}
+
+.legend li,
+.tooltip p {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.key {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--series-trend);
+}
+
+.key.low {
+  background: var(--series-low);
+}
+
+.plot {
+  position: relative;
+}
+
+svg {
+  display: block;
+  overflow: visible;
+  touch-action: pan-y;
+}
+
+svg:focus-visible {
+  outline-offset: 4px;
+}
+
+.grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.axis {
+  fill: var(--slate);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.axis.x {
+  dominant-baseline: auto;
+}
+
+.area {
+  fill: var(--series-trend);
+  opacity: 0.1;
+}
+
+.line {
+  fill: none;
+  stroke: var(--series-trend);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.line.low {
+  stroke: var(--series-low);
+}
+
+.crosshair {
+  stroke: var(--slate);
+  stroke-width: 1;
+}
+
+.dot {
+  fill: var(--series-trend);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.dot.low {
+  fill: var(--series-low);
+}
+
+.tooltip {
+  position: absolute;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  gap: 0.15rem;
+  min-width: 11rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  box-shadow: 0 8px 20px -12px var(--shadow);
+  font-size: 0.85rem;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.tooltip strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.tip-date {
+  color: var(--slate);
+}
+
+details {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+summary {
+  color: var(--slate);
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  margin-top: 0.5rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th,
+td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: right;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+th {
+  color: var(--slate);
+  font-weight: 700;
+}
