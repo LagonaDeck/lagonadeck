@@ -6,7 +6,8 @@ import {
   toSearchText,
 } from './product.service';
 
-const AUTH = 'Bearer token';
+const STAFF = { id: 'staff-1', staffPermissions: ['CATALOG_MANAGE'] };
+const USER = { id: 'user-1', staffPermissions: [] };
 
 const product = (fields: object = {}) => ({
   id: 'product-1',
@@ -84,7 +85,6 @@ describe('ProductService', () => {
     $queryRaw: jest.Mock;
     $transaction: jest.Mock;
   };
-  let identity: { requireSession: jest.Mock; requireStaff: jest.Mock };
   let service: ProductService;
 
   beforeEach(() => {
@@ -103,8 +103,7 @@ describe('ProductService', () => {
       $queryRaw: jest.fn(),
       $transaction: jest.fn(),
     };
-    identity = { requireSession: jest.fn(), requireStaff: jest.fn() };
-    service = new ProductService(prisma as never, identity as never);
+    service = new ProductService(prisma as never);
   });
 
   it('renvoie les résultats de la recherche dans leur ordre de pertinence', async () => {
@@ -114,13 +113,12 @@ describe('ProductService', () => {
       product({ id: 'b', name: 'Mewtwo EX' }),
     ]);
 
-    const results = await service.search(AUTH, {
+    const results = await service.search({
       search: 'mewtwo',
       take: 20,
       skip: 0,
     });
 
-    expect(identity.requireSession).toHaveBeenCalledWith(AUTH);
     expect(results.map(({ name }) => name)).toEqual(['Mewtwo EX', 'Mewtwo']);
   });
 
@@ -129,7 +127,7 @@ describe('ProductService', () => {
       product({ cardmarketId: 286404, cardmarketProduct }),
     );
 
-    const result = await service.get(AUTH, 'product-1');
+    const result = await service.get('product-1');
 
     expect(result.price).toBe('529.95');
     expect(result.cardmarket).toEqual(
@@ -140,7 +138,7 @@ describe('ProductService', () => {
   it('renvoie un prix indisponible pour une carte sans lien Cardmarket', async () => {
     prisma.product.findUnique.mockResolvedValue(product());
 
-    expect(await service.getPrice(AUTH, 'product-1')).toEqual({
+    expect(await service.getPrice('product-1')).toEqual({
       price: null,
       priceUpdatedAt: null,
     });
@@ -149,9 +147,7 @@ describe('ProductService', () => {
   it('répond 404 pour un produit inconnu', async () => {
     prisma.product.findUnique.mockResolvedValue(null);
 
-    await expect(service.get(AUTH, 'unknown')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.get('unknown')).rejects.toThrow(NotFoundException);
   });
 
   it('crée une carte absente des sources, avec son set et son numéro', async () => {
@@ -159,7 +155,7 @@ describe('ProductService', () => {
       product({ source: 'MANUAL', tcgdexId: null }),
     );
 
-    await service.create(AUTH, {
+    await service.create(STAFF, {
       name: 'Pikachu',
       productType: 'SINGLE',
       setCode: 'XYP',
@@ -190,7 +186,7 @@ describe('ProductService', () => {
       product({ id: 'existing', source: 'MANUAL' }),
     );
 
-    const result = await service.create(AUTH, {
+    const result = await service.create(STAFF, {
       name: 'Pikachu',
       productType: 'SINGLE',
     });
@@ -221,7 +217,7 @@ describe('ProductService', () => {
       }),
     ]);
 
-    const result = await service.linkCardmarket(AUTH, 'product-1', 286404);
+    const result = await service.linkCardmarket(STAFF, 'product-1', 286404);
 
     expect(prisma.product.updateMany).toHaveBeenCalledWith({
       where: { cardmarketId: 286404, id: { not: 'product-1' } },
@@ -240,26 +236,21 @@ describe('ProductService', () => {
     prisma.cardmarketProduct.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.linkCardmarket(AUTH, 'product-1', 999),
+      service.linkCardmarket(STAFF, 'product-1', 999),
     ).rejects.toThrow(NotFoundException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('réserve la création de produit à l’équipe LagonaDeck', async () => {
-    identity.requireStaff.mockRejectedValue(new ForbiddenException());
-
     await expect(
-      service.create(AUTH, { name: 'Pikachu', productType: 'SINGLE' }),
+      service.create(USER, { name: 'Pikachu', productType: 'SINGLE' }),
     ).rejects.toThrow(ForbiddenException);
-    expect(identity.requireStaff).toHaveBeenCalledWith(AUTH, 'CATALOG_MANAGE');
     expect(prisma.product.create).not.toHaveBeenCalled();
   });
 
   it('réserve la correction du lien Cardmarket à l’équipe LagonaDeck', async () => {
-    identity.requireStaff.mockRejectedValue(new ForbiddenException());
-
     await expect(
-      service.linkCardmarket(AUTH, 'product-1', 286404),
+      service.linkCardmarket(USER, 'product-1', 286404),
     ).rejects.toThrow(ForbiddenException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
@@ -267,7 +258,7 @@ describe('ProductService', () => {
   it("n'a pas d'historique de prix sans lien Cardmarket", async () => {
     prisma.product.findUnique.mockResolvedValue(product());
 
-    expect(await service.priceHistory(AUTH, 'product-1')).toEqual([]);
+    expect(await service.priceHistory('product-1')).toEqual([]);
     expect(prisma.priceSnapshot.findMany).not.toHaveBeenCalled();
   });
 
@@ -290,7 +281,7 @@ describe('ProductService', () => {
       },
     ]);
 
-    const history = await service.priceHistory(AUTH, 'product-1');
+    const history = await service.priceHistory('product-1');
 
     expect(prisma.priceSnapshot.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

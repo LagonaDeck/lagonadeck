@@ -3,6 +3,7 @@ services:
     build: { context: ., target: dev }
     command: sh -c 'npx prisma migrate deploy && npm run start:dev'
     environment:
+      INTERNAL_TOKEN: lagonadeck-dev-internal-token
       DATABASE_URL: postgresql://lagonadeck:lagonadeck@identity-db:5432/app
       RABBITMQ_URL: amqp://lagonadeck:lagonadeck@rabbitmq:5672
     ports: ['3001:3001']

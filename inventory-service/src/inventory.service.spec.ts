@@ -13,7 +13,7 @@ const prismaError = (code: string) =>
     clientVersion: '7.10.0',
   });
 
-const AUTH = 'Bearer token';
+const USER_ID = 'user-1';
 
 const etb = {
   id: 'product-etb',
@@ -137,13 +137,13 @@ describe('InventoryService', () => {
   it('ajoute un produit connu au stock avec son prix, sans appeler Cardmarket', async () => {
     prisma.inventoryItem.create.mockResolvedValue(stockItem('org-a'));
 
-    const item = await service.add(AUTH, 'org-a', {
+    const item = await service.add(USER_ID, 'org-a', {
       productId: etb.id,
       language: 'FRENCH',
     });
 
     expect(identity.requirePermission).toHaveBeenCalledWith(
-      AUTH,
+      USER_ID,
       'org-a',
       'INVENTORY_MANAGE',
     );
@@ -159,8 +159,8 @@ describe('InventoryService', () => {
       .mockResolvedValueOnce({ ...stockItem('org-a'), id: 'item-2' });
     const dto = { productId: etb.id, language: 'FRENCH' as const };
 
-    const first = await service.add(AUTH, 'org-a', dto);
-    const second = await service.add(AUTH, 'org-a', dto);
+    const first = await service.add(USER_ID, 'org-a', dto);
+    const second = await service.add(USER_ID, 'org-a', dto);
 
     expect(first.id).not.toBe(second.id);
     expect(prisma.inventoryItem.create).toHaveBeenCalledTimes(2);
@@ -171,8 +171,8 @@ describe('InventoryService', () => {
       .mockResolvedValueOnce([{ ...stockItem('org-a'), product: etb }])
       .mockResolvedValueOnce([{ ...stockItem('org-b'), product: etb }]);
 
-    const [a] = await service.list(AUTH, 'org-a', {});
-    const [b] = await service.list(AUTH, 'org-b', {});
+    const [a] = await service.list(USER_ID, 'org-a', {});
+    const [b] = await service.list(USER_ID, 'org-b', {});
 
     expect(a.product).toEqual(b.product);
   });
@@ -180,9 +180,9 @@ describe('InventoryService', () => {
   it("ne lit que le stock de l'organisation, après avoir vérifié l'appartenance", async () => {
     prisma.inventoryItem.findMany.mockResolvedValue([]);
 
-    await service.list(AUTH, 'org-a', { take: 20, skip: 0 });
+    await service.list(USER_ID, 'org-a', { take: 20, skip: 0 });
 
-    expect(identity.getPermissions).toHaveBeenCalledWith(AUTH, 'org-a');
+    expect(identity.getPermissions).toHaveBeenCalledWith(USER_ID, 'org-a');
     expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { organizationId: 'org-a' } }),
     );
@@ -192,7 +192,7 @@ describe('InventoryService', () => {
     prisma.$transaction.mockResolvedValue([1, [{ id: 'item-org-a' }]]);
     prisma.inventoryItem.findMany.mockResolvedValue([]);
 
-    await service.list(AUTH, 'org-a', { search: 'Dracaufeu' });
+    await service.list(USER_ID, 'org-a', { search: 'Dracaufeu' });
 
     expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -207,7 +207,7 @@ describe('InventoryService', () => {
       product: etb,
     });
 
-    const item = await service.get(AUTH, 'org-a', 'item-org-a');
+    const item = await service.get(USER_ID, 'org-a', 'item-org-a');
 
     expect(item.product.name).toBe(etb.name);
     expect(prisma.inventoryItem.findFirst).toHaveBeenCalledWith(
@@ -220,7 +220,7 @@ describe('InventoryService', () => {
   it("ne lit pas la ligne d'une autre organisation (404)", async () => {
     prisma.inventoryItem.findFirst.mockResolvedValue(null);
 
-    await expect(service.get(AUTH, 'org-a', 'item-org-b')).rejects.toThrow(
+    await expect(service.get(USER_ID, 'org-a', 'item-org-b')).rejects.toThrow(
       NotFoundException,
     );
   });
@@ -228,7 +228,7 @@ describe('InventoryService', () => {
   it("ne lit rien pour un non-membre (404 d'identity)", async () => {
     identity.getPermissions.mockRejectedValue(new NotFoundException());
 
-    await expect(service.list(AUTH, 'org-b', {})).rejects.toThrow(
+    await expect(service.list(USER_ID, 'org-b', {})).rejects.toThrow(
       NotFoundException,
     );
     expect(prisma.inventoryItem.findMany).not.toHaveBeenCalled();
@@ -238,7 +238,7 @@ describe('InventoryService', () => {
     identity.requirePermission.mockRejectedValue(new ForbiddenException());
 
     await expect(
-      service.add(AUTH, 'org-a', { productId: etb.id, language: 'FRENCH' }),
+      service.add(USER_ID, 'org-a', { productId: etb.id, language: 'FRENCH' }),
     ).rejects.toThrow(ForbiddenException);
     expect(prisma.inventoryItem.create).not.toHaveBeenCalled();
   });
@@ -246,9 +246,9 @@ describe('InventoryService', () => {
   it("ne supprime pas la ligne d'une autre organisation (404)", async () => {
     prisma.inventoryItem.delete.mockRejectedValue(prismaError('P2025'));
 
-    await expect(service.remove(AUTH, 'org-a', 'item-org-b')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.remove(USER_ID, 'org-a', 'item-org-b'),
+    ).rejects.toThrow(NotFoundException);
     expect(prisma.inventoryItem.delete).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'item-org-b', organizationId: 'org-a' },
@@ -265,18 +265,18 @@ describe('InventoryService', () => {
       },
     ]);
 
-    expect(await service.summary(AUTH, 'org-a')).toEqual({
+    expect(await service.summary(USER_ID, 'org-a')).toEqual({
       itemCount: 9,
       value: '3247.36',
       unpricedItemCount: 1,
     });
-    expect(identity.getPermissions).toHaveBeenCalledWith(AUTH, 'org-a');
+    expect(identity.getPermissions).toHaveBeenCalledWith(USER_ID, 'org-a');
   });
 
   it("ne calcule pas le total pour un non-membre (404 d'identity)", async () => {
     identity.getPermissions.mockRejectedValue(new NotFoundException());
 
-    await expect(service.summary(AUTH, 'org-b')).rejects.toThrow(
+    await expect(service.summary(USER_ID, 'org-b')).rejects.toThrow(
       NotFoundException,
     );
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
@@ -286,7 +286,7 @@ describe('InventoryService', () => {
     products.getOrThrow.mockRejectedValue(new NotFoundException());
 
     await expect(
-      service.add(AUTH, 'org-a', {
+      service.add(USER_ID, 'org-a', {
         productId: 'unknown',
         language: 'FRENCH',
       }),
@@ -296,7 +296,7 @@ describe('InventoryService', () => {
 
   describe('état et gradation', () => {
     const addCard = (fields: object) =>
-      service.add(AUTH, 'org-a', {
+      service.add(USER_ID, 'org-a', {
         productId: charizard.id,
         language: 'FRENCH',
         ...fields,
@@ -428,7 +428,7 @@ describe('InventoryService', () => {
       products.getOrThrow.mockResolvedValue(etb);
 
       await expect(
-        service.add(AUTH, 'org-a', {
+        service.add(USER_ID, 'org-a', {
           productId: etb.id,
           language: 'FRENCH',
           reverse: true,
@@ -440,7 +440,7 @@ describe('InventoryService', () => {
       products.getOrThrow.mockResolvedValue(etb);
 
       await expect(
-        service.add(AUTH, 'org-a', {
+        service.add(USER_ID, 'org-a', {
           productId: etb.id,
           language: 'FRENCH',
           gradingCompany: 'CGC',
@@ -463,12 +463,12 @@ describe('InventoryService', () => {
         { ...stockItem('org-a'), id: 'item-2' },
       ]);
 
-      const items = await service.addMany(AUTH, 'org-a', {
+      const items = await service.addMany(USER_ID, 'org-a', {
         items: [newItem('item-1'), newItem('item-2')],
       });
 
       expect(identity.requirePermission).toHaveBeenCalledWith(
-        AUTH,
+        USER_ID,
         'org-a',
         'INVENTORY_MANAGE',
       );
@@ -483,7 +483,7 @@ describe('InventoryService', () => {
 
     it('n’ajoute rien du lot si un exemplaire est refusé', async () => {
       await expect(
-        service.addMany(AUTH, 'org-a', {
+        service.addMany(USER_ID, 'org-a', {
           items: [newItem('item-1'), newItem('item-2', charizard.id)],
         }),
       ).rejects.toThrow(BadRequestException);
@@ -496,14 +496,14 @@ describe('InventoryService', () => {
       );
 
       await expect(
-        service.addMany(AUTH, 'org-a', { items: [newItem('item-1')] }),
+        service.addMany(USER_ID, 'org-a', { items: [newItem('item-1')] }),
       ).rejects.toThrow(ConflictException);
     });
 
     it('retire un lot du stock de l’organisation, même déjà en partie retiré', async () => {
       prisma.inventoryItem.deleteMany.mockResolvedValue({ count: 1 });
 
-      await service.removeMany(AUTH, 'org-a', { ids: ['item-1', 'item-2'] });
+      await service.removeMany(USER_ID, 'org-a', { ids: ['item-1', 'item-2'] });
 
       expect(prisma.inventoryItem.deleteMany).toHaveBeenCalledWith({
         where: { organizationId: 'org-a', id: { in: ['item-1', 'item-2'] } },
@@ -513,7 +513,7 @@ describe('InventoryService', () => {
     it('lit seulement les exemplaires demandés par leurs ids', async () => {
       prisma.inventoryItem.findMany.mockResolvedValue([]);
 
-      await service.list(AUTH, 'org-a', { ids: ['item-1', 'item-2'] });
+      await service.list(USER_ID, 'org-a', { ids: ['item-1', 'item-2'] });
 
       expect(prisma.inventoryItem.findMany).toHaveBeenCalledWith(
         expect.objectContaining({

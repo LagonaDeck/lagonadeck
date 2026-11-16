@@ -11,10 +11,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentUserId, SessionGuard } from '../session/session.guard';
@@ -31,7 +31,7 @@ import { MyOrganizationDto } from './models/dtos/organization.dto';
 // Déclaré avant OrganizationController dans main.ts : sinon `GET
 // organizations/invitations` serait pris pour `GET organizations/:organizationId`.
 @ApiTags('invitations')
-@ApiBearerAuth()
+@ApiSecurity({ internal: [], user: [] })
 @ApiResponse({ status: 401, description: 'Session invalide.' })
 @UseGuards(SessionGuard)
 @Controller('organizations')

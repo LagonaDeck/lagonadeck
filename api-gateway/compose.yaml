@@ -2,6 +2,7 @@ services:
   api-gateway:
     build: { context: ., target: dev }
     environment:
+      INTERNAL_TOKEN: lagonadeck-dev-internal-token
       IDENTITY_SERVICE_URL: http://identity-service:3001
       INVENTORY_SERVICE_URL: http://inventory-service:3002
       PURCHASE_SERVICE_URL: http://purchase-service:3003
