@@ -46,6 +46,14 @@ export class InventoryService {
     return items.length === PAGE_SIZE;
   }
 
+  // Premières entrées au stock, des plus récentes ou des plus anciennes.
+  byEntryDate(sort: 'recent' | 'oldest', take: number) {
+    return httpResource<InventoryItem[]>(() => {
+      const base = this.base();
+      return base ? { url: base, params: { take, sort } } : undefined;
+    });
+  }
+
   summary() {
     return httpResource<InventorySummary>(() => {
       const base = this.base();

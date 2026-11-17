@@ -75,6 +75,16 @@ export class InventoryService {
     });
   }
 
+  /** Prix de tout le stock de l'organisation. */
+  findPrices(
+    userId: string,
+    organizationId: string,
+  ): Promise<{ id: string; price: string | null }[]> {
+    return this.call(userId, organizationId, '/prices', {
+      method: 'GET',
+    });
+  }
+
   private async call<T>(
     userId: string,
     organizationId: string,

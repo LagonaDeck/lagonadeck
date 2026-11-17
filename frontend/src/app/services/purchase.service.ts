@@ -8,6 +8,7 @@ import {
   PurchaseDraftLine,
   PurchasedItem,
   PurchasesSummary,
+  StockSummary,
 } from '../models/purchase';
 import { OrganizationService } from './organization.service';
 
@@ -47,10 +48,21 @@ export class PurchaseService {
     return purchases.length === PAGE_SIZE;
   }
 
-  summary() {
+  // `from` limite le résumé aux achats datés à partir de ce jour.
+  summary(from: () => string | undefined = () => undefined) {
     return httpResource<PurchasesSummary>(() => {
       const base = this.base();
-      return base ? `${base}/summary` : undefined;
+      const start = from();
+      return base
+        ? `${base}/summary${start ? `?from=${start}` : ''}`
+        : undefined;
+    });
+  }
+
+  stockSummary() {
+    return httpResource<StockSummary>(() => {
+      const base = this.base();
+      return base ? `${base}/stock-summary` : undefined;
     });
   }
 

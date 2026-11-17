@@ -23,6 +23,8 @@ import {
   PurchaseDto,
   PurchasedItemDto,
   PurchasesSummaryDto,
+  PurchasesSummaryQueryDto,
+  StockSummaryDto,
 } from './purchase.dto';
 import { PurchaseService } from './purchase.service';
 
@@ -51,8 +53,21 @@ export class PurchaseController {
   summary(
     @CurrentUserId() userId: string,
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Query() query: PurchasesSummaryQueryDto,
   ): Promise<PurchasesSummaryDto> {
-    return this.purchaseService.summary(userId, organizationId);
+    return this.purchaseService.summary(userId, organizationId, query);
+  }
+
+  @Get('stock-summary')
+  @ApiOperation({
+    summary: 'Stock acheté : capital immobilisé et bénéfice potentiel.',
+  })
+  @ApiResponse({ status: 200, type: StockSummaryDto })
+  stockSummary(
+    @CurrentUserId() userId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+  ): Promise<StockSummaryDto> {
+    return this.purchaseService.stockSummary(userId, organizationId);
   }
 
   @Get('items/:inventoryItemId')

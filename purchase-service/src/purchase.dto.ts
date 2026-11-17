@@ -8,6 +8,7 @@ import {
   IsISO8601,
   IsNotEmpty,
   IsNumber,
+  IsDateString,
   IsOptional,
   IsString,
   IsUUID,
@@ -258,6 +259,47 @@ export class PurchaseDto {
 export class PurchaseDetailDto extends PurchaseDto {
   @ApiProperty({ type: [PurchaseLineDto] })
   lines!: PurchaseLineDto[];
+}
+
+export class PurchasesSummaryQueryDto {
+  @ApiPropertyOptional({
+    format: 'date',
+    example: '2026-10-01',
+    description: 'Ne compte que les achats à partir de cette date.',
+  })
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+}
+
+export class StockSummaryDto {
+  @ApiProperty({
+    type: String,
+    example: '1860.00',
+    description:
+      'Coût d’achat en EUR des exemplaires encore au stock, frais compris.',
+  })
+  immobilizedCapital!: string;
+
+  @ApiProperty({
+    type: String,
+    example: '412.50',
+    description:
+      'Valeur au Price Trend moins coût d’achat, sur les exemplaires qui ont les deux.',
+  })
+  potentialProfit!: string;
+
+  @ApiProperty({
+    description:
+      'Exemplaires achetés absents de `potentialProfit` : sans prix Cardmarket, ou carte gradée.',
+  })
+  unpricedItemCount!: number;
+
+  @ApiProperty({
+    description:
+      'Exemplaires du stock sans coût connu : ajoutés hors d’un achat.',
+  })
+  uncostedItemCount!: number;
 }
 
 export class PurchasesSummaryDto {

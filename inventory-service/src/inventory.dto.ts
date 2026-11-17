@@ -111,6 +111,15 @@ export class ListInventoryDto {
   @IsNotEmpty()
   search?: string;
 
+  @ApiPropertyOptional({
+    enum: ['recent', 'oldest'],
+    default: 'recent',
+    description: 'Ordre d’entrée au stock.',
+  })
+  @IsOptional()
+  @IsIn(['recent', 'oldest'])
+  sort?: 'recent' | 'oldest' = 'recent';
+
   @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
@@ -163,6 +172,20 @@ export class InventoryItemDto {
 
   @ApiProperty()
   updatedAt!: Date;
+}
+
+export class InventoryItemPriceDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '18.40',
+    description:
+      'Price Trend Cardmarket en EUR (celui de la reverse pour une reverse), null sans prix ou pour une carte gradée.',
+  })
+  price!: string | null;
 }
 
 export class InventorySummaryDto {

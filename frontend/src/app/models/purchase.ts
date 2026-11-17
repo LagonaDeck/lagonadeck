@@ -48,6 +48,14 @@ export interface PurchasesSummary {
   totalCost: string;
 }
 
+/** Stock acheté, croisé avec les prix du stock. */
+export interface StockSummary {
+  immobilizedCapital: string;
+  potentialProfit: string;
+  unpricedItemCount: number;
+  uncostedItemCount: number;
+}
+
 /** Achat et coût d'un exemplaire du stock. */
 export interface PurchasedItem {
   purchaseId: string;
