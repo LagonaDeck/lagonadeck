@@ -1,0 +1,340 @@
+<dialog #dialog aria-labelledby="inventory-add-title" (close)="closed.emit()">
+  <header>
+    <h2 id="inventory-add-title">{{ submitLabel() }}</h2>
+    <button
+      type="button"
+      class="icon-button"
+      title="Fermer"
+      aria-label="Fermer"
+      (click)="dialog.close()"
+    >
+      <svg lucideX [size]="18" aria-hidden="true"></svg>
+    </button>
+  </header>
+
+  <div class="body" [class.picked]="selected()">
+    <section class="finder" aria-label="Catalogue">
+      @if (error() && !selected()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      @if (lastPicked()) {
+        <p class="success" role="status">
+          {{ lastPicked() }} est dans l’achat.
+        </p>
+      }
+      @if (reporting()) {
+        @if (reported()) {
+          <p class="success" role="status">
+            Merci : l’équipe LagonaDeck va ajouter ce produit au catalogue.
+          </p>
+          <button type="button" class="link-button" (click)="closeReport()">
+            Revenir à la recherche
+          </button>
+        } @else {
+          <p class="hint">
+            Le catalogue est partagé par toutes les organisations : l’équipe
+            LagonaDeck ajoute les produits manquants.
+          </p>
+          <form class="stack" (submit)="reportMissing($event)">
+            <label>
+              Produit manquant
+              <textarea
+                name="message"
+                rows="3"
+                maxlength="1000"
+                required
+                placeholder="Nom, set et numéro, ex. Pikachu XY95"
+                >{{ query() }}</textarea>
+            </label>
+            <div class="actions">
+              <button class="small-button">Signaler</button>
+              <button type="button" class="link-button" (click)="closeReport()">
+                Annuler
+              </button>
+            </div>
+          </form>
+        }
+      } @else if (creating()) {
+        <p class="hint">
+          Le produit rejoint le catalogue partagé. Il n’a pas de prix tant qu’il
+          n’est pas lié à Cardmarket, depuis sa fiche.
+        </p>
+        <form class="stack" (submit)="create($event)">
+          <label>
+            Nom
+            <input name="name" [value]="query()" maxlength="200" required />
+          </label>
+          <div class="pair">
+            <label>
+              Code du set
+              <input name="setCode" maxlength="20" placeholder="MEW" />
+            </label>
+            <label>
+              Numéro
+              <input name="cardNumber" maxlength="20" placeholder="006" />
+            </label>
+          </div>
+          <div class="pair">
+            <label>
+              Set
+              <input name="setName" maxlength="100" placeholder="151" />
+            </label>
+            <label>
+              Rareté
+              <input name="rarity" maxlength="50" placeholder="Rare" />
+            </label>
+          </div>
+          <label>
+            Type
+            <select name="productType" required>
+              @for (option of productTypes; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </label>
+          <div class="actions">
+            <button class="small-button">Créer</button>
+            <button
+              type="button"
+              class="link-button"
+              (click)="creating.set(false)"
+            >
+              Annuler
+            </button>
+          </div>
+        </form>
+      } @else {
+        <div class="search-row">
+          <label class="search">
+            <svg lucideSearch [size]="18" aria-hidden="true"></svg>
+            <input
+              type="search"
+              aria-label="Nom du produit"
+              placeholder="Nom, set ou numéro, ex. Dracaufeu MEW 006"
+              autocomplete="off"
+              autofocus
+              [value]="query()"
+              (input)="search($any($event.target).value)"
+            />
+          </label>
+          <select
+            aria-label="Type de produit"
+            [value]="productType()"
+            (change)="productType.set($any($event.target).value)"
+          >
+            <option value="">Tous les types</option>
+            @for (option of productTypes; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </div>
+
+        @if (query().length >= catalogService.minQueryLength) {
+          <ul class="results" aria-label="Produits du catalogue">
+            @for (
+              product of results.hasValue() ? results.value() : [];
+              track product.id
+            ) {
+              <li>
+                <button
+                  type="button"
+                  [attr.aria-pressed]="selected()?.id === product.id"
+                  (click)="select(product)"
+                >
+                  <span class="thumb">
+                    @if (product.imageUrl) {
+                      <img
+                        [src]="product.imageUrl"
+                        alt=""
+                        loading="lazy"
+                        (error)="hideBrokenImage($event)"
+                      />
+                    }
+                  </span>
+                  <span class="identity">
+                    <strong>{{ cardName(product) }}</strong>
+                    <span>{{ details(product) }}</span>
+                  </span>
+                  <span class="price" [title]="priceTitle(product)">{{
+                    formatPrice(product.price)
+                  }}</span>
+                </button>
+              </li>
+            } @empty {
+              <li class="hint">
+                {{
+                  results.isLoading()
+                    ? 'Recherche…'
+                    : 'Aucun produit ne correspond.'
+                }}
+              </li>
+            }
+          </ul>
+          <button
+            type="button"
+            class="link-button"
+            (click)="
+              auth.catalogStaff() ? creating.set(true) : reporting.set(true)
+            "
+          >
+            Produit absent du catalogue ?
+            {{ auth.catalogStaff() ? 'Le créer' : 'Le signaler' }}
+          </button>
+        } @else {
+          <p class="hint">
+            Cherchez par nom, en français ou en anglais, par set ou par numéro.
+          </p>
+        }
+      }
+    </section>
+
+    <section class="copy" aria-label="Exemplaire à ajouter">
+      @if (selected(); as product) {
+        <button type="button" class="back" (click)="select(null)">
+          <svg lucideArrowLeft [size]="16" aria-hidden="true"></svg>
+          Résultats
+        </button>
+
+        <div class="specimen">
+          <span class="card">
+            @if (product.imageUrl) {
+              <img
+                [src]="product.imageUrl"
+                [alt]="cardName(product)"
+                (error)="hideBrokenImage($event)"
+              />
+            }
+          </span>
+          <div class="specimen-text">
+            <h3>{{ product.name }}</h3>
+            <p class="reference">
+              {{ product.setCode }} {{ product.cardNumber }}
+            </p>
+            <p class="hint">{{ details(product) }}</p>
+            <p class="price" [title]="priceTitle(product)">
+              {{ formatPrice(product.price) }}
+            </p>
+          </div>
+        </div>
+
+        <form (submit)="add($event, product)">
+          @if (product.productType === 'SINGLE') {
+            <fieldset class="choices">
+              <legend>Carte</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="cardKind"
+                  [checked]="!graded()"
+                  (change)="graded.set(false)"
+                />
+                <span class="pill">Brute</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="cardKind"
+                  [checked]="graded()"
+                  (change)="graded.set(true)"
+                />
+                <span class="pill">Gradée</span>
+              </label>
+            </fieldset>
+
+            @if (graded()) {
+              <fieldset class="choices">
+                <legend>Société</legend>
+                @for (option of gradingCompanies; track option.value) {
+                  <label>
+                    <input
+                      type="radio"
+                      name="gradingCompany"
+                      required
+                      [value]="option.value"
+                    />
+                    <span class="pill">{{ option.label }}</span>
+                  </label>
+                }
+              </fieldset>
+              <label class="row">
+                <span>Note</span>
+                <select name="grade" required>
+                  @for (grade of grades; track grade) {
+                    <option [value]="grade">{{ grade }}</option>
+                  }
+                </select>
+              </label>
+            } @else {
+              <fieldset class="choices tinted">
+                <legend>État</legend>
+                @for (option of conditions; track option.value) {
+                  <label>
+                    <input
+                      type="radio"
+                      name="condition"
+                      required
+                      [value]="option.value"
+                      [attr.aria-label]="option.label"
+                    />
+                    <app-chip
+                      [text]="conditionCodes[option.value]"
+                      [tooltip]="option.label"
+                      [tone]="option.value"
+                    />
+                  </label>
+                }
+              </fieldset>
+            }
+          }
+
+          <fieldset class="choices tinted">
+            <legend>Langue</legend>
+            @for (option of languages; track option.value) {
+              <label>
+                <input
+                  type="radio"
+                  name="language"
+                  required
+                  [value]="option.value"
+                  [attr.aria-label]="option.label"
+                />
+                <app-chip
+                  [text]="flags[option.value]"
+                  [tooltip]="option.label"
+                  tone="flag"
+                />
+              </label>
+            }
+          </fieldset>
+
+          @if (
+            product.productType === 'SINGLE' && product.hasReverse !== false
+          ) {
+            <fieldset class="choices">
+              <legend>Variante</legend>
+              <label>
+                <input type="checkbox" name="reverse" value="true" />
+                <span class="pill">Reverse</span>
+              </label>
+            </fieldset>
+          }
+
+          <footer>
+            <button class="small-button submit">{{ submitLabel() }}</button>
+            @if (error()) {
+              <p class="error" role="alert">{{ error() }}</p>
+            }
+          </footer>
+        </form>
+      } @else {
+        <div class="placeholder">
+          <span class="card"></span>
+          <p class="hint">
+            La carte choisie s’affiche ici, avec son état, sa langue et sa
+            variante.
+          </p>
+        </div>
+      }
+    </section>
+  </div>
+</dialog>

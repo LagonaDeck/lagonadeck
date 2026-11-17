@@ -1,0 +1,29 @@
+section + section {
+  margin-top: 2.5rem;
+}
+
+h2 {
+  margin-bottom: 0.5rem;
+  font-size: 1.15rem;
+}
+
+.soon {
+  color: var(--slate);
+}
+
+input {
+  flex: 0 1 16rem;
+  min-width: 0;
+  padding: 0.35rem 0.6rem;
+}
+
+.submit-row {
+  justify-content: flex-end;
+  border-bottom: 0;
+}
+
+.error,
+.success {
+  max-width: 40rem;
+  margin-top: 1rem;
+}

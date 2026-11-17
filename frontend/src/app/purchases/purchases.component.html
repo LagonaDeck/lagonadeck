@@ -1,0 +1,107 @@
+<div class="page-header">
+  <h1>Achats</h1>
+  @if (canManage()) {
+    <a class="small-button" routerLink="new">
+      <svg lucidePlus [size]="16" aria-hidden="true"></svg>
+      Nouvel achat
+    </a>
+  }
+</div>
+
+<dl class="summary">
+  <div>
+    <dt>Valeur totale des achats</dt>
+    <dd>{{ formatPrice(totals().totalCost) }}</dd>
+  </div>
+  <div>
+    <dt>Nombre d’achats</dt>
+    <dd>{{ count(totals().purchaseCount) }}</dd>
+  </div>
+</dl>
+
+<div class="table">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Fournisseur</th>
+        <th scope="col" class="number">Exemplaires</th>
+        <th scope="col" class="number">Valeur à l’achat</th>
+        <th scope="col" class="number">Coût</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (purchase of list(); track purchase.id) {
+        <tr>
+          <td>{{ formatDate(purchase.purchasedAt) }}</td>
+          <td>{{ purchase.supplier }}</td>
+          <td class="number">{{ purchase.itemCount }}</td>
+          <td
+            class="number"
+            title="Price Trend Cardmarket des exemplaires le jour de l’achat"
+          >
+            {{ formatPrice(purchase.marketValue) }}
+          </td>
+          <td class="number" title="Prix et frais">
+            {{ formatPrice(purchase.totalCost) }}
+          </td>
+          <td>
+            <a
+              class="small-button"
+              [routerLink]="purchase.id"
+              [attr.aria-label]="
+                'Voir l’achat ' +
+                purchase.supplier +
+                ' du ' +
+                formatDate(purchase.purchasedAt)
+              "
+            >
+              <svg lucideEye [size]="16" aria-hidden="true"></svg>
+              Voir
+            </a>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td class="empty" colspan="6">
+            @if (purchases.isLoading()) {
+              Chargement…
+            } @else {
+              Aucun achat trouvé.
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (page() > 0 || hasNextPage()) {
+  <nav class="pagination" aria-label="Pages des achats">
+    <button
+      type="button"
+      class="icon-button"
+      aria-label="Page précédente"
+      [disabled]="page() === 0"
+      (click)="page.set(page() - 1)"
+    >
+      <svg lucideChevronLeft [size]="18" aria-hidden="true"></svg>
+    </button>
+    <span>Page {{ page() + 1 }}</span>
+    <button
+      type="button"
+      class="icon-button"
+      aria-label="Page suivante"
+      [disabled]="!hasNextPage()"
+      (click)="page.set(page() + 1)"
+    >
+      <svg lucideChevronRight [size]="18" aria-hidden="true"></svg>
+    </button>
+  </nav>
+}
+
+<p class="hint">
+  Le coût d’un achat, frais compris, est réparti entre ses exemplaires au
+  prorata de leur Price Trend Cardmarket, sauf coût saisi à la main.
+</p>

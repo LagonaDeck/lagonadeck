@@ -1,0 +1,109 @@
+@if (points().length < 2) {
+  <p class="hint">
+    @if (points().length === 1) {
+      Premier relevé le {{ dateLabel(points()[0].date) }} :
+      {{ formatPrice(points()[0].trend) }}. La courbe se trace à partir du
+      deuxième jour, avec un relevé par jour.
+    } @else {
+      Pas encore de relevé : la courbe apparaîtra avec le prochain prix
+      Cardmarket.
+    }
+  </p>
+} @else {
+  <ul class="legend">
+    @for (series of series; track series.key) {
+      <li><span class="key {{ series.key }}"></span>{{ series.label }}</li>
+    }
+  </ul>
+  <div class="plot">
+    <svg
+      [attr.width]="width()"
+      [attr.height]="height"
+      role="img"
+      tabindex="0"
+      [attr.aria-label]="summary()"
+      (pointermove)="hover($event)"
+      (pointerleave)="active.set(null)"
+      (keydown)="step($event)"
+      (blur)="active.set(null)"
+    >
+      @for (tick of yTicks(); track tick.value) {
+        <line
+          class="grid"
+          [attr.x1]="margin.left"
+          [attr.x2]="width() - margin.right"
+          [attr.y1]="tick.y"
+          [attr.y2]="tick.y"
+        />
+        <text class="axis" [attr.x]="margin.left - 8" [attr.y]="tick.y">
+          {{ tick.label }}
+        </text>
+      }
+      @for (tick of xTicks(); track tick.x) {
+        <text
+          class="axis x"
+          [attr.x]="tick.x"
+          [attr.y]="height - 8"
+          [attr.text-anchor]="tick.anchor"
+        >
+          {{ tick.label }}
+        </text>
+      }
+      <path class="area" [attr.d]="areaPath()" />
+      @for (series of series; track series.key) {
+        <path class="line {{ series.key }}" [attr.d]="linePath(series)" />
+      }
+      @if (active(); as index) {
+        <line
+          class="crosshair"
+          [attr.x1]="x(index)"
+          [attr.x2]="x(index)"
+          [attr.y1]="margin.top"
+          [attr.y2]="height - margin.bottom"
+        />
+      }
+      @for (series of series; track series.key) {
+        @if (marker(series); as point) {
+          <circle
+            class="dot {{ series.key }}"
+            [attr.cx]="point.x"
+            [attr.cy]="point.y"
+            r="4"
+          />
+        }
+      }
+    </svg>
+    @if (active() !== null && tooltip(); as tip) {
+      <div class="tooltip" [style.left.px]="tip.x" role="status">
+        <p class="tip-date">{{ tip.date }}</p>
+        @for (row of tip.rows; track row.label) {
+          <p>
+            <span class="key {{ row.key }}"></span>
+            <strong>{{ row.value }}</strong> {{ row.label }}
+          </p>
+        }
+      </div>
+    }
+  </div>
+  <details>
+    <summary>Voir les relevés</summary>
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Jour</th>
+          <th scope="col">Tendance</th>
+          <th scope="col">Prix le plus bas</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (point of reversed(); track point.date) {
+          <tr>
+            <td>{{ dateLabel(point.date) }}</td>
+            <td>{{ formatPrice(point.trend) }}</td>
+            <td>{{ formatPrice(point.low) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </details>
+}

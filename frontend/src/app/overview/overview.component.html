@@ -1,0 +1,121 @@
+<div class="page-header">
+  <h1>Tableau de bord</h1>
+  <button
+    type="button"
+    class="small-button"
+    [attr.aria-expanded]="customizing()"
+    (click)="customizing.set(!customizing())"
+  >
+    <svg lucideSlidersHorizontal [size]="16" aria-hidden="true"></svg>
+    Personnaliser
+  </button>
+</div>
+
+<div class="filters">
+  <label>
+    Période
+    <select [value]="periodDays()" (change)="selectPeriod($event)">
+      @for (period of periods; track period.days) {
+        <option [value]="period.days" [selected]="period.days === periodDays()">
+          {{ period.label }}
+        </option>
+      }
+    </select>
+  </label>
+  <label>
+    Organisation
+    <select (change)="selectOrganization($event)">
+      @for (organization of organizations.list(); track organization.id) {
+        <option
+          [value]="organization.id"
+          [selected]="organization.id === organizations.current()?.id"
+        >
+          {{ organization.name }}
+        </option>
+      }
+    </select>
+  </label>
+  <label title="Seul Pokémon est géré pour l’instant">
+    TCG
+    <select disabled>
+      <option>Pokémon</option>
+    </select>
+  </label>
+</div>
+
+@if (customizing()) {
+  <section class="customize" aria-label="Personnaliser les widgets">
+    <ul>
+      @for (preference of preferences(); track preference.id; let i = $index) {
+        <li>
+          <label>
+            <input
+              type="checkbox"
+              [checked]="preference.visible"
+              (change)="toggleWidget(preference.id)"
+            />
+            {{ widget(preference.id).label }}
+          </label>
+          <span class="move">
+            <button
+              type="button"
+              class="icon-button"
+              [attr.aria-label]="'Monter ' + widget(preference.id).label"
+              [disabled]="i === 0"
+              (click)="moveWidget(i, -1)"
+            >
+              <svg lucideArrowUp [size]="16" aria-hidden="true"></svg>
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              [attr.aria-label]="'Descendre ' + widget(preference.id).label"
+              [disabled]="i === preferences().length - 1"
+              (click)="moveWidget(i, 1)"
+            >
+              <svg lucideArrowDown [size]="16" aria-hidden="true"></svg>
+            </button>
+          </span>
+        </li>
+      }
+    </ul>
+    <button type="button" class="link-button" (click)="resetWidgets()">
+      Réinitialiser
+    </button>
+  </section>
+}
+
+<div class="widgets">
+  @for (widget of visibleWidgets(); track widget.id) {
+    @if (widget.kind === 'stat') {
+      <section class="widget">
+        <h2>{{ widget.label }}</h2>
+        <p class="value">{{ stat(widget).value }}</p>
+        <p class="hint">{{ stat(widget).hint }}</p>
+      </section>
+    } @else {
+      <section class="widget list">
+        <h2>{{ widget.label }}</h2>
+        <p class="hint">{{ listHints[widget.id] }}</p>
+        <ul>
+          @for (row of rows(widget.id); track row.item.id) {
+            <li>
+              <a [routerLink]="['/app/inventory', row.item.id]">
+                <strong>{{ cardName(row.item.product) }}</strong>
+                <span class="hint">{{ productDetails(row.item.product) }}</span>
+              </a>
+              <span class="meta">
+                {{ formatPrice(row.item.price) }}
+                <span class="hint">{{ row.detail }}</span>
+              </span>
+            </li>
+          } @empty {
+            <li class="hint">{{ emptyText(widget.id) }}</li>
+          }
+        </ul>
+      </section>
+    }
+  } @empty {
+    <p class="hint">Aucun widget affiché : choisissez-en dans Personnaliser.</p>
+  }
+</div>

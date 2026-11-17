@@ -1,0 +1,71 @@
+<svg:rect width="160" height="100" [attr.fill]="palette().background" />
+<svg:rect width="34" height="100" [attr.fill]="palette().sidebar" />
+<svg:rect x="5" y="4" width="7" height="7" rx="1.5" fill="#17d4c4" />
+<svg:rect
+  x="15"
+  y="6.5"
+  width="14"
+  height="2"
+  rx="1"
+  fill="#fff"
+  opacity="0.6"
+/>
+@for (y of [20, 27, 34]; track y) {
+  <svg:rect
+    x="5"
+    [attr.y]="y"
+    width="24"
+    height="3"
+    rx="1.5"
+    fill="#fff"
+    opacity="0.15"
+  />
+}
+<svg:rect x="34" width="126" height="14" [attr.fill]="palette().surface" />
+<svg:rect x="34" y="14" width="126" height="0.6" [attr.fill]="palette().line" />
+<svg:circle cx="150" cy="7" r="4" [attr.fill]="palette().accent" />
+<svg:rect
+  x="42"
+  y="21"
+  width="40"
+  height="5"
+  rx="1.5"
+  [attr.fill]="palette().text"
+/>
+<svg:rect
+  x="42"
+  y="30"
+  width="72"
+  height="2.5"
+  rx="1.25"
+  [attr.fill]="palette().line"
+/>
+<svg:rect
+  x="42"
+  y="39"
+  width="110"
+  height="52"
+  rx="3"
+  [attr.fill]="palette().surface"
+  [attr.stroke]="palette().line"
+  stroke-width="0.6"
+/>
+@for (y of [48, 62, 76]; track y) {
+  <svg:rect
+    x="49"
+    [attr.y]="y"
+    width="30"
+    height="2.5"
+    rx="1.25"
+    [attr.fill]="palette().line"
+  />
+  <svg:rect
+    x="118"
+    [attr.y]="y"
+    width="27"
+    height="2.5"
+    rx="1.25"
+    [attr.fill]="palette().text"
+    opacity="0.7"
+  />
+}

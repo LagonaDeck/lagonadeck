@@ -1,0 +1,97 @@
+<section aria-labelledby="password-title">
+  <h2 id="password-title">Mot de passe</h2>
+
+  @if (changing()) {
+    <form
+      class="settings"
+      (submit)="changePassword($event)"
+      (keydown.escape)="cancel($event)"
+    >
+      <label class="settings-row">
+        <span>Mot de passe actuel</span>
+        <input
+          #first
+          name="currentPassword"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+      </label>
+      <label class="settings-row">
+        <span>Nouveau mot de passe</span>
+        <input
+          name="password"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="8"
+          title="8 caractères minimum, avec une majuscule, une minuscule et un chiffre ou un symbole."
+        />
+      </label>
+      <label class="settings-row">
+        <span>Confirmation</span>
+        <input
+          name="confirmation"
+          type="password"
+          autocomplete="new-password"
+          required
+        />
+      </label>
+      <div class="settings-row submit-row">
+        <span class="row-actions">
+          <button
+            class="icon-button confirm"
+            title="Enregistrer"
+            aria-label="Enregistrer le nouveau mot de passe"
+            [disabled]="pending()"
+          >
+            <svg lucideCheck [size]="18" aria-hidden="true"></svg>
+          </button>
+          <button
+            type="button"
+            class="icon-button discard"
+            title="Annuler"
+            aria-label="Annuler"
+            (click)="cancel()"
+          >
+            <svg lucideX [size]="18" aria-hidden="true"></svg>
+          </button>
+        </span>
+      </div>
+    </form>
+  } @else {
+    <dl class="settings">
+      <div class="settings-row">
+        <dt>Mot de passe</dt>
+        <dd>
+          <span aria-label="Masqué">••••••••••</span>
+          <span class="row-actions">
+            <button
+              type="button"
+              class="icon-button"
+              title="Changer le mot de passe"
+              aria-label="Changer le mot de passe"
+              (click)="edit()"
+            >
+              <svg lucidePencil [size]="16" aria-hidden="true"></svg>
+            </button>
+          </span>
+        </dd>
+      </div>
+    </dl>
+  }
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+  @if (saved()) {
+    <p class="success" role="status">
+      Mot de passe modifié. Vos autres sessions ont été déconnectées.
+    </p>
+  }
+</section>
+
+<section aria-labelledby="two-factor-title">
+  <h2 id="two-factor-title">Authentification à deux facteurs</h2>
+  <p class="soon">À venir</p>
+</section>

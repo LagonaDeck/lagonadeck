@@ -1,0 +1,111 @@
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  max-width: 40rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.tabs button {
+  margin-bottom: -1px;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--slate);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+.tabs [aria-current='true'] {
+  border-bottom-color: var(--blue);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.org-photo {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  aspect-ratio: 1;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, var(--teal), var(--blue));
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+/* La marge négative compense padding et bordure : le texte saisi reste
+   aligné sur la valeur affichée. */
+input {
+  flex: 0 1 16rem;
+  min-width: 0;
+  margin-right: calc(-0.6rem - 2px);
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+}
+
+.error {
+  max-width: 40rem;
+  margin-top: 1rem;
+}
+
+.danger {
+  max-width: 40rem;
+  margin-top: 2.5rem;
+  padding: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--rule));
+  border-radius: 0.75rem;
+}
+
+.danger h2 {
+  margin-bottom: 0.5rem;
+  color: var(--danger);
+  font-size: 1.15rem;
+}
+
+.danger p {
+  margin-bottom: 1rem;
+  color: var(--slate);
+  font-size: 0.9rem;
+}
+
+.confirm-field {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.confirm-field input {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  margin-right: 0;
+}
+
+.danger-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.danger-button {
+  padding: 0.5rem 0.9rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--danger);
+  color: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.danger-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

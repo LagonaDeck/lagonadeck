@@ -1,0 +1,137 @@
+:host {
+  display: block;
+  max-width: 40rem;
+}
+
+h2 {
+  margin: 1.5rem 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--slate);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Menu déroulant posé sur la liste : les comptes trouvés ne se
+   confondent pas avec les membres. */
+.search-box {
+  position: relative;
+}
+
+.results {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 2.5rem;
+  left: 1.6rem;
+  z-index: 10;
+  padding: 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: 0 12px 28px -12px var(--shadow);
+}
+
+.results .row {
+  min-height: 3rem;
+  padding-inline: 0.5rem;
+  border-bottom: 0;
+  border-radius: 0.5rem;
+}
+
+.results .row:hover {
+  background: var(--hover);
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--violet));
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.avatar.pending {
+  background: var(--rule);
+  color: var(--slate);
+}
+
+.identity {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.identity span {
+  overflow: hidden;
+  color: var(--slate);
+  font-size: 0.85rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.owner {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  color: var(--gold);
+}
+
+.icon-button.invite,
+.icon-button.invite:hover {
+  color: var(--blue);
+}
+
+.icon-button.invite:hover {
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+}
+
+.tag {
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+.empty {
+  padding: 0.75rem 0.5rem;
+  color: var(--slate);
+  font-size: 0.9rem;
+}
+
+.error {
+  margin-top: 1rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

@@ -1,0 +1,205 @@
+<div class="section-header">
+  <h2>Groupes</h2>
+  @if (canCreate() && !creating()) {
+    <button type="button" class="small-button" (click)="startCreate()">
+      <svg lucidePlus [size]="16" aria-hidden="true"></svg>
+      Créer un groupe
+    </button>
+  }
+</div>
+
+@if (creating()) {
+  <form class="row" (submit)="create($event)">
+    <input
+      name="name"
+      required
+      maxlength="100"
+      aria-label="Nom du nouveau groupe"
+      placeholder="Nom du groupe"
+      (keydown.escape)="stopCreate($event)"
+      #field
+    />
+    <span class="row-actions">
+      <button
+        class="icon-button confirm"
+        title="Créer"
+        aria-label="Créer le groupe"
+      >
+        <svg lucideCheck [size]="18" aria-hidden="true"></svg>
+      </button>
+      <button
+        type="button"
+        class="icon-button discard"
+        title="Annuler"
+        aria-label="Annuler"
+        (click)="stopCreate()"
+      >
+        <svg lucideX [size]="18" aria-hidden="true"></svg>
+      </button>
+    </span>
+  </form>
+}
+
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+
+<ul class="groups">
+  @for (group of groups.hasValue() ? groups.value() : []; track group.id) {
+    <li>
+      @if (renaming() === group.id) {
+        <form class="row" (submit)="rename($event, group)">
+          <input
+            name="name"
+            required
+            maxlength="100"
+            aria-label="Nouveau nom du groupe"
+            [value]="group.name"
+            (keydown.escape)="stopRename($event)"
+            #field
+          />
+          <span class="row-actions">
+            <button
+              class="icon-button confirm"
+              title="Enregistrer"
+              aria-label="Enregistrer"
+            >
+              <svg lucideCheck [size]="18" aria-hidden="true"></svg>
+            </button>
+            <button
+              type="button"
+              class="icon-button discard"
+              title="Annuler"
+              aria-label="Annuler"
+              (click)="stopRename()"
+            >
+              <svg lucideX [size]="18" aria-hidden="true"></svg>
+            </button>
+          </span>
+        </form>
+      } @else {
+        <div class="row">
+          <button
+            type="button"
+            class="toggle"
+            [attr.aria-expanded]="open() === group.id"
+            (click)="toggle(group)"
+          >
+            @if (open() === group.id) {
+              <svg lucideChevronDown [size]="16" aria-hidden="true"></svg>
+            } @else {
+              <svg lucideChevronRight [size]="16" aria-hidden="true"></svg>
+            }
+            <strong>{{ group.name }}</strong>
+            <span class="count">{{ memberCount(group) }}</span>
+          </button>
+          <span class="row-actions">
+            @if (canRename(group)) {
+              <button
+                type="button"
+                class="icon-button"
+                [title]="'Renommer ' + group.name"
+                [attr.aria-label]="'Renommer ' + group.name"
+                (click)="renaming.set(group.id)"
+              >
+                <svg lucidePencil [size]="16" aria-hidden="true"></svg>
+              </button>
+            }
+            @if (canDelete(group)) {
+              <button
+                type="button"
+                class="icon-button discard"
+                [title]="'Supprimer ' + group.name"
+                [attr.aria-label]="'Supprimer ' + group.name"
+                (click)="remove(group)"
+              >
+                <svg lucideTrash2 [size]="16" aria-hidden="true"></svg>
+              </button>
+            }
+          </span>
+        </div>
+      }
+
+      @if (open() === group.id) {
+        <div class="details">
+          @if (group.isOwner) {
+            <p class="note">
+              Le groupe Owner a toutes les permissions et ne contient que le
+              propriétaire : il ne se modifie pas.
+            </p>
+          }
+
+          <h3>Permissions</h3>
+          <ul class="permissions">
+            @for (permission of permissions; track permission.id) {
+              <li>
+                <label [title]="permissionHint(group, permission.id)">
+                  <input
+                    type="checkbox"
+                    [checked]="group.permissions.includes(permission.id)"
+                    [disabled]="!canToggle(group, permission.id)"
+                    (change)="
+                      togglePermission(
+                        group,
+                        permission.id,
+                        $any($event.target).checked
+                      )
+                    "
+                  />
+                  {{ permission.label }}
+                </label>
+              </li>
+            }
+          </ul>
+
+          <h3>Membres</h3>
+          <ul class="members">
+            @for (member of groupMembers(group); track member.userId) {
+              <li class="row">
+                <span class="avatar" aria-hidden="true">{{
+                  member.username.slice(0, 2).toUpperCase()
+                }}</span>
+                <span class="name">{{ member.username }}</span>
+                @if (canManageMembers(group)) {
+                  <button
+                    type="button"
+                    class="icon-button discard"
+                    [title]="'Retirer ' + member.username + ' du groupe'"
+                    [attr.aria-label]="
+                      'Retirer ' + member.username + ' du groupe'
+                    "
+                    (click)="removeMember(group, member)"
+                  >
+                    <svg lucideX [size]="16" aria-hidden="true"></svg>
+                  </button>
+                }
+              </li>
+            } @empty {
+              <li class="note">Aucun membre dans ce groupe.</li>
+            }
+          </ul>
+
+          @if (canManageMembers(group) && candidates(group).length > 0) {
+            <form class="add-member" (submit)="addMember($event, group)">
+              <select name="userId" aria-label="Membre à ajouter" required>
+                <option value="">Ajouter un membre…</option>
+                @for (member of candidates(group); track member.userId) {
+                  <option [value]="member.userId">
+                    {{ member.username }}
+                  </option>
+                }
+              </select>
+              <button
+                class="icon-button confirm"
+                title="Ajouter au groupe"
+                aria-label="Ajouter au groupe"
+              >
+                <svg lucidePlus [size]="18" aria-hidden="true"></svg>
+              </button>
+            </form>
+          }
+        </div>
+      }
+    </li>
+  }
+</ul>

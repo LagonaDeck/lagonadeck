@@ -1,0 +1,35 @@
+<h1>Invitations</h1>
+
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+
+<ul class="invitations">
+  @for (
+    invitation of invitations.hasValue() ? invitations.value() : [];
+    track invitation.organizationId
+  ) {
+    <li class="panel">
+      <span>
+        <strong>{{ invitation.organizationName }}</strong>
+        <span class="hint">Invitation de {{ invitation.invitedBy }}</span>
+      </span>
+      <span class="actions">
+        <button type="button" class="small-button" (click)="accept(invitation)">
+          Rejoindre
+        </button>
+        <button type="button" class="link-button" (click)="decline(invitation)">
+          Refuser
+        </button>
+      </span>
+    </li>
+  } @empty {
+    <li class="hint">
+      {{
+        invitations.isLoading()
+          ? 'Chargement…'
+          : 'Aucune invitation en attente.'
+      }}
+    </li>
+  }
+</ul>

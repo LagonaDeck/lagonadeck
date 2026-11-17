@@ -114,11 +114,11 @@ export class InventoryService {
   ) {}
 
   async list(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     query: ListInventoryDto,
   ): Promise<InventoryItemDto[]> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const matches = query.search
       ? await searchRows<{ id: string }>(
           this.prisma,
@@ -147,11 +147,11 @@ export class InventoryService {
   }
 
   async get(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     id: string,
   ): Promise<InventoryItemDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const item = await this.prisma.inventoryItem.findFirst({
       where: { id, organizationId },
       include: WITH_PRODUCT,
@@ -162,10 +162,10 @@ export class InventoryService {
 
   // Calculé en base : la liste est paginée, un total côté client serait faux.
   async summary(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
   ): Promise<InventorySummaryDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const [summary] = await this.prisma.$queryRaw<
       { itemCount: number; value: Prisma.Decimal; unpricedItemCount: number }[]
     >`
@@ -178,10 +178,10 @@ export class InventoryService {
   }
 
   async prices(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
   ): Promise<InventoryItemPriceDto[]> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const rows = await this.prisma.$queryRaw<
       { id: string; price: Prisma.Decimal | null }[]
     >`SELECT i."id", l."price" ${stockWithPrice(organizationId)}`;
@@ -192,12 +192,12 @@ export class InventoryService {
   }
 
   async add(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     dto: AddInventoryItemDto,
   ): Promise<InventoryItemDto> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       INVENTORY_MANAGE,
     );
@@ -219,12 +219,12 @@ export class InventoryService {
 
   // Une seule requête, tout ou rien : un exemplaire refusé n'en laisse aucun.
   async addMany(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     dto: AddInventoryItemsDto,
   ): Promise<InventoryItemDto[]> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       INVENTORY_MANAGE,
     );
@@ -260,12 +260,12 @@ export class InventoryService {
 
   // Un exemplaire déjà retiré est ignoré : on peut rejouer le retrait.
   async removeMany(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     dto: RemoveInventoryItemsDto,
   ): Promise<void> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       INVENTORY_MANAGE,
     );
@@ -275,12 +275,12 @@ export class InventoryService {
   }
 
   async remove(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     id: string,
   ): Promise<void> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       INVENTORY_MANAGE,
     );

@@ -11,7 +11,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import type { ServerResponse } from 'node:http';
-import { callIdentity } from './identity';
+import { authenticate, callIdentity } from './identity';
 import { readCookie } from './relay';
 
 interface Session {
@@ -88,20 +88,20 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@Headers('cookie') cookies: string | undefined): Promise<unknown> {
-    const token = readCookie(cookies, 'session');
-    if (!token) throw new UnauthorizedException('Session invalide');
-    return callIdentity('/api/sessions/current', { token });
+  async me(@Headers('cookie') cookies: string | undefined): Promise<unknown> {
+    return (await authenticate(cookies)).user;
   }
 
   @Patch('me')
-  updateMe(
+  async updateMe(
     @Headers('cookie') cookies: string | undefined,
     @Body() body: unknown,
   ): Promise<unknown> {
-    const token = readCookie(cookies, 'session');
-    if (!token) throw new UnauthorizedException('Session invalide');
-    return callIdentity('/api/users/me', { method: 'PATCH', body, token });
+    return callIdentity('/api/users/me', {
+      method: 'PATCH',
+      body,
+      session: await authenticate(cookies),
+    });
   }
 
   @Put('me/password')
@@ -110,12 +110,10 @@ export class AuthController {
     @Headers('cookie') cookies: string | undefined,
     @Body() body: unknown,
   ): Promise<void> {
-    const token = readCookie(cookies, 'session');
-    if (!token) throw new UnauthorizedException('Session invalide');
     await callIdentity('/api/users/me/password', {
       method: 'PUT',
       body,
-      token,
+      session: await authenticate(cookies),
     });
   }
 

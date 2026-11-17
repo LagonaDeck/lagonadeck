@@ -123,11 +123,11 @@ export class PurchaseService {
   ) {}
 
   async list(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     query: ListPurchasesDto,
   ): Promise<PurchaseDto[]> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const purchases = await this.prisma.purchase.findMany({
       where: { organizationId },
       orderBy: [{ purchasedAt: 'desc' }, { createdAt: 'desc' }],
@@ -151,11 +151,11 @@ export class PurchaseService {
 
   // Calculé en base : la liste est paginée, un total côté client serait faux.
   async summary(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     { from }: PurchasesSummaryQueryDto,
   ): Promise<PurchasesSummaryDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const where = {
       organizationId,
       purchasedAt: from ? { gte: new Date(from) } : undefined,
@@ -179,16 +179,16 @@ export class PurchaseService {
   // Les coûts vivent ici et le stock dans inventory : le croisement se fait
   // ici, sur tout le stock, car un total sur une page serait faux.
   async stockSummary(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
   ): Promise<StockSummaryDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const [lines, stock] = await Promise.all([
       this.prisma.purchaseLine.findMany({
         where: { purchase: { organizationId } },
         select: { inventoryItemId: true, cost: true },
       }),
-      this.inventory.findPrices(authorization!, organizationId),
+      this.inventory.findPrices(userId, organizationId),
     ]);
     const costs = new Map(
       lines.map(({ inventoryItemId, cost }) => [inventoryItemId, cost]),
@@ -216,14 +216,14 @@ export class PurchaseService {
   }
 
   async get(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     id: string,
   ): Promise<PurchaseDetailDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const purchase = await this.findOrThrow(organizationId, id);
     const inStock = await this.inventory.findItems(
-      authorization!,
+      userId,
       organizationId,
       purchase.lines.map(({ inventoryItemId }) => inventoryItemId),
     );
@@ -231,11 +231,11 @@ export class PurchaseService {
   }
 
   async getItem(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     inventoryItemId: string,
   ): Promise<PurchasedItemDto> {
-    await this.identity.getPermissions(authorization, organizationId);
+    await this.identity.getPermissions(userId, organizationId);
     const line = await this.prisma.purchaseLine.findFirst({
       where: { inventoryItemId, purchase: { organizationId } },
       include: { purchase: true },
@@ -253,12 +253,12 @@ export class PurchaseService {
   // répartition. Leurs ids sont choisis ici, pour retirer le lot si l'achat
   // échoue, même quand inventory n'a pas répondu.
   async create(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     dto: CreatePurchaseDto,
   ): Promise<PurchaseDetailDto> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       PURCHASE_MANAGE,
     );
@@ -277,7 +277,7 @@ export class PurchaseService {
     const ids = units.map(() => randomUUID());
     try {
       const items = await this.inventory.addItems(
-        authorization!,
+        userId,
         organizationId,
         units.map(({ item }, index) => ({ id: ids[index], ...item })),
       );
@@ -324,7 +324,7 @@ export class PurchaseService {
       return toDetailDto(purchase, new Set(ids));
     } catch (error) {
       if (!rejectedByInventory(error)) {
-        await this.removeFromStock(authorization!, organizationId, ids);
+        await this.removeFromStock(userId, organizationId, ids);
       }
       throw error;
     }
@@ -333,18 +333,18 @@ export class PurchaseService {
   // Supprimer un achat le retire du stock : c'est corriger une saisie. Un
   // échec en cours de route laisse l'achat, qu'on peut supprimer de nouveau.
   async remove(
-    authorization: string | undefined,
+    userId: string,
     organizationId: string,
     id: string,
   ): Promise<void> {
     await this.identity.requirePermission(
-      authorization,
+      userId,
       organizationId,
       PURCHASE_MANAGE,
     );
     const purchase = await this.findOrThrow(organizationId, id);
     await this.inventory.removeItems(
-      authorization!,
+      userId,
       organizationId,
       purchase.lines.map(({ inventoryItemId }) => inventoryItemId),
     );
@@ -354,12 +354,12 @@ export class PurchaseService {
   // Un échec ici laisse au stock des exemplaires sans achat : le log garde
   // leurs ids pour les retirer à la main.
   private async removeFromStock(
-    authorization: string,
+    userId: string,
     organizationId: string,
     ids: string[],
   ): Promise<void> {
     try {
-      await this.inventory.removeItems(authorization, organizationId, ids);
+      await this.inventory.removeItems(userId, organizationId, ids);
     } catch (error) {
       this.logger.error(
         `Exemplaires restés au stock sans achat (organisation ${organizationId}) : ${ids.join(', ')}`,

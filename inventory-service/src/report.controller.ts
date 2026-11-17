@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -10,11 +9,12 @@ import {
   Query,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from './current-user';
 import {
   CreateReportDto,
   ListReportsDto,
@@ -26,7 +26,7 @@ import { ReportService } from './report.service';
 // Déclaré avant `ProductController` : sinon `/products/reports` serait lu
 // comme `/products/:productId`.
 @ApiTags('reports')
-@ApiBearerAuth()
+@ApiSecurity({ internal: [], user: [] })
 @ApiResponse({ status: 401, description: 'Session invalide.' })
 @Controller('products/reports')
 export class ReportController {
@@ -39,10 +39,10 @@ export class ReportController {
   @ApiResponse({ status: 201, type: ReportDto })
   @ApiResponse({ status: 404, description: 'Produit introuvable.' })
   create(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Body() dto: CreateReportDto,
   ): Promise<ReportDto> {
-    return this.reportService.create(authorization, dto);
+    return this.reportService.create(user, dto);
   }
 
   @Get()
@@ -50,10 +50,10 @@ export class ReportController {
   @ApiResponse({ status: 200, type: [ReportDto] })
   @ApiResponse({ status: 403, description: 'Réservé à l’équipe.' })
   list(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Query() query: ListReportsDto,
   ): Promise<ReportDto[]> {
-    return this.reportService.list(authorization, query.status ?? 'OPEN');
+    return this.reportService.list(user, query.status ?? 'OPEN');
   }
 
   @Patch(':reportId')
@@ -64,10 +64,10 @@ export class ReportController {
   @ApiResponse({ status: 403, description: 'Réservé à l’équipe.' })
   @ApiResponse({ status: 404, description: 'Signalement introuvable.' })
   updateStatus(
-    @Headers('authorization') authorization: string | undefined,
+    @CurrentUser() user: CurrentUser,
     @Param('reportId', ParseUUIDPipe) reportId: string,
     @Body() dto: UpdateReportDto,
   ): Promise<ReportDto> {
-    return this.reportService.updateStatus(authorization, reportId, dto.status);
+    return this.reportService.updateStatus(user, reportId, dto.status);
   }
 }

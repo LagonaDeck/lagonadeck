@@ -1,0 +1,16 @@
+<ul class="bars">
+  @for (bar of bars(); track bar.label) {
+    <li>
+      <span class="label">{{ bar.label }}</span>
+      <span class="value">{{ formatPrice(bar.value) }}</span>
+      <span class="track" aria-hidden="true">
+        @if (bar.value !== null) {
+          <span
+            class="bar {{ bar.tone }}"
+            [style.width.%]="(bar.value / max()) * 100"
+          ></span>
+        }
+      </span>
+    </li>
+  }
+</ul>

@@ -1,0 +1,101 @@
+:host {
+  display: grid;
+  gap: 1rem;
+  max-width: 48rem;
+}
+
+.eyebrow {
+  margin-bottom: -0.75rem;
+  color: var(--slate);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.6rem;
+}
+
+.tabs button {
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: none;
+  color: var(--slate);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tabs [aria-pressed='true'] {
+  background: var(--hover);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.reports {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panel {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.product {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.identity {
+  display: grid;
+  min-width: 0;
+}
+
+.identity span {
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+blockquote {
+  margin: 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--rule);
+  white-space: pre-line;
+}
+
+.actions,
+.actions form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.actions input {
+  width: 12rem;
+  padding: 0.4rem 0.6rem;
+}

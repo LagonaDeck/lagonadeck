@@ -1,0 +1,200 @@
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}
+
+<div class="section-header">
+  <h2>Membres</h2>
+  @if (canInvite() && !searching()) {
+    <button type="button" class="small-button" (click)="openSearch()">
+      <svg lucideUserPlus [size]="16" aria-hidden="true"></svg>
+      Inviter un membre
+    </button>
+  }
+</div>
+
+@if (searching()) {
+  <div class="search-box">
+    <div class="search">
+      <svg lucideSearch [size]="18" aria-hidden="true"></svg>
+      <input
+        type="text"
+        aria-label="Email ou nom d’utilisateur"
+        placeholder="Email ou nom d’utilisateur"
+        autocomplete="off"
+        (input)="search($any($event.target).value)"
+        (keydown.escape)="closeSearch($event)"
+        #searchField
+      />
+      <button
+        type="button"
+        class="icon-button"
+        title="Fermer la recherche"
+        aria-label="Fermer la recherche"
+        (click)="closeSearch()"
+      >
+        <svg lucideX [size]="18" aria-hidden="true"></svg>
+      </button>
+    </div>
+    @if (query().length > 0) {
+      <ul class="list results" aria-label="Résultats de la recherche">
+        @for (
+          user of results.hasValue() ? results.value() : [];
+          track user.id
+        ) {
+          <li class="row">
+            <span class="avatar" aria-hidden="true">{{
+              initials(user.username)
+            }}</span>
+            <span class="identity">
+              <strong>{{ user.username }}</strong>
+              <span>{{ user.email }}</span>
+            </span>
+            @if (user.invited) {
+              <span class="tag">Invitation envoyée</span>
+            } @else {
+              <button
+                type="button"
+                class="icon-button invite"
+                [title]="'Inviter ' + user.username"
+                [attr.aria-label]="'Inviter ' + user.username"
+                (click)="invite(user)"
+              >
+                <svg lucidePlus [size]="18" aria-hidden="true"></svg>
+              </button>
+            }
+          </li>
+        } @empty {
+          @if (results.isLoading()) {
+            <li class="empty">Recherche…</li>
+          } @else if (invitationService.isEmail(query())) {
+            <li class="row">
+              <span class="avatar pending" aria-hidden="true">{{
+                initials(query())
+              }}</span>
+              <span class="identity">
+                <strong>{{ query() }}</strong>
+                <span>Pas encore de compte LagonaDeck</span>
+              </span>
+              <button
+                type="button"
+                class="icon-button invite"
+                [title]="'Inviter ' + query() + ' à rejoindre LagonaDeck'"
+                [attr.aria-label]="
+                  'Inviter ' + query() + ' à rejoindre LagonaDeck'
+                "
+                (click)="inviteEmail(query())"
+              >
+                <svg lucidePlus [size]="18" aria-hidden="true"></svg>
+              </button>
+            </li>
+          } @else {
+            <li class="empty">
+              Aucun compte trouvé. Saisissez l’email exact ou au moins 3 lettres
+              du nom d’utilisateur.
+            </li>
+          }
+        }
+      </ul>
+    }
+  </div>
+}
+
+<ul class="list">
+  @for (
+    member of members.hasValue() ? members.value() : [];
+    track member.userId
+  ) {
+    <li class="row">
+      <span class="avatar" aria-hidden="true">{{
+        initials(member.username)
+      }}</span>
+      <span class="identity">
+        <strong>{{ member.username }}</strong>
+        <span>{{ groupNames(member) }}</span>
+      </span>
+      <span class="row-actions">
+        @if (member.isOwner) {
+          <span class="owner" title="Propriétaire">
+            <svg lucideCrown [size]="16" aria-hidden="true"></svg>
+            <span class="visually-hidden">Propriétaire</span>
+          </span>
+        } @else if (isMe(member)) {
+          <button
+            type="button"
+            class="icon-button discard"
+            title="Quitter l’organisation"
+            aria-label="Quitter l’organisation"
+            (click)="leave(member)"
+          >
+            <svg lucideLogOut [size]="16" aria-hidden="true"></svg>
+          </button>
+        } @else {
+          @if (isOwner()) {
+            <button
+              type="button"
+              class="icon-button"
+              [title]="'Transférer la propriété à ' + member.username"
+              [attr.aria-label]="'Transférer la propriété à ' + member.username"
+              (click)="transfer(member)"
+            >
+              <svg lucideKeyRound [size]="16" aria-hidden="true"></svg>
+            </button>
+          }
+          @if (canRemove()) {
+            <button
+              type="button"
+              class="icon-button discard"
+              [title]="'Retirer ' + member.username"
+              [attr.aria-label]="'Retirer ' + member.username"
+              (click)="remove(member)"
+            >
+              <svg lucideUserMinus [size]="16" aria-hidden="true"></svg>
+            </button>
+          }
+        }
+      </span>
+    </li>
+  }
+</ul>
+
+@if ((pending.hasValue() ? pending.value() : []).length > 0) {
+  <h2>Invitations en attente</h2>
+  <ul class="list">
+    @for (
+      invitation of pending.hasValue() ? pending.value() : [];
+      track invitation.userId ?? invitation.email
+    ) {
+      <li class="row">
+        <span class="avatar pending" aria-hidden="true">{{
+          initials(invitedName(invitation))
+        }}</span>
+        <span class="identity">
+          <strong>{{ invitedName(invitation) }}</strong>
+          <span>
+            @if (invitation.email) {
+              Invitation à rejoindre LagonaDeck, le
+            } @else {
+              Invitation envoyée le
+            }
+            {{ date(invitation.createdAt) }}
+          </span>
+        </span>
+        <span class="row-actions">
+          @if (canInvite()) {
+            <button
+              type="button"
+              class="icon-button discard"
+              [title]="'Annuler l’invitation de ' + invitedName(invitation)"
+              [attr.aria-label]="
+                'Annuler l’invitation de ' + invitedName(invitation)
+              "
+              (click)="revoke(invitation)"
+            >
+              <svg lucideX [size]="16" aria-hidden="true"></svg>
+            </button>
+          }
+        </span>
+      </li>
+    }
+  </ul>
+}
