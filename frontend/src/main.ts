@@ -73,6 +73,8 @@ bootstrapApplication(AppComponent, {
                 ),
               title: 'Inventaire',
             },
+            // Lien des e-mails d'invitation envoyés avant la cloche.
+            { path: 'invitations', redirectTo: '/app' },
             {
               path: 'inventory/:itemId',
               loadComponent: () =>
@@ -80,14 +82,6 @@ bootstrapApplication(AppComponent, {
                   (m) => m.InventoryItemComponent,
                 ),
               title: 'Fiche produit',
-            },
-            {
-              path: 'invitations',
-              loadComponent: () =>
-                import('./app/invitations/invitations.component').then(
-                  (m) => m.InvitationsComponent,
-                ),
-              title: 'Invitations',
             },
             {
               path: 'management/reports',

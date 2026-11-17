@@ -85,15 +85,6 @@
       <svg lucidePackage [size]="20" aria-hidden="true"></svg>
       <span>Inventaire</span>
     </a>
-    <a
-      routerLink="/app/invitations"
-      routerLinkActive="active"
-      ariaCurrentWhenActive="page"
-      title="Invitations"
-    >
-      <svg lucideMail [size]="20" aria-hidden="true"></svg>
-      <span>Invitations</span>
-    </a>
   </nav>
   @if (auth.catalogStaff()) {
     <nav class="management" aria-labelledby="management-title">
@@ -128,6 +119,7 @@
 </aside>
 
 <header class="topbar">
+  <app-invitations-menu />
   <details class="account">
     <summary
       class="avatar"

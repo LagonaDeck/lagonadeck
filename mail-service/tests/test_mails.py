@@ -5,6 +5,7 @@ from uuid import uuid4
 
 import pytest
 
+from app import mails
 from app.consumer import Outcome, SentEvents, process
 from app.settings import Settings
 
@@ -74,12 +75,12 @@ def test_confirmation_links_to_the_app_with_the_token(sent, deliver):
     assert "JaneDoe" in html(message)
 
 
-def test_invitation_of_an_account_links_to_its_invitations(sent, deliver):
+def test_invitation_of_an_account_links_to_the_app(sent, deliver):
     deliver(event(INVITATION))
 
     [message] = sent
     assert message["Subject"] == "JohnDoe vous invite sur Boutique de Jane"
-    assert "https://lagonadeck.test/app/invitations" in text(message)
+    assert 'href="https://lagonadeck.test/app"' in html(message)
 
 
 def test_invitation_without_account_links_to_signup_with_the_address(sent, deliver):
@@ -158,3 +159,17 @@ def test_a_retried_message_is_sent_once_the_smtp_is_back(sent):
 
     assert outcome is Outcome.ACK
     assert len(sent) == 1
+
+
+def test_a_missing_template_is_rejected_instead_of_retried(sent, deliver, monkeypatch):
+    monkeypatch.setattr(mails, "TEMPLATES", mails.TEMPLATES / "missing")
+
+    assert deliver(event(CONFIRMATION)) is Outcome.REJECT
+    assert sent == []
+
+
+def test_an_unexpected_sending_error_is_rejected():
+    def fail(*_):
+        raise UnicodeEncodeError("ascii", "é", 0, 1, "ordinal not in range")
+
+    assert process(event(CONFIRMATION), SETTINGS, fail, SentEvents()) is Outcome.REJECT

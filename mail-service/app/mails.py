@@ -62,7 +62,7 @@ class WorkspaceInvitation(MailRequest):
 
     def content(self, app_url: str) -> Content:
         link = (
-            f"{app_url}/app/invitations"
+            f"{app_url}/app"
             if self.has_account
             else f"{app_url}/signup?{urlencode({'email': self.to})}"
         )

@@ -31,6 +31,9 @@ model User {
   // Null tant que le lien reçu par e-mail n'a pas été ouvert : la connexion
   // est refusée, l'adresse n'est pas prouvée.
   emailConfirmedAt   DateTime?
+  // Nouvelle adresse saisie dans le profil : elle ne remplace `email` qu'une
+  // fois prouvée, l'ancienne reste celle de la connexion d'ici là.
+  pendingEmail       String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
@@ -57,11 +60,13 @@ model Session {
 // Lien de confirmation de l'adresse e-mail, un seul par compte : en redemander
 // un remplace le précédent. Comme pour `Session`, seul le hash du token est stocké.
 model EmailConfirmation {
-  tokenHash String   @id
-  userId    String   @unique @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  tokenHash                String   @id
+  userId                   String   @unique @db.Uuid
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Invitation choisie au signup : acceptée seulement à la confirmation.
+  invitationOrganizationId String?  @db.Uuid
+  expiresAt                DateTime
+  createdAt                DateTime @default(now())
 }
 
 // Aucune route ne les accorde.

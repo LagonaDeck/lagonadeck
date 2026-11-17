@@ -11,7 +11,6 @@ import {
   LucideChevronsUpDown,
   LucideLayoutDashboard,
   LucideLogOut,
-  LucideMail,
   LucidePackage,
   LucidePanelLeftClose,
   LucidePanelLeftOpen,
@@ -30,6 +29,7 @@ import {
   AccountDialogComponent,
   AccountSection,
 } from '../account-dialog/account-dialog.component';
+import { InvitationsMenuComponent } from '../invitations-menu/invitations-menu.component';
 import { AuthService } from '../services/auth.service';
 import { OrganizationService } from '../services/organization.service';
 import { organizationInitials, roleLabel } from '../models/organization';
@@ -48,12 +48,12 @@ function readCollapsed(): boolean {
   selector: 'app-dashboard',
   imports: [
     AccountDialogComponent,
+    InvitationsMenuComponent,
     LucideBuilding,
     LucideCheck,
     LucideChevronsUpDown,
     LucideLayoutDashboard,
     LucideLogOut,
-    LucideMail,
     LucidePackage,
     LucidePanelLeftClose,
     LucidePanelLeftOpen,
