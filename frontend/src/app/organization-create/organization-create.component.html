@@ -1,0 +1,40 @@
+<form class="settings" (submit)="create($event)">
+  <div class="settings-row">
+    <label for="new-organization-name">Nom</label>
+    <span class="field">
+      <input
+        #field
+        id="new-organization-name"
+        name="name"
+        required
+        maxlength="100"
+        placeholder="Boutique de Lausanne"
+        (keydown.escape)="cancel($event)"
+      />
+      <span class="row-actions">
+        <button
+          class="icon-button confirm"
+          title="Créer"
+          aria-label="Créer l’organisation"
+          [disabled]="pending()"
+        >
+          <svg lucideCheck [size]="18" aria-hidden="true"></svg>
+        </button>
+        <button
+          type="button"
+          class="icon-button discard"
+          title="Annuler"
+          aria-label="Annuler"
+          (click)="cancel()"
+        >
+          <svg lucideX [size]="18" aria-hidden="true"></svg>
+        </button>
+      </span>
+    </span>
+  </div>
+</form>
+<p class="hint">Vous en serez le propriétaire.</p>
+
+@if (error()) {
+  <p class="error" role="alert">{{ error() }}</p>
+}

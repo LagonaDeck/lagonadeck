@@ -1,0 +1,68 @@
+form {
+  display: grid;
+  gap: 1rem;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  max-width: 56rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.details .wide {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+input,
+textarea {
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+textarea {
+  border: 2px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  font: inherit;
+  resize: vertical;
+}
+
+.section-header {
+  margin: 0.5rem 0 0;
+}
+
+.quantity {
+  width: 5rem;
+}
+
+.cost {
+  width: 8rem;
+}
+
+footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.submit {
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+}
+
+.submit:disabled {
+  background: var(--slate);
+  cursor: not-allowed;
+}

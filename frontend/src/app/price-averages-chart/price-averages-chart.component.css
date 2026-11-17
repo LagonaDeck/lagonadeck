@@ -1,0 +1,50 @@
+:host {
+  --series-trend: light-dark(#2a78d6, #3987e5);
+  --series-low: light-dark(#eb6834, #d95926);
+  --context: light-dark(#c3c8d6, #4a5275);
+  display: block;
+}
+
+.bars {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.label {
+  color: var(--slate);
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  grid-column: 1 / -1;
+  height: 14px;
+}
+
+.bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: var(--context);
+}
+
+.bar.trend {
+  background: var(--series-trend);
+}
+
+.bar.low {
+  background: var(--series-low);
+}

@@ -1,0 +1,399 @@
+dialog {
+  width: min(64rem, calc(100% - 2rem));
+  height: min(44rem, calc(100% - 2rem));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 0.9rem;
+  background: var(--surface);
+  box-shadow: 0 30px 70px -30px var(--shadow);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+dialog::backdrop {
+  background: rgb(15 21 53 / 0.55);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h2 {
+  font-size: 1.35rem;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
+  min-height: 0;
+}
+
+.finder,
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-height: 0;
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.copy {
+  border-left: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+select,
+textarea {
+  border: 2px solid var(--rule);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.search {
+  display: flex;
+  flex: 1 1 16rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.search input {
+  flex: 1;
+}
+
+.results {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.results button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.results button:hover {
+  background: var(--hover);
+}
+
+.results [aria-pressed='true'] {
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+  box-shadow: inset 3px 0 var(--blue);
+}
+
+.thumb {
+  flex: none;
+  width: 2.5rem;
+  aspect-ratio: 63 / 88;
+  border-radius: 0.2rem;
+  background: var(--hover);
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.identity {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.identity span {
+  color: var(--slate);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.price {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.finder > .link-button {
+  align-self: start;
+}
+
+.back {
+  display: none;
+}
+
+.specimen {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: end;
+}
+
+.card {
+  display: block;
+  aspect-ratio: 63 / 88;
+  border-radius: 4.5% / 3.2%;
+  background: var(--hover);
+  box-shadow: 0 18px 30px -18px var(--shadow);
+  overflow: hidden;
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.specimen-text {
+  display: grid;
+  gap: 0.2rem;
+}
+
+h3 {
+  font-size: 1.6rem;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.reference {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.specimen .price {
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choices legend,
+.row > span {
+  float: left;
+  width: 5rem;
+  padding: 0;
+  color: var(--slate);
+  font-size: 0.85rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.choices label {
+  position: relative;
+  display: block;
+  cursor: pointer;
+}
+
+/* Le bouton reste focusable et lisible par un lecteur d'écran. */
+.choices input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pill {
+  display: block;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.4rem;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.choices label:hover .pill {
+  border-color: var(--slate);
+}
+
+.choices input:checked + .pill {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 700;
+}
+
+/* États et drapeaux restent gris jusqu'au choix, qui prend sa couleur. */
+.tinted app-chip {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+  filter: grayscale(1);
+  opacity: 0.55;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+/* Un drapeau tout gris ne se reconnaît plus. */
+.tinted app-chip.flag {
+  padding: 0.1rem 0.15rem;
+  font-size: 1.4rem;
+  filter: saturate(0.4);
+}
+
+.tinted label:hover app-chip,
+.tinted input:checked + app-chip {
+  filter: none;
+  opacity: 1;
+}
+
+.tinted input:checked + app-chip {
+  outline-color: var(--ink);
+}
+
+.choices input:focus-visible + * {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+footer {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.submit {
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  font-size: 1rem;
+}
+
+.placeholder {
+  display: grid;
+  flex: 1;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.placeholder .card {
+  width: 8.5rem;
+  border: 2px dashed var(--rule);
+  background: none;
+  box-shadow: none;
+}
+
+.placeholder .hint {
+  max-width: 18rem;
+}
+
+@media (max-width: 48rem) {
+  dialog {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .copy {
+    border-left: 0;
+  }
+
+  .body.picked .finder,
+  .body:not(.picked) .copy {
+    display: none;
+  }
+
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    align-self: start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--slate);
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+}

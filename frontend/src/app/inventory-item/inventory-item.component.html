@@ -1,0 +1,256 @@
+<a class="back" routerLink="/app/inventory">
+  <svg lucideArrowLeft [size]="16" aria-hidden="true"></svg>
+  Inventaire
+</a>
+
+@if (item.hasValue() && item.value(); as item) {
+  <article class="hero">
+    <figure
+      class="card-image"
+      (pointermove)="tilt($event)"
+      (pointerleave)="untilt($event)"
+    >
+      @if (item.product.imageUrl; as imageUrl) {
+        <img
+          [src]="imageUrl"
+          [alt]="cardName(item.product)"
+          (error)="hideBrokenImage($event)"
+        />
+      } @else {
+        <div class="no-image">Pas d’image</div>
+      }
+    </figure>
+
+    <div class="identity">
+      <h1>{{ item.product.name }}</h1>
+      <p class="subtitle">{{ productDetails(item.product) }}</p>
+
+      <dl class="facts">
+        @if (item.product.setCode || item.product.cardNumber) {
+          <div>
+            <dt>Référence</dt>
+            <dd>{{ item.product.setCode }} {{ item.product.cardNumber }}</dd>
+          </div>
+        }
+        @if (item.product.rarity) {
+          <div>
+            <dt>Rareté</dt>
+            <dd>{{ item.product.rarity }}</dd>
+          </div>
+        }
+        <div>
+          <dt>Source</dt>
+          <dd>{{ sources[item.product.source] }}</dd>
+        </div>
+        @if (item.product.moves.length > 0) {
+          <div class="wide">
+            <dt>Talents et attaques</dt>
+            <dd>
+              <ul class="moves">
+                @for (move of item.product.moves; track move) {
+                  <li>{{ move }}</li>
+                }
+              </ul>
+            </dd>
+          </div>
+        }
+      </dl>
+
+      <div class="quote">
+        @if (item.product.cardmarket; as cardmarket) {
+          <p class="price">
+            {{
+              formatPrice(
+                item.reverse ? cardmarket.trendHolo : cardmarket.trend
+              )
+            }}
+          </p>
+          <p class="price-note">
+            Price Trend Cardmarket{{ item.reverse ? ' de la reverse' : '' }}
+            @if (cardmarket.priceDate) {
+              du {{ date(cardmarket.priceDate) }}
+            }
+            @if (
+              !item.reverse && catalogService.priceDirection(cardmarket);
+              as direction
+            ) {
+              <span class="direction {{ direction }}">
+                @switch (direction) {
+                  @case ('up') {
+                    <svg lucideTrendingUp [size]="16" aria-hidden="true"></svg>
+                  }
+                  @case ('down') {
+                    <svg
+                      lucideTrendingDown
+                      [size]="16"
+                      aria-hidden="true"
+                    ></svg>
+                  }
+                }
+                {{ directions[direction] }} sur 7 jours
+              </span>
+            }
+          </p>
+        } @else {
+          <p class="price-note">
+            Pas de prix : ce produit n’est lié à aucun produit Cardmarket.
+          </p>
+        }
+      </div>
+
+      <dl class="stock">
+        <div>
+          <dt>{{ item.gradingCompany ? 'Gradation' : 'État' }}</dt>
+          <dd><app-item-state [item]="item" /></dd>
+        </div>
+        <div>
+          <dt>Langue</dt>
+          <dd>
+            @if (item.language; as language) {
+              <app-chip
+                [text]="flags[language]"
+                [tooltip]="languages[language]"
+                tone="flag"
+              />
+            } @else {
+              —
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Valeur</dt>
+          <dd [title]="itemValueTitle(item)">
+            {{ formatPrice(item.price) }}
+          </dd>
+        </div>
+        @if (purchase.hasValue()) {
+          @let purchased = purchase.value();
+          <div>
+            <dt>Coût d’achat</dt>
+            <dd>
+              <a
+                class="purchase-link"
+                [routerLink]="['/app/purchases', purchased.purchaseId]"
+                [title]="
+                  'Acheté le ' +
+                  formatDate(purchased.purchasedAt) +
+                  ' chez ' +
+                  purchased.supplier
+                "
+                >{{ formatPrice(purchased.cost) }}</a
+              >
+            </dd>
+          </div>
+        }
+      </dl>
+      <p class="hint">Dans le stock depuis le {{ date(item.createdAt) }}.</p>
+    </div>
+  </article>
+
+  @if (item.product.cardmarket; as cardmarket) {
+    <section class="market">
+      <div class="chart history">
+        <h2>Évolution du prix</h2>
+        @if (history.hasValue() && history.value(); as points) {
+          <app-price-history-chart [points]="points" />
+        } @else if (history.error()) {
+          <p class="error" role="alert">
+            L’historique des prix n’a pas pu être chargé.
+          </p>
+        }
+      </div>
+      <div class="chart">
+        <h2>Prix du jour</h2>
+        <app-price-averages-chart [prices]="cardmarket" />
+        @if (item.reverse) {
+          <p class="hint">
+            Cardmarket ne donne que la tendance de la reverse : la courbe et les
+            moyennes sont celles de la version normale.
+          </p>
+        } @else if (item.product.hasReverse !== false && cardmarket.trendHolo) {
+          <p class="hint">
+            Version reverse : {{ formatPrice(cardmarket.trendHolo) }}
+          </p>
+        }
+      </div>
+      <p class="hint source">
+        Produit Cardmarket n° {{ cardmarket.id }}, {{ cardmarket.name
+        }}{{ item.product.cardmarketLinkedByUser ? ', lié à la main' : '' }}.
+        Une référence pour une carte brute, sans tenir compte de l’état ni de la
+        langue.
+      </p>
+    </section>
+  }
+
+  <div class="columns">
+    <section>
+      <h2>Achat</h2>
+      <p class="hint">
+        Le lot ou l’achat d’origine s’affichera ici avec le module des achats.
+      </p>
+    </section>
+
+    @if (auth.catalogStaff()) {
+      <section>
+        <h2>Lien Cardmarket</h2>
+        <form class="link-form" (submit)="link($event, item.product.id)">
+          <label>
+            Identifiant Cardmarket
+            <input
+              name="cardmarketId"
+              type="number"
+              min="1"
+              placeholder="idProduct"
+              required
+            />
+          </label>
+          <button class="small-button">Lier</button>
+          @if (item.product.cardmarket) {
+            <button
+              type="button"
+              class="link-button"
+              (click)="unlink(item.product.id)"
+            >
+              Retirer le lien
+            </button>
+          }
+        </form>
+        @if (linkError()) {
+          <p class="error" role="alert">{{ linkError() }}</p>
+        }
+      </section>
+    } @else {
+      <section>
+        <h2>Un problème sur ce produit ?</h2>
+        @if (reported()) {
+          <p class="success" role="status">
+            Merci : l’équipe LagonaDeck va vérifier ce produit.
+          </p>
+        } @else {
+          <p class="hint">
+            Prix, lien Cardmarket ou informations faux : le catalogue est
+            partagé, l’équipe LagonaDeck le corrige pour tout le monde.
+          </p>
+          <form class="report-form" (submit)="report($event, item.product.id)">
+            <textarea
+              name="message"
+              rows="3"
+              maxlength="1000"
+              required
+              aria-label="Problème constaté"
+              placeholder="Ex. le prix est celui de la version reverse"
+            ></textarea>
+            <button class="small-button">Signaler</button>
+          </form>
+          @if (reportError()) {
+            <p class="error" role="alert">{{ reportError() }}</p>
+          }
+        }
+      </section>
+    }
+  </div>
+} @else if (item.error()) {
+  <p class="error" role="alert">
+    Ce produit n’est pas dans le stock de l’organisation sélectionnée.
+  </p>
+}

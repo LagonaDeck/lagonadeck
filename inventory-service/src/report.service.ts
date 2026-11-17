@@ -5,7 +5,7 @@ import {
   type CatalogReport,
 } from './generated/prisma/client';
 import { ReportStatus } from './generated/prisma/enums';
-import { CATALOG_MANAGE, IdentityService } from './identity.service';
+import { CATALOG_MANAGE, CurrentUser, requireStaff } from './current-user';
 import {
   ProductService,
   ProductWithCardmarket,
@@ -34,15 +34,10 @@ const toDto = (
 export class ReportService {
   constructor(
     @Inject(PrismaClient) private readonly prisma: PrismaClient,
-    private readonly identity: IdentityService,
     private readonly productService: ProductService,
   ) {}
 
-  async create(
-    authorization: string | undefined,
-    dto: CreateReportDto,
-  ): Promise<ReportDto> {
-    const user = await this.identity.requireSession(authorization);
+  async create(user: CurrentUser, dto: CreateReportDto): Promise<ReportDto> {
     if (dto.productId) await this.productService.getOrThrow(dto.productId);
     const report = await this.prisma.catalogReport.create({
       data: {
@@ -55,11 +50,8 @@ export class ReportService {
     return toDto(report);
   }
 
-  async list(
-    authorization: string | undefined,
-    status: ReportStatus,
-  ): Promise<ReportDto[]> {
-    await this.identity.requireStaff(authorization, CATALOG_MANAGE);
+  async list(user: CurrentUser, status: ReportStatus): Promise<ReportDto[]> {
+    requireStaff(user, CATALOG_MANAGE);
     const reports = await this.prisma.catalogReport.findMany({
       where: { status },
       include: WITH_PRODUCT,
@@ -69,14 +61,11 @@ export class ReportService {
   }
 
   async updateStatus(
-    authorization: string | undefined,
+    user: CurrentUser,
     id: string,
     status: ReportStatus,
   ): Promise<ReportDto> {
-    const user = await this.identity.requireStaff(
-      authorization,
-      CATALOG_MANAGE,
-    );
+    requireStaff(user, CATALOG_MANAGE);
     const resolved = status === ReportStatus.RESOLVED;
     try {
       const report = await this.prisma.catalogReport.update({

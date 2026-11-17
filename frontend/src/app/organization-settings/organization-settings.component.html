@@ -1,0 +1,187 @@
+<nav class="tabs" aria-label="Sections de l'organisation">
+  @for (item of tabs; track item.id) {
+    <button
+      type="button"
+      [attr.aria-current]="tab() === item.id"
+      (click)="tab.set(item.id)"
+    >
+      {{ item.label }}
+    </button>
+  }
+</nav>
+
+@if (tab() === 'general') {
+  <div class="photo-header">
+    <span class="org-photo" aria-hidden="true">{{ initials() }}</span>
+    <!-- TODO: brancher sur l'envoi de photo (media-service) quand il sera relayé par la gateway. -->
+    <button
+      type="button"
+      class="link-button"
+      disabled
+      title="Bientôt disponible"
+    >
+      Modifier
+    </button>
+  </div>
+
+  <dl class="settings">
+    <div class="settings-row">
+      <dt id="organization-name-label">Nom</dt>
+      <dd>
+        @if (editing()) {
+          <form (submit)="rename($event)">
+            <input
+              #field
+              name="name"
+              required
+              maxlength="100"
+              aria-labelledby="organization-name-label"
+              [value]="organization().name"
+              (keydown.escape)="cancel($event)"
+            />
+            <span class="row-actions">
+              <button
+                class="icon-button confirm"
+                title="Enregistrer"
+                aria-label="Enregistrer"
+                [disabled]="pending()"
+              >
+                <svg lucideCheck [size]="18" aria-hidden="true"></svg>
+              </button>
+              <button
+                type="button"
+                class="icon-button discard"
+                title="Annuler"
+                aria-label="Annuler"
+                (click)="cancel()"
+              >
+                <svg lucideX [size]="18" aria-hidden="true"></svg>
+              </button>
+            </span>
+          </form>
+        } @else {
+          <span>{{ organization().name }}</span>
+          <span class="row-actions">
+            @if (canManage()) {
+              <button
+                type="button"
+                class="icon-button"
+                title="Renommer l’organisation"
+                aria-label="Renommer l’organisation"
+                (click)="edit()"
+              >
+                <svg lucidePencil [size]="16" aria-hidden="true"></svg>
+              </button>
+            }
+          </span>
+        }
+      </dd>
+    </div>
+    <div class="settings-row">
+      <dt>Plan</dt>
+      <dd>
+        <span>{{ plan() }}</span>
+        <span class="row-actions"></span>
+      </dd>
+    </div>
+    <div class="settings-row">
+      <dt>Mon rôle</dt>
+      <dd>
+        <span>{{ role() }}</span>
+        <span class="row-actions"></span>
+      </dd>
+    </div>
+  </dl>
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+
+  @if (isOwner()) {
+    <section class="danger" aria-labelledby="delete-title">
+      <h2 id="delete-title">Supprimer l’organisation</h2>
+      <p>
+        Les membres, les groupes et les invitations sont supprimés avec elle.
+        Cette action est définitive.
+      </p>
+
+      @switch (deleteStep()) {
+        @case ('idle') {
+          <button
+            type="button"
+            class="danger-button"
+            (click)="deleteStep.set('name')"
+          >
+            Supprimer l’organisation
+          </button>
+        }
+        @case ('name') {
+          <label class="confirm-field">
+            <span>
+              Pour continuer, saisissez le nom de l’organisation :
+              <strong>{{ organization().name }}</strong>
+            </span>
+            <input
+              #confirmField
+              autocomplete="off"
+              (input)="typed.set($any($event.target).value)"
+              (keydown.escape)="cancelDelete($event)"
+            />
+          </label>
+          <div class="danger-actions">
+            <button
+              type="button"
+              class="danger-button"
+              [disabled]="typed().trim() !== organization().name"
+              (click)="nextDeleteStep()"
+            >
+              Continuer
+            </button>
+            <button type="button" class="link-button" (click)="cancelDelete()">
+              Annuler
+            </button>
+          </div>
+        }
+        @case ('phrase') {
+          <label class="confirm-field">
+            <span>
+              Saisissez :
+              <strong>{{ confirmationPhrase }}</strong>
+            </span>
+            <input
+              #confirmField
+              autocomplete="off"
+              (input)="typed.set($any($event.target).value)"
+              (keydown.escape)="cancelDelete($event)"
+            />
+          </label>
+          <div class="danger-actions">
+            <button
+              type="button"
+              class="danger-button"
+              [disabled]="typed().trim() !== confirmationPhrase || pending()"
+              (click)="deleteOrganization()"
+            >
+              Supprimer définitivement
+            </button>
+            <button type="button" class="link-button" (click)="cancelDelete()">
+              Annuler
+            </button>
+          </div>
+        }
+      }
+    </section>
+  }
+} @else if (tab() === 'members') {
+  <app-organization-members
+    [organizationId]="organization().id"
+    [permissions]="permissions()"
+    [isOwner]="isOwner()"
+    (ownershipTransferred)="access.reload()"
+  />
+} @else {
+  <app-organization-groups
+    [organizationId]="organization().id"
+    [myPermissions]="permissions()"
+  />
+}

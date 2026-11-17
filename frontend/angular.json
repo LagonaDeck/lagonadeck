@@ -8,13 +8,24 @@
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
+      "schematics": {
+        "@schematics/angular:component": {
+          "type": "component",
+          "skipTests": true
+        },
+        "@schematics/angular:service": {
+          "type": "service",
+          "injectable": true,
+          "skipTests": true
+        }
+      },
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "defaultConfiguration": "production",
           "options": {
             "browser": "src/main.ts",
-            "tsConfig": "tsconfig.json",
+            "tsConfig": "tsconfig.build.json",
             "styles": ["src/styles.css"],
             "assets": [{ "glob": "**/*", "input": "public" }]
           },
@@ -44,6 +55,10 @@
             "production": { "buildTarget": "frontend:build:production" },
             "development": { "buildTarget": "frontend:build:development" }
           }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": { "tsConfig": "tsconfig.json" }
         }
       }
     }

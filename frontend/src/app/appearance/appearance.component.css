@@ -1,0 +1,46 @@
+fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 1rem;
+  max-width: 40rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin-bottom: 1rem;
+  color: var(--slate);
+}
+
+label {
+  display: grid;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+svg {
+  display: block;
+  width: 100%;
+  border: 2px solid var(--rule);
+  border-radius: 0.6rem;
+}
+
+label:hover svg {
+  border-color: color-mix(in srgb, var(--ink) 30%, var(--rule));
+}
+
+.selected svg {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 20%, transparent);
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+input {
+  accent-color: var(--blue);
+}

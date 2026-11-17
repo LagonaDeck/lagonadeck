@@ -1,12 +1,12 @@
 import { Body, Controller, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentUserDto } from '../user/models/dtos/user.dto';
 import {
+  CurrentSessionDto,
   LoginDto,
   RefreshSessionDto,
   SessionDto,
@@ -41,16 +41,20 @@ export class SessionController {
     return this.sessionService.refresh(dto.refreshToken);
   }
 
+  // Seule route qui lit le token : la gateway l'appelle pour authentifier
+  // chaque requête, puis transmet l'utilisateur aux services.
   @Get('current')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Utilisateur de la session courante.' })
-  @ApiResponse({ status: 200, type: CurrentUserDto })
+  @ApiSecurity({ internal: [], bearer: [] })
+  @ApiOperation({ summary: 'Session du token, avec son utilisateur.' })
+  @ApiResponse({ status: 200, type: CurrentSessionDto })
   @ApiResponse({ status: 401, description: 'Session invalide ou expirée.' })
   async current(
     @Headers('authorization') authorization?: string,
-  ): Promise<CurrentUserDto> {
-    const user = await this.sessionService.findUser(bearerToken(authorization));
-    return CurrentUserDto.fromEntity(user);
+  ): Promise<CurrentSessionDto> {
+    const session = await this.sessionService.findSession(
+      bearerToken(authorization),
+    );
+    return CurrentSessionDto.fromEntity(session);
   }
 
   @Post('logout')

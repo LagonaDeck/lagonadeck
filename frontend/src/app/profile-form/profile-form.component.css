@@ -1,0 +1,26 @@
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--blue), var(--violet));
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+/* La marge négative compense padding et bordure : le texte saisi reste
+   aligné sur la valeur affichée. */
+input {
+  flex: 0 1 16rem;
+  min-width: 0;
+  margin-right: calc(-0.6rem - 2px);
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+}
+
+.error {
+  max-width: 40rem;
+  margin-top: 1rem;
+}

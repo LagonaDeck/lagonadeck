@@ -1,0 +1,53 @@
+<details #menu (toggle)="menu.open && invitations.reload()">
+  <summary class="icon-button" [title]="label()" [attr.aria-label]="label()">
+    <svg lucideBell [size]="20" aria-hidden="true"></svg>
+    @if (count()) {
+      <span class="badge" aria-hidden="true">{{ count() }}</span>
+    }
+  </summary>
+  <div class="menu">
+    <p class="title">Invitations</p>
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    <ul>
+      @for (
+        invitation of invitations.hasValue() ? invitations.value() : [];
+        track invitation.organizationId
+      ) {
+        <li>
+          <span>
+            <strong>{{ invitation.organizationName }}</strong>
+            <span class="hint">Invitation de {{ invitation.invitedBy }}</span>
+          </span>
+          <span class="actions">
+            <button
+              type="button"
+              class="small-button"
+              (click)="accept(invitation)"
+            >
+              Rejoindre
+            </button>
+            <button
+              type="button"
+              class="link-button"
+              (click)="decline(invitation)"
+            >
+              Refuser
+            </button>
+          </span>
+        </li>
+      } @empty {
+        <li class="hint">
+          {{
+            invitations.isLoading()
+              ? 'Chargement…'
+              : 'Aucune invitation en attente.'
+          }}
+        </li>
+      }
+    </ul>
+  </div>
+</details>
