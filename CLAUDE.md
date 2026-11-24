@@ -26,7 +26,8 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
   gèrent les cookies `session` et `refresh` (HttpOnly). `/api/organizations/**`
   est relayé tel quel à identity, sauf `/api/organizations/:id/inventory/**`
   et `/api/products/**` relayés à inventory, et
-  `/api/organizations/:id/purchases/**` relayé à purchase (`relay.ts`). La
+  `/api/organizations/:id/purchases/**` relayé à purchase et
+  `/api/organizations/:id/sales/**` à sales (`relay.ts`). La
   gateway est le seul endroit qui vérifie le cookie `session` (`authenticate`,
   via `/api/sessions/current`) : les services reçoivent l'utilisateur en
   en-têtes (`x-user-id`, `x-session-id`, `x-staff-permissions`), jamais le
@@ -41,6 +42,8 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
   (`/api/organizations/:organizationId/inventory`).
 - `purchase-service/` : NestJS + Prisma, achats de chaque organisation
   (`/api/organizations/:organizationId/purchases`).
+- `sales-service/` : NestJS + Prisma, ventes de chaque organisation
+  (`/api/organizations/:organizationId/sales`).
 - `mail-service/` : Python + FastAPI, sans base ni route, consumer RabbitMQ
   (aio-pika) de la file `mail-service` : chaque événement `mail.send` envoie un
   template (`account-confirmation`, `workspace-invitation`) par SMTP ; Mailpit
@@ -51,10 +54,10 @@ Docker Compose. mail-service : Python 3.14, FastAPI, uv, pytest, ruff.
 ```bash
 make                                 # = make help : tableaux des commandes par catégorie
 make install                         # npm install dans chaque projet + hooks lefthook
-make build                           # build des 6 projets
-make test                            # tests du frontend, d'identity-service, media-service, inventory-service, purchase-service et mail-service
+make build                           # build des 7 projets
+make test                            # tests du frontend, d'identity-service, media-service, inventory-service, purchase-service, sales-service et mail-service
 make format                          # Prettier sur tout le dépôt, ruff format pour mail-service
-make lint                            # ESLint dans les 6 projets, ruff pour mail-service
+make lint                            # ESLint dans les 7 projets, ruff pour mail-service
 make quality                         # make format puis make lint
 make docker-dev-up-rebuild           # tout le système en arrière-plan (dev.compose.yaml fait un include: des composes des projets)
 make docker-dev-down                 # arrête la stack
@@ -65,7 +68,7 @@ Dans le dossier d'un projet :
 ```bash
 npm run start:dev                    # frontend : npm start
 npm run build                        # services : prisma generate && nest build → dist/main.js
-npm test                             # frontend (Vitest), identity-service, media-service, inventory-service, purchase-service
+npm test                             # frontend (Vitest), identity-service, media-service, inventory-service, purchase-service, sales-service
 npm run lint                         # ESLint (services Prisma : prisma generate d'abord)
 npx jest src/user.service.spec.ts    # un fichier de test (après un premier npx prisma generate)
 npx jest -t "nom du test"            # un test par nom
@@ -96,7 +99,7 @@ mail-service, ruff puis pytest via uv.
   (prefix `api`, `ValidationPipe` en whitelist + forbidNonWhitelisted, Swagger
   sur `/api/docs`). Un fichier par rôle : `*.controller.ts`, `*.service.ts`,
   et tous les DTO dans `*.dto.ts`. Pas de modules Nest intermédiaires.
-  media-service, inventory-service et purchase-service sont à plat ; identity-service range chaque domaine dans un
+  media-service, inventory-service, purchase-service et sales-service sont à plat ; identity-service range chaque domaine dans un
   dossier (`user/`, `session/`, `organization/`), avec `models/dtos/` et
   `utils/`.
 - **tsconfig des services Prisma** : `tsconfig.json` inclut les specs (pour
@@ -206,7 +209,24 @@ mail-service, ruff puis pytest via uv.
     restes ;
   - supprimer un achat retire ses exemplaires du stock (correction de saisie) ;
   - la fiche d'un exemplaire affiche son coût d'achat
-    (`GET purchases/items/:inventoryItemId`, 404 hors achat).
+    (`GET purchases/items/:inventoryItemId`, 404 hors achat) ; sales lit
+    celui de plusieurs exemplaires (`GET purchases/items?ids=`).
+- **sales** :
+  - une vente (un ou plusieurs exemplaires du stock) a un acheteur, une date,
+    un prix et des frais ; lecture pour un membre, écriture avec `SALE_MANAGE`
+    (et `INVENTORY_MANAGE`, vérifiée par inventory) ;
+  - prix : un prix unitaire saisi est gardé, le reste est réparti au prorata
+    du Price Trend du jour (même règle que le coût d'un achat) ; les frais au
+    prorata du prix ;
+  - chaque `SaleLine` copie le produit et l'état de son exemplaire, et son
+    coût d'achat (`null` hors achat) ; la marge ne compte que les exemplaires
+    au coût connu ;
+  - la vente est enregistrée avant la sortie du stock : `SaleLine.inventoryItemId`
+    unique empêche de vendre deux fois le même exemplaire (409) ; si la sortie
+    du stock échoue, la vente est supprimée, et sans réponse d'inventory, les
+    ids sont loggés ;
+  - supprimer une vente remet ses exemplaires au stock avec leurs ids
+    (correction de saisie ou retour), sauf ceux qui y sont déjà.
 - **mail** :
   - les liens des e-mails sont construits par mail-service à partir de
     `APP_URL`, jamais reçus de l'appelant ; les valeurs saisies par les
@@ -219,8 +239,8 @@ mail-service, ruff puis pytest via uv.
   - la connexion attend que l'adresse soit confirmée (`User.emailConfirmedAt`,
     token haché dans `EmailConfirmation`, valable 24 h, renvoi au plus une fois
     par minute) ; changer d'adresse dans le profil la redemande.
-- **Communication inter-services** (inventory et purchase → identity,
-  purchase → inventory, en synchrone ; identity → mail-service en asynchrone ;
+- **Communication inter-services** (inventory, purchase et sales → identity,
+  purchase et sales → inventory, sales → purchase, en synchrone ; identity → mail-service en asynchrone ;
   le reste est cible) :
   - synchrone : `fetch` avec `signal: AbortSignal.timeout(5000)` et une URL en
     variable d'env `SERVICE_X_URL` ;
@@ -228,8 +248,8 @@ mail-service, ruff puis pytest via uv.
     consumer, `noAck: false`, ack manuel après traitement, `eventId` pour
     ignorer les doublons ;
   - tout appel entre la gateway et les services porte `x-internal-token`
-    (`INTERNAL_TOKEN`) : `InternalGuard`, global dans identity, inventory et
-    purchase, refuse les autres, sans quoi n'importe qui pourrait envoyer un
+    (`INTERNAL_TOKEN`) : `InternalGuard`, global dans identity, inventory,
+    purchase et sales, refuse les autres, sans quoi n'importe qui pourrait envoyer un
     `x-user-id` ;
   - pas de lib partagée en dessous de 3 services qui partagent le même contrat.
 - **Docker** :

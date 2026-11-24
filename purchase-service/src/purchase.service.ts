@@ -18,6 +18,7 @@ import { IdentityService, PURCHASE_MANAGE } from './identity.service';
 import { InventoryService } from './inventory.service';
 import {
   CreatePurchaseDto,
+  ListPurchasedItemsDto,
   ListPurchasesDto,
   PurchaseDetailDto,
   PurchaseDto,
@@ -98,6 +99,16 @@ const rejectedByInventory = (error: unknown) =>
   error instanceof HttpException && error.getStatus() < 500;
 
 const WITH_LINES = { lines: { orderBy: { position: 'asc' } } } as const;
+
+const toPurchasedItemDto = (
+  line: PurchaseLine & { purchase: Purchase },
+): PurchasedItemDto => ({
+  inventoryItemId: line.inventoryItemId,
+  purchaseId: line.purchaseId,
+  supplier: line.purchase.supplier,
+  purchasedAt: isoDate(line.purchase.purchasedAt),
+  cost: line.cost.toFixed(2),
+});
 
 // Une ligne saisie de N unités devient N exemplaires, chacun avec son coût.
 const expandUnits = (lines: PurchaseLineInputDto[]) =>
@@ -197,12 +208,24 @@ export class PurchaseService {
       include: { purchase: true },
     });
     if (!line) throw new NotFoundException('Exemplaire sans achat');
-    return {
-      purchaseId: line.purchaseId,
-      supplier: line.purchase.supplier,
-      purchasedAt: isoDate(line.purchase.purchasedAt),
-      cost: line.cost.toFixed(2),
-    };
+    return toPurchasedItemDto(line);
+  }
+
+  /** Ceux des exemplaires demandés qui viennent d'un achat. */
+  async findItems(
+    userId: string,
+    organizationId: string,
+    query: ListPurchasedItemsDto,
+  ): Promise<PurchasedItemDto[]> {
+    await this.identity.getPermissions(userId, organizationId);
+    const lines = await this.prisma.purchaseLine.findMany({
+      where: {
+        inventoryItemId: { in: query.ids },
+        purchase: { organizationId },
+      },
+      include: { purchase: true },
+    });
+    return lines.map(toPurchasedItemDto);
   }
 
   // Les exemplaires entrent au stock d'abord : leur Price Trend fixe la

@@ -5,9 +5,10 @@ import { relay, type ProxiedRequest } from './relay';
 
 const INVENTORY_PATH = /^\/api\/organizations\/[^/]+\/inventory(\/|$)/;
 const PURCHASE_PATH = /^\/api\/organizations\/[^/]+\/purchases(\/|$)/;
+const SALE_PATH = /^\/api\/organizations\/[^/]+\/sales(\/|$)/;
 
 // Le stock d'une organisation vit dans inventory, ses achats dans purchase,
-// le reste dans identity.
+// ses ventes dans sales, le reste dans identity.
 @Controller('organizations')
 export class OrganizationController {
   @All(['', '*path'])
@@ -21,6 +22,7 @@ export class OrganizationController {
       if (INVENTORY_PATH.test(pathname))
         return process.env.INVENTORY_SERVICE_URL;
       if (PURCHASE_PATH.test(pathname)) return process.env.PURCHASE_SERVICE_URL;
+      if (SALE_PATH.test(pathname)) return process.env.SALES_SERVICE_URL;
       return process.env.IDENTITY_SERVICE_URL;
     });
   }

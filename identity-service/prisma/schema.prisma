@@ -89,6 +89,7 @@ enum Permission {
   BILLING_MANAGE
   INVENTORY_MANAGE
   PURCHASE_MANAGE
+  SALE_MANAGE
 }
 
 model Organization {

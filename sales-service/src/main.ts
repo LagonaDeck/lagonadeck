@@ -1,0 +1,69 @@
+import { Module, ValidationPipe } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from './generated/prisma/client';
+import { InternalGuard } from './internal.guard';
+import { IdentityService } from './identity.service';
+import { InventoryService } from './inventory.service';
+import { PurchaseService } from './purchase.service';
+import { SaleController } from './sale.controller';
+import { SaleService } from './sale.service';
+
+@Module({
+  controllers: [SaleController],
+  providers: [
+    IdentityService,
+    InventoryService,
+    PurchaseService,
+    SaleService,
+    {
+      provide: PrismaClient,
+      useFactory: () =>
+        new PrismaClient({
+          adapter: new PrismaPg({
+            connectionString: process.env.DATABASE_URL,
+          }),
+        }),
+    },
+  ],
+})
+class AppModule {}
+
+async function bootstrap() {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+  if (!process.env.INTERNAL_TOKEN) throw new Error('INTERNAL_TOKEN is not set');
+  if (!process.env.IDENTITY_SERVICE_URL) {
+    throw new Error('IDENTITY_SERVICE_URL is not set');
+  }
+  if (!process.env.INVENTORY_SERVICE_URL) {
+    throw new Error('INVENTORY_SERVICE_URL is not set');
+  }
+  if (!process.env.PURCHASE_SERVICE_URL) {
+    throw new Error('PURCHASE_SERVICE_URL is not set');
+  }
+
+  const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
+  app.useGlobalGuards(new InternalGuard());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  const docs = new DocumentBuilder()
+    .setTitle('Sales Service')
+    .addApiKey(
+      { type: 'apiKey', in: 'header', name: 'x-internal-token' },
+      'internal',
+    )
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-user-id' }, 'user')
+    .addSecurityRequirements('internal')
+    .build();
+  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, docs));
+  await app.listen(process.env.PORT ?? 3004);
+}
+
+void bootstrap();

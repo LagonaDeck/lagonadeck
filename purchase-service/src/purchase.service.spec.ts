@@ -86,7 +86,11 @@ describe('PurchaseService', () => {
       create: jest.Mock;
       deleteMany: jest.Mock;
     };
-    purchaseLine: { groupBy: jest.Mock; findFirst: jest.Mock };
+    purchaseLine: {
+      groupBy: jest.Mock;
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+    };
   };
   let identity: { getPermissions: jest.Mock; requirePermission: jest.Mock };
   let inventory: {
@@ -121,7 +125,11 @@ describe('PurchaseService', () => {
         ),
         deleteMany: jest.fn(),
       },
-      purchaseLine: { groupBy: jest.fn(), findFirst: jest.fn() },
+      purchaseLine: {
+        groupBy: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+      },
     };
     identity = { getPermissions: jest.fn(), requirePermission: jest.fn() };
     inventory = {
@@ -370,12 +378,14 @@ describe('PurchaseService', () => {
 
   it("donne le coût d'achat d'un exemplaire du stock", async () => {
     prisma.purchaseLine.findFirst.mockResolvedValue({
+      inventoryItemId: 'item-1',
       purchaseId: 'purchase-1',
       cost: new Prisma.Decimal('18.4'),
       purchase: savedPurchase(),
     });
 
     expect(await service.getItem(USER_ID, ORG, 'item-1')).toEqual({
+      inventoryItemId: 'item-1',
       purchaseId: 'purchase-1',
       supplier: 'Vinted',
       purchasedAt: '2026-10-13',
@@ -384,6 +394,38 @@ describe('PurchaseService', () => {
     expect(prisma.purchaseLine.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { inventoryItemId: 'item-1', purchase: { organizationId: ORG } },
+      }),
+    );
+  });
+
+  it("donne le coût d'achat de plusieurs exemplaires en une requête, sans ceux hors achat", async () => {
+    prisma.purchaseLine.findMany.mockResolvedValue([
+      {
+        inventoryItemId: 'item-1',
+        purchaseId: 'purchase-1',
+        cost: new Prisma.Decimal('18.4'),
+        purchase: savedPurchase(),
+      },
+    ]);
+
+    expect(
+      await service.findItems(USER_ID, ORG, { ids: ['item-1', 'item-2'] }),
+    ).toEqual([
+      {
+        inventoryItemId: 'item-1',
+        purchaseId: 'purchase-1',
+        supplier: 'Vinted',
+        purchasedAt: '2026-10-13',
+        cost: '18.40',
+      },
+    ]);
+    expect(identity.getPermissions).toHaveBeenCalledWith(USER_ID, ORG);
+    expect(prisma.purchaseLine.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          inventoryItemId: { in: ['item-1', 'item-2'] },
+          purchase: { organizationId: ORG },
+        },
       }),
     );
   });

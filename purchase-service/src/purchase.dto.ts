@@ -149,6 +149,20 @@ export class ListPurchasesDto {
   skip?: number = 0;
 }
 
+export class ListPurchasedItemsDto {
+  @ApiProperty({
+    type: String,
+    description: 'Exemplaires du stock, ids séparés par des virgules.',
+  })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  @IsUUID('all', { each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  ids!: string[];
+}
+
 export class PurchaseLineDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -276,6 +290,9 @@ export class PurchasesSummaryDto {
 }
 
 export class PurchasedItemDto {
+  @ApiProperty({ format: 'uuid' })
+  inventoryItemId!: string;
+
   @ApiProperty({ format: 'uuid' })
   purchaseId!: string;
 

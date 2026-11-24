@@ -18,6 +18,7 @@ import {
 import { CurrentUserId } from './current-user';
 import {
   CreatePurchaseDto,
+  ListPurchasedItemsDto,
   ListPurchasesDto,
   PurchaseDetailDto,
   PurchaseDto,
@@ -53,6 +54,19 @@ export class PurchaseController {
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
   ): Promise<PurchasesSummaryDto> {
     return this.purchaseService.summary(userId, organizationId);
+  }
+
+  @Get('items')
+  @ApiOperation({
+    summary: "Achat et coût d'exemplaires, ceux hors achat omis.",
+  })
+  @ApiResponse({ status: 200, type: [PurchasedItemDto] })
+  findItems(
+    @CurrentUserId() userId: string,
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Query() query: ListPurchasedItemsDto,
+  ): Promise<PurchasedItemDto[]> {
+    return this.purchaseService.findItems(userId, organizationId, query);
   }
 
   @Get('items/:inventoryItemId')
